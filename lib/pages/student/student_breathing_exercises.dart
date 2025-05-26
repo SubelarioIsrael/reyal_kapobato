@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:async';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class StudentBreathingExercises extends StatefulWidget {
   const StudentBreathingExercises({super.key});
@@ -19,51 +20,11 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises>
   int _remainingSeconds = 0;
   int _phaseSecondsLeft = 0;
   String _currentPhase = '';
-  double _currentCircleSize = 200.0;
+  bool _isLoading = true;
+  List<Map<String, dynamic>> _exercises = [];
 
   final double _minCircleSize = 200.0;
   final double _maxCircleSize = 300.0;
-
-  final List<Map<String, dynamic>> _exercises = [
-    {
-      'name': '4-7-8 Breathing',
-      'description':
-          'Inhale for 4 seconds, hold for 7 seconds, exhale for 8 seconds',
-      'color': Colors.blue.shade100,
-      'icon': Icons.air,
-      'duration': 180, // 3 minutes
-      'pattern': {
-        'inhale': 4,
-        'hold': 7,
-        'exhale': 8,
-      },
-    },
-    {
-      'name': 'Box Breathing',
-      'description': 'Inhale, hold, exhale, and hold again, each for 4 seconds',
-      'color': Colors.green.shade100,
-      'icon': Icons.square_outlined,
-      'duration': 240, // 4 minutes
-      'pattern': {
-        'inhale': 4,
-        'hold': 4,
-        'exhale': 4,
-        'hold2': 4,
-      },
-    },
-    {
-      'name': 'Deep Breathing',
-      'description':
-          'Simple deep breaths - inhale for 5 seconds, exhale for 5 seconds',
-      'color': Colors.purple.shade100,
-      'icon': Icons.waves,
-      'duration': 300, // 5 minutes
-      'pattern': {
-        'inhale': 5,
-        'exhale': 5,
-      },
-    },
-  ];
 
   @override
   void initState() {
@@ -72,6 +33,61 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises>
       vsync: this,
       duration: const Duration(seconds: 4),
     );
+    _loadExercises();
+  }
+
+  Future<void> _loadExercises() async {
+    try {
+      final response = await Supabase.instance.client
+          .from('breathing_exercises')
+          .select()
+          .order('name');
+
+      if (mounted) {
+        setState(() {
+          _exercises = (response as List)
+              .map((exercise) => {
+                    ...(exercise as Map<String, dynamic>),
+                    'color': _getColorFromHex(exercise['color_hex']),
+                    'icon': _getIconFromName(exercise['icon_name']),
+                  })
+              .toList();
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error loading exercises. Please try again later.'),
+          ),
+        );
+      }
+    }
+  }
+
+  Color _getColorFromHex(String hexColor) {
+    hexColor = hexColor.replaceAll('#', '');
+    if (hexColor.length == 6) {
+      hexColor = 'FF$hexColor';
+    }
+    return Color(int.parse(hexColor, radix: 16));
+  }
+
+  IconData _getIconFromName(String iconName) {
+    switch (iconName) {
+      case 'air':
+        return Icons.air;
+      case 'square_outlined':
+        return Icons.square_outlined;
+      case 'waves':
+        return Icons.waves;
+      default:
+        return Icons.self_improvement;
+    }
   }
 
   @override
@@ -146,7 +162,14 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises>
     int totalCycleDuration = 0;
     pattern.forEach((key, value) => totalCycleDuration += value as int);
 
-    List<MapEntry<String, dynamic>> phases = pattern.entries.toList();
+    // Always use the correct phase order
+    final phaseOrder = ['inhale', 'hold', 'exhale', 'hold2'];
+    final phases = <MapEntry<String, dynamic>>[];
+    for (final phase in phaseOrder) {
+      if (pattern.containsKey(phase)) {
+        phases.add(MapEntry(phase, pattern[phase]));
+      }
+    }
     int currentPhaseIndex = 0;
 
     void startPhase(int index) {
@@ -252,7 +275,11 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises>
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 242, 241, 248),
       body: SafeArea(
-        child: _isExerciseActive ? _buildExerciseView() : _buildExerciseList(),
+        child: _isExerciseActive
+            ? _buildExerciseView()
+            : _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _buildExerciseList(),
       ),
     );
   }
@@ -540,47 +567,76 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises>
           ),
           const SizedBox(height: 16),
           Expanded(
-            child: ListView.builder(
-              itemCount: _exercises.length,
-              itemBuilder: (context, index) {
-                final exercise = _exercises[index];
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: exercise['color'],
-                    borderRadius: BorderRadius.circular(16),
+            child: _exercises.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.self_improvement,
+                          size: 48,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'No exercises available',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        Text(
+                          'Check back later for new exercises',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            color: Colors.grey[500],
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: _exercises.length,
+                    itemBuilder: (context, index) {
+                      final exercise = _exercises[index];
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: exercise['color'],
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.all(16),
+                          leading: Icon(
+                            exercise['icon'],
+                            size: 32,
+                            color: Colors.white,
+                          ),
+                          title: Text(
+                            exercise['name'],
+                            style: GoogleFonts.poppins(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF3A3A50),
+                            ),
+                          ),
+                          subtitle: Text(
+                            exercise['description'],
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              color: const Color(0xFF3A3A50),
+                            ),
+                          ),
+                          trailing: const Icon(
+                            Icons.arrow_forward_ios,
+                            color: Color(0xFF7C83FD),
+                          ),
+                          onTap: () => _startExercise(exercise),
+                        ),
+                      );
+                    },
                   ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.all(16),
-                    leading: Icon(
-                      exercise['icon'],
-                      size: 32,
-                      color: Colors.white,
-                    ),
-                    title: Text(
-                      exercise['name'],
-                      style: GoogleFonts.poppins(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF3A3A50),
-                      ),
-                    ),
-                    subtitle: Text(
-                      exercise['description'],
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        color: const Color(0xFF3A3A50),
-                      ),
-                    ),
-                    trailing: const Icon(
-                      Icons.arrow_forward_ios,
-                      color: Color(0xFF7C83FD),
-                    ),
-                    onTap: () => _startExercise(exercise),
-                  ),
-                );
-              },
-            ),
           ),
         ],
       ),

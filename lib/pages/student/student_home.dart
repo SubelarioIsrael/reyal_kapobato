@@ -19,6 +19,63 @@ class _StudentHomeState extends State<StudentHome> {
   StreamSubscription? _usernameSubscription;
   int _selectedIndex = 0;
 
+  // List of grid features for the home page
+  final List<_FeatureCardData> _emotionalWellbeing = [
+    const _FeatureCardData(
+      title: 'Track your mood',
+      icon: Icons.mood,
+      image:
+          'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80',
+      route: 'student-mtq',
+    ),
+    const _FeatureCardData(
+      title: 'Mood Journal',
+      icon: Icons.book,
+      image:
+          'https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=400&q=80',
+      route: 'student-mood-journal',
+    ),
+  ];
+  final List<_FeatureCardData> _supportTools = [
+    const _FeatureCardData(
+      title: 'Breathing Exercises',
+      icon: Icons.self_improvement,
+      image:
+          'https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&w=400&q=80',
+      route: 'student-breathing-exercises',
+    ),
+    const _FeatureCardData(
+      title: 'Mental Resources',
+      icon: Icons.health_and_safety,
+      image:
+          'https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&w=400&q=80',
+      route: 'student-mental-health-resources',
+    ),
+  ];
+  final List<_FeatureCardData> _connectManage = [
+    const _FeatureCardData(
+      title: 'Chatbot',
+      icon: Icons.chat,
+      image:
+          'https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=crop&w=400&q=80',
+      route: 'student-chatbot',
+    ),
+    const _FeatureCardData(
+      title: 'Counselors',
+      icon: Icons.people,
+      image:
+          'https://images.unsplash.com/photo-1503676382389-4809596d5290?auto=format&fit=crop&w=400&q=80',
+      route: 'student-counselors',
+    ),
+    const _FeatureCardData(
+      title: 'My Appointments',
+      icon: Icons.event_note,
+      image:
+          'https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=400&q=80',
+      route: 'student-appointments',
+    ),
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -57,24 +114,15 @@ class _StudentHomeState extends State<StudentHome> {
     setState(() {
       _selectedIndex = index;
     });
-
     switch (index) {
       case 0: // Home
-        // Already on home, no need to navigate
         break;
-      case 1: // Notifications
-        // TODO: Implement notifications page
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Notifications coming soon!')),
-        );
-        break;
-      case 2: // Settings
-        // TODO: Implement settings page
+      case 1: // Settings
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Settings coming soon!')),
         );
         break;
-      case 3: // Profile
+      case 2: // Profile
         Navigator.pushNamed(context, '/student-profile');
         break;
     }
@@ -87,93 +135,151 @@ class _StudentHomeState extends State<StudentHome> {
       child: Scaffold(
         backgroundColor: const Color.fromARGB(255, 242, 241, 248),
         drawer: _buildDrawer(context),
-        body: Column(
+        body: ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
           children: [
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                children: [
-                  const SizedBox(height: 30),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "Welcome Back",
-                        style: GoogleFonts.poppins(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w500,
-                          color: const Color(0xFF5D5D72),
-                        ),
-                      ),
-                      Builder(
-                        builder: (context) => IconButton(
-                          icon: const Icon(
-                            Icons.menu,
-                            color: Color(0xFF5D5D72),
-                          ),
-                          onPressed: () => Scaffold.of(context).openDrawer(),
-                        ),
-                      ),
-                    ],
+            const SizedBox(height: 30),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  "Welcome Back",
+                  style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF5D5D72),
                   ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Text(
-                        isLoading ? "Loading..." : "Hi, $username!",
-                        style: GoogleFonts.poppins(
-                          fontSize: 34,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF3A3A50),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                    ],
-                  ),
-                  const SizedBox(height: 30),
-                  _HomeButton(
-                    icon: Icons.mood,
-                    label: 'Track your mood',
-                    onTap: () => Navigator.pushNamed(context, 'student-mtq'),
-                    color: Colors.pink.shade100,
-                  ),
-                  _HomeButton(
-                    icon: Icons.self_improvement,
-                    label: 'Breathing Exercises',
-                    onTap: () => Navigator.pushNamed(
-                      context,
-                      'student-breathing-exercises',
+                ),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.notifications_none,
+                          color: Color(0xFF5D5D72)),
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('No new notifications.')),
+                        );
+                      },
                     ),
-                    color: Colors.blue.shade100,
-                  ),
-                  _HomeButton(
-                    icon: Icons.book,
-                    label: 'Mood Journal',
-                    onTap: () => Navigator.pushNamed(
-                      context,
-                      'student-mood-journal',
+                    Builder(
+                      builder: (context) => IconButton(
+                        icon: const Icon(
+                          Icons.menu,
+                          color: Color(0xFF5D5D72),
+                        ),
+                        onPressed: () => Scaffold.of(context).openDrawer(),
+                      ),
                     ),
-                    color: Colors.purple.shade100,
-                  ),
-                  _HomeButton(
-                    icon: Icons.health_and_safety,
-                    label: 'Mental Health Resources',
-                    onTap: () => Navigator.pushNamed(
-                      context,
-                      'student-mental-health-resources',
-                    ),
-                    color: Colors.green.shade100,
-                  ),
-                  _HomeButton(
-                    icon: Icons.chat,
-                    label: 'Chatbot',
-                    onTap: () =>
-                        Navigator.pushNamed(context, 'student-chatbot'),
-                    color: Colors.orange.shade100,
-                  ),
-                ],
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              isLoading ? "Loading..." : "Hi, $username!",
+              style: GoogleFonts.poppins(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFF3A3A50),
               ),
             ),
+            const SizedBox(height: 20),
+            // Daily Uplift Card
+            Card(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              color: Colors.cyan.shade50,
+              elevation: 0,
+              child: Padding(
+                padding: const EdgeInsets.all(18.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Healing takes time, and asking for help is a courageous step.',
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFF3A3A50),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '— Mariska Hargitay',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Emotional Well-being',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF3A3A50),
+              ),
+            ),
+            const SizedBox(height: 12),
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 1.2,
+              children: _emotionalWellbeing
+                  .map((feature) => _FeatureCard(feature: feature))
+                  .toList(),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Support & Self-Care Tools',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF3A3A50),
+              ),
+            ),
+            const SizedBox(height: 12),
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 1.2,
+              children: _supportTools
+                  .map((feature) => _FeatureCard(feature: feature))
+                  .toList(),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Connect & Manage',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF3A3A50),
+              ),
+            ),
+            const SizedBox(height: 12),
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 1.2,
+              children: _connectManage
+                  .map((feature) => _FeatureCard(feature: feature))
+                  .toList(),
+            ),
+            const SizedBox(height: 24),
           ],
         ),
         bottomNavigationBar: BottomNavigationBar(
@@ -187,13 +293,7 @@ class _StudentHomeState extends State<StudentHome> {
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
             BottomNavigationBarItem(
-              icon: Icon(Icons.notifications),
-              label: 'Alerts',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.settings),
-              label: 'Settings',
-            ),
+                icon: Icon(Icons.settings), label: 'Settings'),
             BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
           ],
         ),
@@ -225,6 +325,14 @@ class _StudentHomeState extends State<StudentHome> {
             ),
           ),
           ListTile(
+            leading: const Icon(Icons.settings),
+            title: const Text('Settings'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, 'student-settings');
+            },
+          ),
+          ListTile(
             leading: const Icon(Icons.home),
             title: const Text('Profile'),
             onTap: () => Navigator.pushNamed(context, '/student-profile'),
@@ -247,54 +355,60 @@ class _StudentHomeState extends State<StudentHome> {
   }
 }
 
-class _HomeButton extends StatelessWidget {
+class _FeatureCardData {
+  final String title;
   final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  final Color color;
+  final String image;
+  final String route;
+  const _FeatureCardData(
+      {required this.title,
+      required this.icon,
+      required this.image,
+      required this.route});
+}
 
-  const _HomeButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    required this.color,
-  });
+class _FeatureCard extends StatelessWidget {
+  final _FeatureCardData feature;
+  const _FeatureCard({required this.feature});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        splashColor: Colors.transparent,
-        highlightColor: Colors.transparent,
-        child: Row(
+    return GestureDetector(
+      onTap: () => Navigator.pushNamed(context, feature.route),
+      child: Card(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        elevation: 2,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-              child: Icon(icon, color: Colors.white),
-            ),
-            const SizedBox(width: 16),
             Expanded(
-              child: Text(
-                label,
-                style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  color: const Color(0xFF3A3A50),
-                  fontWeight: FontWeight.w600,
+              child: ClipRRect(
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(16)),
+                child: Image.network(
+                  feature.image,
+                  fit: BoxFit.cover,
                 ),
               ),
             ),
-            const Icon(
-              Icons.arrow_forward_ios,
-              size: 16,
-              color: Color(0xFF7C83FD),
+            Padding(
+              padding: const EdgeInsets.all(10.0),
+              child: Row(
+                children: [
+                  Icon(feature.icon, color: const Color(0xFF7C83FD)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      feature.title,
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF3A3A50),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),

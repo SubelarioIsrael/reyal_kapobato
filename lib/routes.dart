@@ -14,10 +14,21 @@ import 'pages/student/student_mtq.dart';
 import 'pages/student/student_mood_journal.dart';
 import 'pages/student/student_chatbot.dart';
 import 'pages/student/student_profile.dart';
+import 'pages/student/student_counselors.dart';
+import 'pages/student/student_appointments.dart';
+import 'pages/student/student_settings.dart';
 
 //admin
 import 'pages/admin/admin_home.dart';
+import 'pages/admin/admin_accounts.dart';
+import 'pages/admin/admin_users.dart';
+import 'pages/admin/admin_resources.dart';
+import 'pages/admin/admin_exercises.dart';
+import 'pages/admin/admin_notifications.dart';
+import 'pages/admin/admin_settings.dart';
+import 'pages/admin/admin_profile.dart';
 import 'pages/counselor/counselor_home.dart';
+import 'pages/counselor/counselor_settings.dart';
 
 // page routes
 final Map<String, WidgetBuilder> appRoutes = {
@@ -41,10 +52,21 @@ final Map<String, WidgetBuilder> appRoutes = {
   'student-mental-health-resources': (context) =>
       const AuthGuard(child: StudentMentalHealthResources()),
   'student-chatbot': (context) => const AuthGuard(child: StudentChatbot()),
+  'student-counselors': (context) =>
+      const AuthGuard(child: StudentCounselors()),
+  'student-appointments': (context) =>
+      const AuthGuard(child: StudentAppointments()),
+  'student-settings': (context) => const AuthGuard(child: StudentSettings()),
 
-  // adming page routes
-  'admin-dashboard': (context) => const AuthGuard(child: AdminHome()),
-  'admin-send-notification': (context) => const AuthGuard(child: AdminHome()),
-  'admin-make-announcement': (context) => const AuthGuard(child: AdminHome()),
-  'admin-student-list': (context) => const AuthGuard(child: AdminHome()),
+  // admin page routes
+  'admin-accounts': (context) => const AuthGuard(child: AdminAccounts()),
+  'admin-users': (context) => const AuthGuard(child: AdminUsers()),
+  'admin-resources': (context) => const AuthGuard(child: AdminResources()),
+  'admin-exercises': (context) => const AuthGuard(child: AdminExercises()),
+  'admin-notifications': (context) =>
+      const AuthGuard(child: AdminNotifications()),
+  'admin-settings': (context) => const AuthGuard(child: AdminSettings()),
+  'admin-profile': (context) => const AuthGuard(child: AdminProfile()),
+  'counselor-settings': (context) =>
+      const AuthGuard(child: CounselorSettings()),
 };
