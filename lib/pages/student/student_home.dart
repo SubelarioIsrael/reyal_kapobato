@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../services/user_service.dart';
-import '../../components/s_h_rounded_button.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:async';
 // Assuming it's styled to match now

@@ -1,185 +1,3 @@
-// import 'package:supabase_flutter/supabase_flutter.dart';
-// import 'package:flutter/material.dart';
-// import '../../components/question.dart';
-
-// class StudentMtq extends StatefulWidget {
-//   const StudentMtq({super.key});
-//   @override
-//   State<StudentMtq> createState() => _StudentMtqState();
-// }
-
-// class _StudentMtqState extends State<StudentMtq> {
-//   List<Question> questions = [];
-//   int currentQuestionIndex = 0;
-//   double progress = 0;
-//   bool isLoading = true;
-
-//   @override
-//   void initState() {
-//     super.initState();
-//     _loadQuestions();
-//   }
-
-//   Future<void> _loadQuestions() async {
-//     try {
-//       final data =
-//           await Supabase.instance.client
-//               .from('questions')
-//               .select(); // No type argument here
-
-//       final List<Question> fetchedQuestions =
-//           (data as List)
-//               .map((questionData) => Question.fromMap(questionData))
-//               .toList();
-
-//       setState(() {
-//         questions = fetchedQuestions;
-//         isLoading = false;
-//         progress = (currentQuestionIndex + 1) / questions.length;
-//       });
-
-//       print('Successfully fetched ${fetchedQuestions.length} questions.');
-//     } catch (e) {
-//       print('Error fetching questions: $e');
-//       setState(() {
-//         isLoading = false;
-//       });
-//     }
-//   }
-
-//   void _updateProgress() {
-//     setState(() {
-//       progress = (currentQuestionIndex + 1) / questions.length;
-//     });
-//   }
-
-//   void _nextQuestion(int selectedIndex) {
-//     setState(() {
-//       questions[currentQuestionIndex].selectedOption = selectedIndex;
-//       if (currentQuestionIndex < questions.length - 1) {
-//         currentQuestionIndex++;
-//         _updateProgress();
-//       } else {
-//         // All questions answered, you can show results or thank you page
-//         print("Survey completed!");
-//       }
-//     });
-//   }
-
-//   void _submitAnswers() {
-//     // You can process or send answers here
-//     print("All answers submitted!");
-//     // Example: navigate to a results page or show a dialog
-//     showDialog(
-//       context: context,
-//       builder:
-//           (context) => AlertDialog(
-//             title: Text('Thank you!'),
-//             content: Text('Your responses have been submitted.'),
-//             actions: [
-//               TextButton(
-//                 onPressed: () {
-//                   Navigator.pushNamed(context, 'student-home');
-//                 },
-//                 child: Text('OK'),
-//               ),
-//             ],
-//           ),
-//     );
-//   }
-
-//   @override
-//   Widget build(BuildContext context) {
-//     if (isLoading) {
-//       return Scaffold(
-//         appBar: AppBar(title: Text('Mood Tracking Questionnaire')),
-//         body: Center(child: CircularProgressIndicator()),
-//       );
-//     }
-//     if (questions.isEmpty && !isLoading) {
-//       return Scaffold(
-//         appBar: AppBar(title: Text('Mood Tracking Questionnaire')),
-//         body: Center(child: Text('No questions available.')),
-//       );
-//     }
-//     if (questions.isEmpty) {
-//       return Scaffold(
-//         appBar: AppBar(title: Text('Mood Tracking Questionnaire')),
-//         body: Center(child: Text('No questions available.')),
-//       );
-//     }
-
-//     final currentQuestion = questions[currentQuestionIndex];
-
-//     return Scaffold(
-//       appBar: AppBar(title: Text('Mood Tracking Questionnaire')),
-//       body: SafeArea(
-//         child: Padding(
-//           padding: const EdgeInsets.all(20.0),
-//           child: Column(
-//             crossAxisAlignment: CrossAxisAlignment.start,
-//             children: [
-//               // Progress bar
-//               LinearProgressIndicator(
-//                 value: progress,
-//                 backgroundColor: Colors.grey.shade300,
-//                 color: Colors.blueAccent,
-//               ),
-//               SizedBox(height: 20),
-
-//               // Question text
-//               Text(
-//                 currentQuestion.questionText,
-//                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
-//               ),
-//               SizedBox(height: 20),
-
-//               ...List.generate(
-//                 currentQuestion.options.length,
-//                 (index) => RadioListTile<int>(
-//                   title: Text(currentQuestion.options[index]),
-//                   value: index,
-//                   groupValue: currentQuestion.selectedOption,
-//                   onChanged: (value) {
-//                     setState(() {
-//                       currentQuestion.selectedOption = value;
-//                     });
-//                   },
-//                 ),
-//               ),
-
-//               SizedBox(height: 20),
-
-//               Row(
-//                 mainAxisAlignment: MainAxisAlignment.end,
-//                 children: [
-//                   ElevatedButton(
-//                     onPressed:
-//                         currentQuestion.selectedOption != null
-//                             ? () {
-//                               if (currentQuestionIndex < questions.length - 1) {
-//                                 _nextQuestion(currentQuestion.selectedOption!);
-//                               } else {
-//                                 _submitAnswers();
-//                               }
-//                             }
-//                             : null,
-//                     child: Text(
-//                       currentQuestionIndex < questions.length - 1
-//                           ? 'Next'
-//                           : 'Finish',
-//                     ),
-//                   ),
-//                 ],
-//               ),
-//             ],
-//           ),
-//         ),
-//       ),
-//     );
-//   }
-// }
-
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -197,18 +15,53 @@ class _StudentMtqState extends State<StudentMtq> {
   double progress = 0;
   bool isLoading = true;
   bool showIntroduction = true;
+  int? currentVersionId;
 
   @override
   void initState() {
     super.initState();
-    _loadQuestions();
+    _loadActiveQuestionnaire();
   }
 
-  Future<void> _loadQuestions() async {
+  Future<void> _loadActiveQuestionnaire() async {
     try {
-      final data = await Supabase.instance.client.from('questions').select();
-      final List<Question> fetchedQuestions = (data as List)
-          .map((questionData) => Question.fromMap(questionData))
+      // First, get the active questionnaire version
+      final versionData = await Supabase.instance.client
+          .from('questionnaire_versions')
+          .select()
+          .eq('is_active', true)
+          .single();
+
+      currentVersionId = versionData['version_id'];
+
+      // Then get all questions for this version
+      final questionsData = await Supabase.instance.client
+          .from('questionnaire_questions')
+          .select('''
+            question_id,
+            question_order,
+            questions (
+              question_id,
+              question_text,
+              is_active,
+              created_at,
+              updated_at
+            )
+          ''')
+          .eq('version_id', currentVersionId!)
+          .order('question_order');
+
+      final List<Question> fetchedQuestions = (questionsData as List)
+          .map((data) => Question.fromMap({
+                ...data['questions'],
+                'options': [
+                  'Not at all',
+                  'Several days',
+                  'More than half the days',
+                  'Nearly every day',
+                  'Every day'
+                ],
+              }))
           .toList();
 
       setState(() {
@@ -217,7 +70,7 @@ class _StudentMtqState extends State<StudentMtq> {
         progress = (currentQuestionIndex + 1) / questions.length;
       });
     } catch (e) {
-      print('Error fetching questions: $e');
+      print('Error loading questionnaire: $e');
       setState(() => isLoading = false);
     }
   }
@@ -240,21 +93,64 @@ class _StudentMtqState extends State<StudentMtq> {
     });
   }
 
-  void _submitAnswers() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        title: const Text("Thank you!"),
-        content: const Text("Your responses have been submitted."),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pushNamed(context, 'student-home'),
-            child: const Text("OK"),
+  Future<void> _submitAnswers() async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) {
+        throw Exception('User not logged in');
+      }
+
+      // Calculate total score
+      final totalScore = questions.fold<int>(
+        0,
+        (sum, question) => sum + (question.selectedOption ?? 0),
+      );
+
+      // Insert questionnaire response
+      final responseData = await Supabase.instance.client
+          .from('questionnaire_responses')
+          .insert({
+            'user_id': user.id,
+            'version_id': currentVersionId,
+            'total_score': totalScore,
+          })
+          .select()
+          .single();
+
+      final responseId = responseData['response_id'];
+
+      // Insert individual answers
+      for (final question in questions) {
+        if (question.selectedOption != null) {
+          await Supabase.instance.client.from('questionnaire_answers').insert({
+            'response_id': responseId,
+            'question_id': question.questionId,
+            'chosen_answer': question.selectedOption,
+          });
+        }
+      }
+
+      if (mounted) {
+        // Navigate to summary page
+        Navigator.pushNamed(
+          context,
+          'questionnaire-summary',
+          arguments: {
+            'responseId': responseId,
+            'totalScore': totalScore,
+          },
+        );
+      }
+    } catch (e) {
+      print('Error submitting answers: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error submitting answers. Please try again.'),
           ),
-        ],
-      ),
-    );
+        );
+      }
+    }
   }
 
   @override
@@ -423,168 +319,170 @@ class _StudentMtqState extends State<StudentMtq> {
     return Scaffold(
       backgroundColor: pastelBlue,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Back Button
-              GestureDetector(
-                onTap: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      backgroundColor: Colors.white,
-                      title: Text(
-                        'Are you sure?',
-                        style: GoogleFonts.poppins(
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF3A3A50),
-                        ),
-                      ),
-                      content: Text(
-                        'If you go back now, you will lose all your progress.',
-                        style: GoogleFonts.poppins(
-                          color: const Color(0xFF3A3A50),
-                        ),
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () =>
-                              Navigator.pop(context), // Close dialog
-                          child: Text(
-                            'Cancel',
-                            style: GoogleFonts.poppins(
-                              color: const Color(0xFF7C83FD),
-                            ),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Back Button
+                GestureDetector(
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        backgroundColor: Colors.white,
+                        title: Text(
+                          'Are you sure?',
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF3A3A50),
                           ),
                         ),
-                        TextButton(
-                          onPressed: () {
-                            Navigator.pop(context); // Close dialog
-                            Navigator.pushNamed(context, 'student-home');
-                          },
-                          child: Text(
-                            'Yes, go back',
-                            style: GoogleFonts.poppins(
-                              color: Colors.red,
-                            ),
+                        content: Text(
+                          'If you go back now, you will lose all your progress.',
+                          style: GoogleFonts.poppins(
+                            color: const Color(0xFF3A3A50),
                           ),
                         ),
-                      ],
-                    ),
-                  );
-                },
-                child: const Icon(
-                  Icons.arrow_back_ios_new_rounded,
-                  color: Color(0xFF3A3A50),
-                  size: 28,
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Progress bar with label
-              Text(
-                'Question ${currentQuestionIndex + 1} of ${questions.length}',
-                style: GoogleFonts.poppins(
-                  fontSize: 16,
-                  color: const Color(0xFF3A3A50),
-                ),
-              ),
-              const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: LinearProgressIndicator(
-                  value: progress,
-                  minHeight: 10,
-                  backgroundColor: Colors.white70,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    const Color.fromARGB(255, 73, 75, 111),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: Text(
+                              'Cancel',
+                              style: GoogleFonts.poppins(
+                                color: const Color(0xFF7C83FD),
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              Navigator.pushNamed(context, 'student-home');
+                            },
+                            child: Text(
+                              'Yes, go back',
+                              style: GoogleFonts.poppins(
+                                color: Colors.red,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                  child: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    color: Color(0xFF3A3A50),
+                    size: 28,
                   ),
                 ),
-              ),
-              const SizedBox(height: 30),
+                const SizedBox(height: 20),
 
-              // Question text
-              Text(
-                currentQuestion.questionText,
-                style: GoogleFonts.poppins(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF3A3A50),
+                // Progress bar with label
+                Text(
+                  'Question ${currentQuestionIndex + 1} of ${questions.length}',
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    color: const Color(0xFF3A3A50),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 20),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 10,
+                    backgroundColor: Colors.white70,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      const Color.fromARGB(255, 73, 75, 111),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 30),
 
-              // Options
-              ...List.generate(
-                currentQuestion.options.length,
-                (index) => Container(
-                  margin: const EdgeInsets.symmetric(vertical: 6),
-                  decoration: BoxDecoration(
-                    color: currentQuestion.selectedOption == index
-                        ? pastelPurple.withOpacity(0.8)
-                        : Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
+                // Question text
+                Text(
+                  currentQuestion.questionText,
+                  style: GoogleFonts.poppins(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF3A3A50),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Options
+                ...List.generate(
+                  currentQuestion.options.length,
+                  (index) => Container(
+                    margin: const EdgeInsets.symmetric(vertical: 6),
+                    decoration: BoxDecoration(
                       color: currentQuestion.selectedOption == index
-                          ? const Color(0xFF7C83FD)
-                          : Colors.grey.shade300,
-                      width: 2,
+                          ? pastelPurple.withOpacity(0.8)
+                          : Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: currentQuestion.selectedOption == index
+                            ? const Color(0xFF7C83FD)
+                            : Colors.grey.shade300,
+                        width: 2,
+                      ),
+                    ),
+                    child: RadioListTile<int>(
+                      title: Text(
+                        currentQuestion.options[index],
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          color: const Color(0xFF3A3A50),
+                        ),
+                      ),
+                      activeColor: const Color(0xFF7C83FD),
+                      value: index,
+                      groupValue: currentQuestion.selectedOption,
+                      onChanged: (value) {
+                        setState(() {
+                          currentQuestion.selectedOption = value;
+                        });
+                      },
                     ),
                   ),
-                  child: RadioListTile<int>(
-                    title: Text(
-                      currentQuestion.options[index],
+                ),
+
+                const SizedBox(height: 30),
+
+                // Next or Finish Button
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF7C83FD),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 30,
+                        vertical: 14,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    onPressed: currentQuestion.selectedOption != null
+                        ? () => _nextQuestion(currentQuestion.selectedOption!)
+                        : null,
+                    child: Text(
+                      currentQuestionIndex < questions.length - 1
+                          ? 'Next'
+                          : 'Finish',
                       style: GoogleFonts.poppins(
                         fontSize: 16,
-                        color: const Color(0xFF3A3A50),
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
                       ),
                     ),
-                    activeColor: const Color(0xFF7C83FD),
-                    value: index,
-                    groupValue: currentQuestion.selectedOption,
-                    onChanged: (value) {
-                      setState(() {
-                        currentQuestion.selectedOption = value;
-                      });
-                    },
                   ),
                 ),
-              ),
-
-              const Spacer(),
-
-              // Next or Finish Button
-              Align(
-                alignment: Alignment.centerRight,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF7C83FD),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 30,
-                      vertical: 14,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  onPressed: currentQuestion.selectedOption != null
-                      ? () => _nextQuestion(currentQuestion.selectedOption!)
-                      : null,
-                  child: Text(
-                    currentQuestionIndex < questions.length - 1
-                        ? 'Next'
-                        : 'Finish',
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-            ],
+                const SizedBox(height: 20),
+              ],
+            ),
           ),
         ),
       ),

@@ -17,6 +17,7 @@ import 'pages/student/student_profile.dart';
 import 'pages/student/student_counselors.dart';
 import 'pages/student/student_appointments.dart';
 import 'pages/student/student_settings.dart';
+import 'pages/student/questionnaire_summary.dart';
 
 //admin
 import 'pages/admin/admin_home.dart';
@@ -45,6 +46,14 @@ final Map<String, WidgetBuilder> appRoutes = {
 
   //student page routes
   'student-mtq': (context) => const AuthGuard(child: StudentMtq()),
+  'questionnaire-summary': (context) => AuthGuard(
+        child: QuestionnaireSummary(
+          responseId: (ModalRoute.of(context)?.settings.arguments
+              as Map<String, dynamic>)['responseId'] as int,
+          totalScore: (ModalRoute.of(context)?.settings.arguments
+              as Map<String, dynamic>)['totalScore'] as int,
+        ),
+      ),
   'student-breathing-exercises': (context) =>
       const AuthGuard(child: StudentBreathingExercises()),
   'student-mood-journal': (context) =>

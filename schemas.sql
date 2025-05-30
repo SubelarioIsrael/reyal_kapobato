@@ -260,11 +260,50 @@ create table public.password_resets (
 ) TABLESPACE pg_default;
 
 create table public.questions (
-  id serial not null,
+  question_id serial not null,
   question_text text not null,
-  options text[] not null,
-  created_at timestamp with time zone null default timezone ('utc'::text, now()),
-  constraint questions_pkey primary key (id)
+  is_active boolean default true,
+  created_at timestamp without time zone default CURRENT_TIMESTAMP,
+  updated_at timestamp without time zone default CURRENT_TIMESTAMP,
+  constraint questions_pkey primary key (question_id)
+) TABLESPACE pg_default;
+
+create table public.questionnaire_versions (
+  version_id serial not null,
+  version_name varchar(50) not null,
+  is_active boolean default true,
+  created_at timestamp without time zone default CURRENT_TIMESTAMP,
+  constraint questionnaire_versions_pkey primary key (version_id)
+) TABLESPACE pg_default;
+
+create table public.questionnaire_questions (
+  version_id integer not null,
+  question_id integer not null,
+  question_order integer not null,
+  constraint questionnaire_questions_pkey primary key (version_id, question_id),
+  constraint questionnaire_questions_version_id_fkey foreign key (version_id) references questionnaire_versions (version_id),
+  constraint questionnaire_questions_question_id_fkey foreign key (question_id) references questions (question_id)
+) TABLESPACE pg_default;
+
+create table public.questionnaire_responses (
+  response_id serial not null,
+  user_id uuid not null,
+  version_id integer not null,
+  total_score integer not null,
+  submission_timestamp timestamp without time zone default CURRENT_TIMESTAMP,
+  constraint questionnaire_responses_pkey primary key (response_id),
+  constraint questionnaire_responses_user_id_fkey foreign key (user_id) references users (user_id),
+  constraint questionnaire_responses_version_id_fkey foreign key (version_id) references questionnaire_versions (version_id)
+) TABLESPACE pg_default;
+
+create table public.questionnaire_answers (
+  answer_id serial not null,
+  response_id integer not null,
+  question_id integer not null,
+  chosen_answer integer not null,
+  constraint questionnaire_answers_pkey primary key (answer_id),
+  constraint questionnaire_answers_response_id_fkey foreign key (response_id) references questionnaire_responses (response_id),
+  constraint questionnaire_answers_question_id_fkey foreign key (question_id) references questions (question_id)
 ) TABLESPACE pg_default;
 
 create table public.stress_gauge_readings (
@@ -398,3 +437,63 @@ create table public.users (
 ) TABLESPACE pg_default;
 
 create index IF not exists idx_user_email on public.users using btree (email) TABLESPACE pg_default;
+
+-- Sample data for questionnaire system
+INSERT INTO public.questionnaire_versions (version_name, is_active) VALUES
+('Student Mental Health Questionnaire v1', true);
+
+-- Sample questions for the questionnaire
+INSERT INTO public.questions (question_text, is_active) VALUES
+('How often have you felt nervous, anxious, or on edge over the past two weeks?', true),
+('How often have you been unable to stop or control worrying over the past two weeks?', true),
+('How often have you felt little interest or pleasure in doing things over the past two weeks?', true),
+('How often have you felt down, depressed, or hopeless over the past two weeks?', true),
+('How often have you had trouble falling or staying asleep, or sleeping too much over the past two weeks?', true),
+('How often have you felt tired or had little energy over the past two weeks?', true),
+('How often have you had poor appetite or been overeating over the past two weeks?', true),
+('How often have you had trouble concentrating on things over the past two weeks?', true),
+('How often have you been moving or speaking so slowly that other people could have noticed?', true),
+('How often have you had thoughts that you would be better off dead or of hurting yourself in some way over the past two weeks?', true);
+
+-- Link questions to the questionnaire version
+INSERT INTO public.questionnaire_questions (version_id, question_id, question_order) VALUES
+(1, 1, 1),
+(1, 2, 2),
+(1, 3, 3),
+(1, 4, 4),
+(1, 5, 5),
+(1, 6, 6),
+(1, 7, 7),
+(1, 8, 8),
+(1, 9, 9),
+(1, 10, 10);
+
+-- Create indexes for better query performance
+CREATE INDEX IF NOT EXISTS idx_questionnaire_responses_user_version ON public.questionnaire_responses (user_id, version_id);
+CREATE INDEX IF NOT EXISTS idx_questionnaire_answers_response ON public.questionnaire_answers (response_id);
+CREATE INDEX IF NOT EXISTS idx_questionnaire_questions_version ON public.questionnaire_questions (version_id, question_order);
+
+create table public.questionnaire_summaries (
+    summary_id serial not null,
+    response_id integer not null,
+    severity_level character varying(20) not null,
+    insights text not null,
+    recommendations text not null,
+    breathing_exercise_id integer,
+    created_at timestamp without time zone default CURRENT_TIMESTAMP,
+    constraint questionnaire_summaries_pkey primary key (summary_id),
+    constraint questionnaire_summaries_response_id_fkey foreign key (response_id) references questionnaire_responses (response_id),
+    constraint questionnaire_summaries_breathing_exercise_id_fkey foreign key (breathing_exercise_id) references breathing_exercises (id),
+    constraint questionnaire_summaries_severity_level_check check (
+        (severity_level)::text = any (
+            array[
+                'mild'::character varying,
+                'moderate'::character varying,
+                'severe'::character varying,
+                'critical'::character varying
+            ]::text[]
+        )
+    )
+) TABLESPACE pg_default;
+
+create index IF not exists idx_questionnaire_summaries_response on public.questionnaire_summaries using btree (response_id) TABLESPACE pg_default;
