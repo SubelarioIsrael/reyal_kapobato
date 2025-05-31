@@ -497,3 +497,19 @@ create table public.questionnaire_summaries (
 ) TABLESPACE pg_default;
 
 create index IF not exists idx_questionnaire_summaries_response on public.questionnaire_summaries using btree (response_id) TABLESPACE pg_default;
+
+ALTER TABLE public.counseling_appointments
+ADD COLUMN status_message text null;
+
+CREATE TABLE public.counseling_session_notes (
+    session_note_id serial PRIMARY KEY,
+    appointment_id integer NOT NULL REFERENCES counseling_appointments(appointment_id) ON DELETE CASCADE,
+    counselor_id integer NOT NULL REFERENCES counselors(counselor_id),
+    student_user_id uuid NOT NULL REFERENCES users(user_id),
+    summary text NOT NULL,
+    topics_discussed text,
+    action_items text,
+    recommendations text,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+);

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AdminExercises extends StatefulWidget {
   const AdminExercises({super.key});
@@ -19,55 +20,103 @@ class _AdminExercisesState extends State<AdminExercises> {
   final _hold2Controller = TextEditingController();
   bool _isLoading = false;
   bool _hasSecondHold = false;
-
-  // Mock data - Replace with actual data from your backend
-  final List<Map<String, dynamic>> _exercises = [
-    {
-      'name': '4-7-8 Breathing',
-      'description':
-          'Inhale for 4 seconds, hold for 7 seconds, exhale for 8 seconds',
-      'duration': 180,
-      'pattern': {
-        'inhale': 4,
-        'hold': 7,
-        'exhale': 8,
-      },
-      'color': Colors.blue.shade100,
-      'icon': Icons.air,
-    },
-    {
-      'name': 'Box Breathing',
-      'description': 'Inhale, hold, exhale, and hold again, each for 4 seconds',
-      'duration': 240,
-      'pattern': {
-        'inhale': 4,
-        'hold': 4,
-        'exhale': 4,
-        'hold2': 4,
-      },
-      'color': Colors.green.shade100,
-      'icon': Icons.square_outlined,
-    },
-    {
-      'name': 'Deep Breathing',
-      'description':
-          'Simple deep breaths - inhale for 5 seconds, exhale for 5 seconds',
-      'duration': 300,
-      'pattern': {
-        'inhale': 5,
-        'exhale': 5,
-      },
-      'color': Colors.purple.shade100,
-      'icon': Icons.waves,
-    },
+  String _selectedIconName = 'air';
+  final List<String> _iconOptions = [
+    'air',
+    'square_outlined',
+    'waves',
+    'self_improvement',
   ];
 
-  void _showAddExerciseDialog() {
+  List<Map<String, dynamic>> _exercises = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadExercises();
+  }
+
+  Future<void> _loadExercises() async {
+    setState(() {
+      _isLoading = true;
+    });
+    try {
+      final response = await Supabase.instance.client
+          .from('breathing_exercises')
+          .select()
+          .order('name');
+      setState(() {
+        _exercises = (response as List)
+            .map((exercise) => {
+                  ...(exercise as Map<String, dynamic>),
+                  'color': _getColorFromHex(exercise['color_hex']),
+                  'icon': _getIconFromName(exercise['icon_name']),
+                })
+            .toList();
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error loading exercises. Please try again later.'),
+        ),
+      );
+    }
+  }
+
+  Color _getColorFromHex(String hexColor) {
+    hexColor = hexColor.replaceAll('#', '');
+    if (hexColor.length == 6) {
+      hexColor = 'FF$hexColor';
+    }
+    return Color(int.parse(hexColor, radix: 16));
+  }
+
+  IconData _getIconFromName(String iconName) {
+    switch (iconName) {
+      case 'air':
+        return Icons.air;
+      case 'square_outlined':
+        return Icons.square_outlined;
+      case 'waves':
+        return Icons.waves;
+      default:
+        return Icons.self_improvement;
+    }
+  }
+
+  void _showExerciseDialog({Map<String, dynamic>? exercise}) {
+    final isEdit = exercise != null;
+    if (isEdit) {
+      _nameController.text = exercise['name'] ?? '';
+      _descriptionController.text = exercise['description'] ?? '';
+      _durationController.text = exercise['duration']?.toString() ?? '';
+      final pattern = exercise['pattern'] as Map<String, dynamic>? ?? {};
+      _inhaleController.text = pattern['inhale']?.toString() ?? '';
+      _holdController.text = pattern['hold']?.toString() ?? '';
+      _exhaleController.text = pattern['exhale']?.toString() ?? '';
+      _hold2Controller.text = pattern['hold2']?.toString() ?? '';
+      _hasSecondHold = pattern.containsKey('hold2');
+      _selectedIconName = exercise['icon_name'] ?? 'air';
+    } else {
+      _nameController.clear();
+      _descriptionController.clear();
+      _durationController.clear();
+      _inhaleController.clear();
+      _holdController.clear();
+      _exhaleController.clear();
+      _hold2Controller.clear();
+      _hasSecondHold = false;
+      _selectedIconName = 'air';
+    }
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(
-          'Add New Exercise',
+          isEdit ? 'Edit Exercise' : 'Add New Exercise',
           style: GoogleFonts.poppins(
             fontWeight: FontWeight.w600,
             color: const Color(0xFF3A3A50),
@@ -116,6 +165,25 @@ class _AdminExercisesState extends State<AdminExercises> {
                       return 'Please enter a valid number';
                     }
                     return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: _selectedIconName,
+                  decoration: const InputDecoration(
+                    labelText: 'Icon',
+                    prefixIcon: Icon(Icons.image),
+                  ),
+                  items: _iconOptions
+                      .map((icon) => DropdownMenuItem(
+                            value: icon,
+                            child: Text(icon),
+                          ))
+                      .toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedIconName = value ?? 'air';
+                    });
                   },
                 ),
                 const SizedBox(height: 16),
@@ -252,21 +320,66 @@ class _AdminExercisesState extends State<AdminExercises> {
                       setState(() {
                         _isLoading = true;
                       });
-
-                      // TODO: Implement exercise creation logic
-                      await Future.delayed(const Duration(seconds: 1));
-
-                      if (mounted) {
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Exercise added successfully'),
-                          ),
-                        );
+                      final pattern = {
+                        'inhale': int.parse(_inhaleController.text),
+                        'hold': int.parse(_holdController.text),
+                        'exhale': int.parse(_exhaleController.text),
+                      };
+                      if (_hasSecondHold && _hold2Controller.text.isNotEmpty) {
+                        pattern['hold2'] = int.parse(_hold2Controller.text);
                       }
-
-                      setState(() {
-                        _isLoading = false;
+                      // For demo, use a default color/icon
+                      final colorHex = exercise?['color_hex'] ?? '#7C83FD';
+                      final iconName = _selectedIconName;
+                      try {
+                        if (isEdit) {
+                          // Update
+                          await Supabase.instance.client
+                              .from('breathing_exercises')
+                              .update({
+                            'name': _nameController.text.trim(),
+                            'description': _descriptionController.text.trim(),
+                            'duration': int.parse(_durationController.text),
+                            'pattern': pattern,
+                            'color_hex': colorHex,
+                            'icon_name': iconName,
+                          }).eq('id', exercise!['id']);
+                        } else {
+                          // Insert
+                          await Supabase.instance.client
+                              .from('breathing_exercises')
+                              .insert({
+                            'name': _nameController.text.trim(),
+                            'description': _descriptionController.text.trim(),
+                            'duration': int.parse(_durationController.text),
+                            'pattern': pattern,
+                            'color_hex': colorHex,
+                            'icon_name': iconName,
+                          });
+                        }
+                        if (mounted) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(isEdit
+                                  ? 'Exercise updated successfully'
+                                  : 'Exercise added successfully'),
+                            ),
+                          );
+                          await _loadExercises();
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Failed to save exercise: $e'),
+                            ),
+                          );
+                        }
+                      } finally {
+                        setState(() {
+                          _isLoading = false;
+                        });
                         _nameController.clear();
                         _descriptionController.clear();
                         _durationController.clear();
@@ -275,7 +388,8 @@ class _AdminExercisesState extends State<AdminExercises> {
                         _exhaleController.clear();
                         _hold2Controller.clear();
                         _hasSecondHold = false;
-                      });
+                        _selectedIconName = 'air';
+                      }
                     }
                   },
             style: ElevatedButton.styleFrom(
@@ -291,11 +405,15 @@ class _AdminExercisesState extends State<AdminExercises> {
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
                   )
-                : const Text('Add Exercise'),
+                : Text(isEdit ? 'Save Changes' : 'Add Exercise'),
           ),
         ],
       ),
     );
+  }
+
+  void _showAddExerciseDialog() {
+    _showExerciseDialog();
   }
 
   void _showExerciseActions(Map<String, dynamic> exercise) {
@@ -323,7 +441,7 @@ class _AdminExercisesState extends State<AdminExercises> {
               title: const Text('Edit Exercise'),
               onTap: () {
                 Navigator.pop(context);
-                // TODO: Implement edit exercise
+                _showExerciseDialog(exercise: exercise);
               },
             ),
             ListTile(
@@ -412,91 +530,111 @@ class _AdminExercisesState extends State<AdminExercises> {
             ),
           ),
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _exercises.length,
-              itemBuilder: (context, index) {
-                final exercise = _exercises[index];
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.all(16),
-                    leading: CircleAvatar(
-                      backgroundColor: exercise['color'].withOpacity(0.1),
-                      child: Icon(
-                        exercise['icon'],
-                        color: exercise['color'],
-                      ),
-                    ),
-                    title: Text(
-                      exercise['name'],
-                      style: GoogleFonts.poppins(
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF3A3A50),
-                      ),
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 4),
-                        Text(
-                          exercise['description'],
-                          style: GoogleFonts.poppins(
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: exercise['color'].withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                '${exercise['duration']}s',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                  color: exercise['color'],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Pattern: ${_formatPattern(exercise['pattern'])}',
-                              style: GoogleFonts.poppins(
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                              ),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _exercises.length,
+                    itemBuilder: (context, index) {
+                      final exercise = _exercises[index];
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
                             ),
                           ],
                         ),
-                      ],
-                    ),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.more_vert),
-                      onPressed: () => _showExerciseActions(exercise),
-                    ),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.all(16),
+                          leading: CircleAvatar(
+                            backgroundColor: exercise['color'].withOpacity(0.1),
+                            child: Icon(
+                              exercise['icon'],
+                              color: exercise['color'],
+                            ),
+                          ),
+                          title: Text(
+                            exercise['name'],
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF3A3A50),
+                            ),
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 4),
+                              Text(
+                                exercise['description'],
+                                style: GoogleFonts.poppins(
+                                  color: Colors.grey[600],
+                                ),
+                                softWrap: true,
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 4),
+                              LayoutBuilder(
+                                builder: (context, constraints) {
+                                  return Container(
+                                    width: constraints.maxWidth,
+                                    child: Wrap(
+                                      crossAxisAlignment:
+                                          WrapCrossAlignment.center,
+                                      spacing: 8,
+                                      runSpacing: 4,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: exercise['color']
+                                                .withOpacity(0.1),
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                          child: Text(
+                                            '${exercise['duration']}s',
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w500,
+                                              color: exercise['color'],
+                                            ),
+                                          ),
+                                        ),
+                                        Text(
+                                          'Pattern: ${_formatPattern(exercise['pattern'])}',
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 12,
+                                            color: Colors.grey[600],
+                                          ),
+                                          softWrap: true,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.more_vert),
+                            onPressed: () => _showExerciseActions(exercise),
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
           ),
         ],
       ),

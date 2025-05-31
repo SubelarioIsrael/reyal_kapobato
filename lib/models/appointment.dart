@@ -7,6 +7,7 @@ class Appointment {
   final DateTime endTime;
   final String status;
   final String? notes;
+  final String? statusMessage;
 
   Appointment({
     required this.id,
@@ -17,6 +18,7 @@ class Appointment {
     required this.endTime,
     required this.status,
     this.notes,
+    this.statusMessage,
   });
 
   factory Appointment.fromJson(Map<String, dynamic> json) {
@@ -57,6 +59,7 @@ class Appointment {
       endTime: endTime,
       status: json['status'],
       notes: json['notes'],
+      statusMessage: json['status_message'],
     );
   }
 
@@ -70,6 +73,7 @@ class Appointment {
       'end_time': endTime.toIso8601String(),
       'status': status,
       'notes': notes,
+      'status_message': statusMessage,
     };
   }
 }

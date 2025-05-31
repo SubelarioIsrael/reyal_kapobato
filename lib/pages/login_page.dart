@@ -22,21 +22,32 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _redirectBasedOnRole(String userId) async {
     print('Fetching user role for userId: $userId');
     try {
-      // Log the userId to ensure it's a UUID string
       // Fetch user data from 'users' table based on the userId
       final userData = await _supabase
           .from('users')
-          .select('user_type') // Select the user_type field
+          .select('user_type, status') // Select the user_type and status fields
           .eq('user_id', userId)
           .maybeSingle();
 
       // Log the response for debugging
       print('User Data: $userId');
 
-      // Check if userData is not null and has a valid user_type
-      if (userData != null && userData['user_type'] != null) {
+      // Check if userData is not null and has a valid user_type and status
+      if (userData != null &&
+          userData['user_type'] != null &&
+          userData['status'] != null) {
         final userType = userData['user_type'];
-
+        final status = userData['status'];
+        if (status == 'suspended') {
+          _showErrorDialog(
+              'Your account has been suspended. Please contact support.');
+          return;
+        }
+        if (status != 'active') {
+          _showErrorDialog(
+              'Your account is not active. Please contact support.');
+          return;
+        }
         if (mounted) {
           // Redirect based on user_type
           if (userType == 'student') {
@@ -45,15 +56,16 @@ class _LoginPageState extends State<LoginPage> {
             Navigator.pushReplacementNamed(context, 'counselor-home');
           } else if (userType == 'admin') {
             Navigator.pushReplacementNamed(context, 'admin-home');
+          } else if (userType == 'parent') {
+            Navigator.pushReplacementNamed(context, 'parent-home');
           } else {
-            // If user_type is not recognized
             _showErrorDialog('Invalid user type. Please contact support.');
           }
         }
       } else {
-        // If userData is null or user_type is not found
+        // If userData is null or user_type/status is not found
         _showErrorDialog(
-          'Could not determine user role. Please contact support.',
+          'Could not determine user role or status. Please contact support.',
         );
       }
     } catch (e) {

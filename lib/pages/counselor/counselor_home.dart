@@ -172,12 +172,45 @@ class _CounselorHomeState extends State<CounselorHome> {
     return result != null ? result['counselor_id'] as int : null;
   }
 
-  Future<void> _updateAppointmentStatus(
+  Future<void> _updateAppointmentStatusWithMessage(
       Appointment appt, String newStatus) async {
+    String? message;
+    await showDialog(
+      context: context,
+      builder: (context) {
+        final controller = TextEditingController();
+        return AlertDialog(
+          title: Text('Change Status to ${newStatus.toUpperCase()}'),
+          content: TextField(
+            controller: controller,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              labelText: 'Message (optional)',
+              hintText: 'Add a reason or note for this status change',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                message = controller.text.trim();
+                Navigator.pop(context);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+    if (message == null) return; // Cancelled
     try {
       await Supabase.instance.client
           .from('counseling_appointments')
-          .update({'status': newStatus}).eq('appointment_id', appt.id);
+          .update({'status': newStatus, 'status_message': message}).eq(
+              'appointment_id', appt.id);
       await _loadAppointments();
     } catch (e) {
       if (mounted) {
@@ -559,7 +592,7 @@ class _CounselorHomeState extends State<CounselorHome> {
                                                 onPressed: appt.status == status
                                                     ? null
                                                     : () =>
-                                                        _updateAppointmentStatus(
+                                                        _updateAppointmentStatusWithMessage(
                                                             appt, status),
                                                 child: Text(status
                                                     .replaceAll('_', ' ')
@@ -567,6 +600,16 @@ class _CounselorHomeState extends State<CounselorHome> {
                                               );
                                             }).toList(),
                                           ),
+                                          if (appt.statusMessage != null &&
+                                              appt.statusMessage!
+                                                  .isNotEmpty) ...[
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              'Status Message: ${appt.statusMessage!}',
+                                              style: const TextStyle(
+                                                  color: Colors.deepPurple),
+                                            ),
+                                          ],
                                         ],
                                       ),
                                     ),
