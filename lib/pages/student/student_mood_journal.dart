@@ -59,9 +59,9 @@ class _StudentMoodJournalState extends State<StudentMoodJournal> {
 
   @override
   Widget build(BuildContext context) {
-    final pastelBlue = const Color.fromARGB(255, 242, 241, 248);
-    final lightPurple = const Color.fromARGB(255, 244, 253, 231);
-    final darkText = const Color(0xFF3A3A50);
+    const pastelBlue = Color.fromARGB(255, 242, 241, 248);
+    const lightPurple = Color.fromARGB(255, 244, 253, 231);
+    const darkText = Color(0xFF3A3A50);
 
     return Scaffold(
       backgroundColor: pastelBlue,

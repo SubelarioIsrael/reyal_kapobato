@@ -20,7 +20,7 @@ class _CounselorHomeState extends State<CounselorHome> {
 
   // Filtering state
   String _selectedDateRange = 'Today';
-  Set<String> _selectedStatuses = {};
+  final Set<String> _selectedStatuses = {};
 
   List<String> get _dateRangeOptions => [
         'Today',
@@ -284,11 +284,11 @@ class _CounselorHomeState extends State<CounselorHome> {
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
-            DrawerHeader(
-              decoration: const BoxDecoration(color: Color(0xFF7C83FD)),
+            const DrawerHeader(
+              decoration: BoxDecoration(color: Color(0xFF7C83FD)),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
+                children: [
                   Icon(Icons.account_circle, size: 80, color: Colors.white),
                   SizedBox(height: 8),
                   Text(
@@ -349,8 +349,9 @@ class _CounselorHomeState extends State<CounselorHome> {
                                     ))
                                 .toList(),
                             onChanged: (val) {
-                              if (val != null)
+                              if (val != null) {
                                 setState(() => _selectedDateRange = val);
+                              }
                             },
                           ),
                           const SizedBox(width: 16),
@@ -447,11 +448,60 @@ class _CounselorHomeState extends State<CounselorHome> {
                                                     ),
                                                 ],
                                               ),
-                                              Chip(
-                                                label: Text(
-                                                    appt.status.toUpperCase()),
-                                                backgroundColor:
-                                                    Colors.blue.shade50,
+                                              Row(
+                                                children: [
+                                                  PopupMenuButton<String>(
+                                                    icon: const Icon(
+                                                        Icons.more_vert),
+                                                    onSelected: (value) {
+                                                      if (value ==
+                                                          'view_history') {
+                                                        Navigator.pushNamed(
+                                                          context,
+                                                          '/student-history',
+                                                          arguments: {
+                                                            'userId':
+                                                                appt.userId,
+                                                            'username': _studentInfo[appt
+                                                                        .userId
+                                                                        .toString()
+                                                                        .trim()]
+                                                                    ?[
+                                                                    'username'] ??
+                                                                'Unknown',
+                                                            'studentId': _studentInfo[appt
+                                                                        .userId
+                                                                        .toString()
+                                                                        .trim()]
+                                                                    ?[
+                                                                    'student_id'] ??
+                                                                '',
+                                                          },
+                                                        );
+                                                      }
+                                                    },
+                                                    itemBuilder: (context) => [
+                                                      const PopupMenuItem(
+                                                        value: 'view_history',
+                                                        child: Row(
+                                                          children: [
+                                                            Icon(Icons.history),
+                                                            SizedBox(width: 8),
+                                                            Text(
+                                                                'View History'),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Chip(
+                                                    label: Text(appt.status
+                                                        .toUpperCase()),
+                                                    backgroundColor:
+                                                        Colors.blue.shade50,
+                                                  ),
+                                                ],
                                               ),
                                             ],
                                           ),

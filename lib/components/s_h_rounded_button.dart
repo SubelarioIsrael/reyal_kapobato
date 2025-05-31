@@ -65,7 +65,7 @@ class RoundedButton extends StatelessWidget {
           width: double.infinity, // Full width
           height: 180,
           decoration: BoxDecoration(
-            color: Color.fromARGB(
+            color: const Color.fromARGB(
               255,
               105,
               176,

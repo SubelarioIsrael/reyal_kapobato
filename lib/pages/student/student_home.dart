@@ -310,8 +310,8 @@ class _StudentHomeState extends State<StudentHome> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.account_circle, size: 80, color: Colors.white),
-                SizedBox(height: 8),
+                const Icon(Icons.account_circle, size: 80, color: Colors.white),
+                const SizedBox(height: 8),
                 Text(
                   isLoading ? "Loading..." : "$username!",
                   style: GoogleFonts.poppins(

@@ -30,11 +30,12 @@ import 'pages/admin/admin_settings.dart';
 import 'pages/admin/admin_profile.dart';
 import 'pages/counselor/counselor_home.dart';
 import 'pages/counselor/counselor_settings.dart';
+import 'pages/counselor/student_history.dart';
 
 // page routes
 final Map<String, WidgetBuilder> appRoutes = {
-  '/login': (context) => LoginPage(),
-  '/signup': (context) => SignUpPage(),
+  '/login': (context) => const LoginPage(),
+  '/signup': (context) => const SignUpPage(),
 
   //home page routes
   'student-home': (context) => const AuthGuard(child: StudentHome()),
@@ -76,6 +77,18 @@ final Map<String, WidgetBuilder> appRoutes = {
       const AuthGuard(child: AdminNotifications()),
   'admin-settings': (context) => const AuthGuard(child: AdminSettings()),
   'admin-profile': (context) => const AuthGuard(child: AdminProfile()),
+
+  // counselor page routes
   'counselor-settings': (context) =>
       const AuthGuard(child: CounselorSettings()),
+  '/student-history': (context) => AuthGuard(
+        child: StudentHistory(
+          userId: (ModalRoute.of(context)?.settings.arguments
+              as Map<String, dynamic>)['userId'] as String,
+          username: (ModalRoute.of(context)?.settings.arguments
+              as Map<String, dynamic>)['username'] as String,
+          studentId: (ModalRoute.of(context)?.settings.arguments
+              as Map<String, dynamic>)['studentId'] as String,
+        ),
+      ),
 };

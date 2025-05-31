@@ -24,12 +24,11 @@ class _LoginPageState extends State<LoginPage> {
     try {
       // Log the userId to ensure it's a UUID string
       // Fetch user data from 'users' table based on the userId
-      final userData =
-          await _supabase
-              .from('users')
-              .select('user_type') // Select the user_type field
-              .eq('user_id', userId)
-              .maybeSingle();
+      final userData = await _supabase
+          .from('users')
+          .select('user_type') // Select the user_type field
+          .eq('user_id', userId)
+          .maybeSingle();
 
       // Log the response for debugging
       print('User Data: $userId');
@@ -74,17 +73,16 @@ class _LoginPageState extends State<LoginPage> {
     if (mounted) {
       showDialog(
         context: context,
-        builder:
-            (ctx) => AlertDialog(
-              title: const Text('Error'),
-              content: Text(message),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('OK'),
-                ),
-              ],
+        builder: (ctx) => AlertDialog(
+          title: const Text('Error'),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK'),
             ),
+          ],
+        ),
       );
     }
   }
@@ -114,7 +112,7 @@ class _LoginPageState extends State<LoginPage> {
         await _redirectBasedOnRole(response.user!.id);
       } else {
         // This should generally not happen as errors are thrown
-        throw AuthException("No user returned");
+        throw const AuthException("No user returned");
       }
     } on AuthException catch (e) {
       String errorMessage = '';
@@ -132,17 +130,16 @@ class _LoginPageState extends State<LoginPage> {
       if (mounted) {
         showDialog(
           context: context,
-          builder:
-              (ctx) => AlertDialog(
-                title: const Text('Login Failed'),
-                content: Text(errorMessage),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    child: const Text('OK'),
-                  ),
-                ],
+          builder: (ctx) => AlertDialog(
+            title: const Text('Login Failed'),
+            content: Text(errorMessage),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('OK'),
               ),
+            ],
+          ),
         );
       }
     } catch (e) {
@@ -150,19 +147,18 @@ class _LoginPageState extends State<LoginPage> {
       if (mounted) {
         showDialog(
           context: context,
-          builder:
-              (ctx) => AlertDialog(
-                title: const Text('Login Failed'),
-                content: const Text(
-                  'Something went wrong. Please try again later.',
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    child: const Text('OK'),
-                  ),
-                ],
+          builder: (ctx) => AlertDialog(
+            title: const Text('Login Failed'),
+            content: const Text(
+              'Something went wrong. Please try again later.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('OK'),
               ),
+            ],
+          ),
         );
       }
     } finally {
@@ -201,7 +197,6 @@ class _LoginPageState extends State<LoginPage> {
                   style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
                 ),
                 const SizedBox(height: 30),
-
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
@@ -281,25 +276,23 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                             ),
                             onPressed: _isLoading ? null : _login,
-                            child:
-                                _isLoading
-                                    ? const CircularProgressIndicator(
-                                      color: Colors.white,
-                                    )
-                                    : const Text(
-                                      'Log In',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                            child: _isLoading
+                                ? const CircularProgressIndicator(
+                                    color: Colors.white,
+                                  )
+                                : const Text(
+                                    'Log In',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
                                     ),
+                                  ),
                           ),
                         ),
                       ],
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 20),
                 TextButton(
                   onPressed: () {

@@ -155,8 +155,8 @@ class _StudentMtqState extends State<StudentMtq> {
 
   @override
   Widget build(BuildContext context) {
-    final pastelBlue = const Color.fromARGB(255, 242, 241, 248);
-    final pastelPurple = const Color(0xFFE0D4FD);
+    const pastelBlue = Color.fromARGB(255, 242, 241, 248);
+    const pastelPurple = Color(0xFFE0D4FD);
 
     if (isLoading) {
       return Scaffold(
@@ -394,8 +394,8 @@ class _StudentMtqState extends State<StudentMtq> {
                     value: progress,
                     minHeight: 10,
                     backgroundColor: Colors.white70,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      const Color.fromARGB(255, 73, 75, 111),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      Color.fromARGB(255, 73, 75, 111),
                     ),
                   ),
                 ),
@@ -508,7 +508,7 @@ class _StudentMtqState extends State<StudentMtq> {
               text,
               style: GoogleFonts.poppins(
                 fontSize: 14,
-                color: Color(0xFF3A3A50),
+                color: const Color(0xFF3A3A50),
                 height: 1.5,
               ),
             ),

@@ -149,8 +149,8 @@ class _QuestionnaireSummaryState extends State<QuestionnaireSummary> {
 
   @override
   Widget build(BuildContext context) {
-    final pastelBlue = const Color.fromARGB(255, 242, 241, 248);
-    final pastelPurple = const Color(0xFFE0D4FD);
+    const pastelBlue = Color.fromARGB(255, 242, 241, 248);
+    const pastelPurple = Color(0xFFE0D4FD);
 
     if (isLoading) {
       return Scaffold(
