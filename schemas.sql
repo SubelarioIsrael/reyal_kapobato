@@ -152,39 +152,23 @@ create table public.mental_health_resources (
   )
 ) TABLESPACE pg_default;
 
-create table public.mood_entries (
-  entry_id serial not null,
-  mood_rating integer not null,
-  mood_description character varying(100) null,
-  energy_level integer not null,
-  stress_level integer not null,
-  entry_timestamp timestamp without time zone null default CURRENT_TIMESTAMP,
-  tags character varying(255) null,
-  notes text null,
-  user_id uuid null,
-  constraint moodentries_pkey primary key (entry_id),
-  constraint mood_entries_user_id_fkey foreign KEY (user_id) references users (user_id),
-  constraint chk_energy_level check (
-    (
-      (energy_level >= 1)
-      and (energy_level <= 10)
-    )
-  ),
-  constraint chk_mood_rating check (
-    (
-      (mood_rating >= 1)
-      and (mood_rating <= 10)
-    )
-  ),
-  constraint chk_stress_level check (
-    (
-      (stress_level >= 1)
-      and (stress_level <= 10)
-    )
-  )
-) TABLESPACE pg_default;
+-- Update mood_entries table for daily check-in feature
+DROP TABLE IF EXISTS public.mood_entries CASCADE;
 
-create index IF not exists idx_mood_entries_timestamp on public.mood_entries using btree (entry_timestamp) TABLESPACE pg_default;
+CREATE TABLE public.mood_entries (
+  entry_id serial PRIMARY KEY,
+  user_id uuid REFERENCES users(user_id),
+  mood_type VARCHAR(20) NOT NULL, -- e.g., 'happy', 'sad', 'angry', etc.
+  emoji_code VARCHAR(10),         -- optional, for emoji representation
+  reasons VARCHAR(50)[],          -- array of reasons, e.g., ['Friend', 'School']
+  notes TEXT,
+  entry_timestamp TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  entry_date date GENERATED ALWAYS AS (entry_timestamp::date) STORED,
+  mood_description VARCHAR(100),
+  energy_level INTEGER,           -- now optional
+  stress_level INTEGER,           -- now optional
+  CONSTRAINT unique_daily_checkin UNIQUE (user_id, entry_date)
+);
 
 create table public.parental_connections (
   connection_id serial not null,

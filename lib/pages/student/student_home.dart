@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../services/user_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:async';
+import 'package:intl/intl.dart';
 // Assuming it's styled to match now
 
 class StudentHome extends StatefulWidget {
@@ -17,6 +18,12 @@ class _StudentHomeState extends State<StudentHome> {
   bool isLoading = true;
   StreamSubscription? _usernameSubscription;
   int _selectedIndex = 0;
+
+  Map<String, dynamic>? todayCheckIn;
+  bool isCheckInLoading = true;
+
+  List<Map<String, dynamic>> weeklyMood = [];
+  bool isWeeklyMoodLoading = true;
 
   // List of grid features for the home page
   final List<_FeatureCardData> _emotionalWellbeing = [
@@ -33,6 +40,13 @@ class _StudentHomeState extends State<StudentHome> {
       image:
           'https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=400&q=80',
       route: 'student-mood-journal',
+    ),
+    const _FeatureCardData(
+      title: 'Daily Mood Check-in',
+      icon: Icons.emoji_emotions,
+      image:
+          'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80',
+      route: '/student-daily-checkin',
     ),
   ];
   final List<_FeatureCardData> _supportTools = [
@@ -80,6 +94,8 @@ class _StudentHomeState extends State<StudentHome> {
     super.initState();
     _loadUsername();
     _listenToUsernameChanges();
+    _fetchTodayCheckIn();
+    _fetchWeeklyMood();
   }
 
   @override
@@ -107,6 +123,200 @@ class _StudentHomeState extends State<StudentHome> {
         isLoading = false;
       });
     }
+  }
+
+  Future<void> _fetchTodayCheckIn() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+    final today = DateTime.now();
+    final response = await Supabase.instance.client
+        .from('mood_entries')
+        .select()
+        .eq('user_id', userId)
+        .eq('entry_date',
+            "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}")
+        .maybeSingle();
+    setState(() {
+      todayCheckIn = response;
+      isCheckInLoading = false;
+    });
+  }
+
+  Future<void> _fetchWeeklyMood() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+    final today = DateTime.now();
+    final startOfWeek = today.subtract(Duration(days: today.weekday % 7));
+    final endOfWeek = startOfWeek.add(Duration(days: 6));
+    final response = await Supabase.instance.client
+        .from('mood_entries')
+        .select()
+        .eq('user_id', userId)
+        .gte('entry_date', startOfWeek.toIso8601String().substring(0, 10))
+        .lte('entry_date', endOfWeek.toIso8601String().substring(0, 10));
+    setState(() {
+      weeklyMood = List<Map<String, dynamic>>.from(response);
+      isWeeklyMoodLoading = false;
+    });
+  }
+
+  Future<void> _saveCheckIn(Map<String, dynamic> data) async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+    await Supabase.instance.client.from('mood_entries').insert({
+      'user_id': userId,
+      'mood_type': data['mood_type'],
+      'emoji_code': data['emoji_code'],
+      'reasons': data['reasons'],
+      'notes': data['notes'],
+    });
+    await _fetchTodayCheckIn();
+    await _fetchWeeklyMood(); // Refresh weekly mood after check-in
+  }
+
+  void _showCheckInDialog() async {
+    showDialog(
+      context: context,
+      builder: (context) => DailyCheckInDialog(onSubmit: _saveCheckIn),
+    );
+  }
+
+  Widget _buildCheckInCard() {
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: Colors.green.shade50,
+      elevation: 0,
+      child: ListTile(
+        leading: Icon(Icons.emoji_emotions, color: Colors.green[700]),
+        title: Text("Daily Mood Check-in"),
+        trailing: Icon(Icons.add),
+        onTap: _showCheckInDialog,
+      ),
+    );
+  }
+
+  Widget _buildTodayCheckInSummary() {
+    if (todayCheckIn == null) return SizedBox();
+    final emoji = todayCheckIn!['emoji_code'] ?? '';
+    final mood = todayCheckIn!['mood_type'] ?? '';
+    final reasons = (todayCheckIn!['reasons'] as List?)?.join(', ') ?? '';
+    final notes = todayCheckIn!['notes'] ?? '';
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: Colors.green.shade100,
+      elevation: 0,
+      child: ListTile(
+        leading: Text(emoji, style: TextStyle(fontSize: 32)),
+        title: Text('Today you feel $mood'),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (reasons.isNotEmpty) Text('Because: $reasons'),
+            if (notes.isNotEmpty) Text('Note: $notes'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Map<String, dynamic>> getWeekDaysWithMood() {
+    final today = DateTime.now();
+    final startOfWeek = today.subtract(Duration(days: today.weekday % 7));
+    return List.generate(7, (i) {
+      final date = startOfWeek.add(Duration(days: i));
+      final entry = weeklyMood.firstWhere(
+        (e) =>
+            DateTime.parse(e['entry_date']).year == date.year &&
+            DateTime.parse(e['entry_date']).month == date.month &&
+            DateTime.parse(e['entry_date']).day == date.day,
+        orElse: () => {},
+      );
+      return {
+        'date': date,
+        'isToday': date.day == today.day &&
+            date.month == today.month &&
+            date.year == today.year,
+        'checkedIn': entry.isNotEmpty,
+        'emoji': entry['emoji_code'],
+      };
+    });
+  }
+
+  Widget _buildWeeklyMoodBar() {
+    if (isWeeklyMoodLoading) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16.0),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    final week = getWeekDaysWithMood();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: week.map((day) {
+          final isToday = day['isToday'];
+          final checkedIn = day['checkedIn'];
+          final emoji = day['emoji'];
+          final date = day['date'] as DateTime;
+          Color bgColor;
+          if (checkedIn) {
+            bgColor = Colors.green;
+          } else if (isToday) {
+            bgColor = Colors.orange;
+          } else {
+            bgColor = Colors.grey[200]!;
+          }
+          return Column(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  color: bgColor,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                child: Column(
+                  children: [
+                    Text(DateFormat('E').format(date),
+                        style: TextStyle(
+                          color: checkedIn
+                              ? Colors.white
+                              : (isToday ? Colors.white : Colors.black87),
+                          fontWeight: FontWeight.bold,
+                        )),
+                    Text('${date.day}',
+                        style: TextStyle(
+                          color: checkedIn
+                              ? Colors.white
+                              : (isToday ? Colors.white : Colors.black87),
+                          fontWeight: FontWeight.bold,
+                        )),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 4),
+              if (checkedIn)
+                Text(emoji ?? '', style: TextStyle(fontSize: 24))
+              else if (isToday)
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/student-daily-checkin');
+                  },
+                  child: Icon(Icons.add, size: 18),
+                  style: ElevatedButton.styleFrom(
+                    shape: CircleBorder(),
+                    padding: EdgeInsets.all(8),
+                    minimumSize: Size(36, 36),
+                  ),
+                )
+              else
+                SizedBox(height: 36),
+            ],
+          );
+        }).toList(),
+      ),
+    );
   }
 
   void _onItemTapped(int index) {
@@ -183,6 +393,7 @@ class _StudentHomeState extends State<StudentHome> {
                 color: const Color(0xFF3A3A50),
               ),
             ),
+            _buildWeeklyMoodBar(),
             const SizedBox(height: 20),
             // Daily Uplift Card
             Card(
@@ -412,6 +623,108 @@ class _FeatureCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class DailyCheckInDialog extends StatefulWidget {
+  final Function(Map<String, dynamic>) onSubmit;
+  const DailyCheckInDialog({required this.onSubmit});
+
+  @override
+  State<DailyCheckInDialog> createState() => _DailyCheckInDialogState();
+}
+
+class _DailyCheckInDialogState extends State<DailyCheckInDialog> {
+  String? moodType;
+  String? emojiCode;
+  List<String> reasons = [];
+  TextEditingController noteController = TextEditingController();
+
+  final moodOptions = [
+    {'type': 'angry', 'emoji': '😡'},
+    {'type': 'sad', 'emoji': '😔'},
+    {'type': 'neutral', 'emoji': '😐'},
+    {'type': 'happy', 'emoji': '😃'},
+    {'type': 'loved', 'emoji': '🥰'},
+  ];
+  final reasonOptions = ['Relationship', 'School', 'Friend', 'Work', 'Family'];
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text("How are you feeling today?"),
+      content: SingleChildScrollView(
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: moodOptions.map((mood) {
+                return GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      moodType = mood['type'];
+                      emojiCode = mood['emoji'];
+                    });
+                  },
+                  child: CircleAvatar(
+                    backgroundColor: moodType == mood['type']
+                        ? Colors.green
+                        : Colors.grey[200],
+                    child: Text(mood['emoji']!, style: TextStyle(fontSize: 24)),
+                  ),
+                );
+              }).toList(),
+            ),
+            SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              children: reasonOptions.map((reason) {
+                final selected = reasons.contains(reason);
+                return ChoiceChip(
+                  label: Text(reason),
+                  selected: selected,
+                  onSelected: (val) {
+                    setState(() {
+                      if (selected) {
+                        reasons.remove(reason);
+                      } else {
+                        reasons.add(reason);
+                      }
+                    });
+                  },
+                );
+              }).toList(),
+            ),
+            SizedBox(height: 16),
+            TextField(
+              controller: noteController,
+              decoration: InputDecoration(labelText: "Add a note (optional)"),
+              maxLines: 2,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text("Cancel"),
+        ),
+        ElevatedButton(
+          onPressed: moodType == null
+              ? null
+              : () {
+                  widget.onSubmit({
+                    'mood_type': moodType,
+                    'emoji_code': emojiCode,
+                    'reasons': reasons,
+                    'notes': noteController.text,
+                  });
+                  Navigator.pop(context);
+                },
+          child: Text("Submit"),
+        ),
+      ],
     );
   }
 }

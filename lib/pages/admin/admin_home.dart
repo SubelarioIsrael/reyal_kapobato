@@ -64,7 +64,7 @@ class _AdminHomeState extends State<AdminHome> {
       ),
       appBar: AppBar(
         title: Text(
-          "Manage Dashboard",
+          "Dashboard",
           style: GoogleFonts.poppins(
             fontSize: 20,
             fontWeight: FontWeight.w600,

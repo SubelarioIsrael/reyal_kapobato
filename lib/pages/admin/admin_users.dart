@@ -113,7 +113,7 @@ class _AdminUsersState extends State<AdminUsers> {
       backgroundColor: const Color.fromARGB(255, 242, 241, 248),
       appBar: AppBar(
         title: Text(
-          "Manage Users",
+          "Manage Students",
           style: GoogleFonts.poppins(
             fontSize: 20,
             fontWeight: FontWeight.w600,
