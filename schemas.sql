@@ -83,22 +83,11 @@ create table public.counselors (
   )
 ) TABLESPACE pg_default;
 
-create table public.aggregated_analytics (
-  analytics_id serial not null,
-  metric_type character varying(50) not null,
-  time_period character varying(20) not null,
-  value numeric(10, 2) not null,
-  demographic_filter jsonb null,
-  timestamp timestamp without time zone null default CURRENT_TIMESTAMP,
-  constraint aggregatedanalytics_pkey primary key (analytics_id)
-) TABLESPACE pg_default;
-
 create table public.emergency_contacts (
   contact_id serial not null,
   contact_name character varying(100) not null,
   relationship character varying(50) not null,
   contact_number character varying(20) not null,
-  email character varying(100) null,
   is_primary boolean null default false,
   is_notified boolean null default false,
   user_id uuid null,
@@ -170,69 +159,6 @@ CREATE TABLE public.mood_entries (
   CONSTRAINT unique_daily_checkin UNIQUE (user_id, entry_date)
 );
 
-create table public.parental_connections (
-  connection_id serial not null,
-  parent_name character varying(100) not null,
-  relationship character varying(50) not null,
-  email character varying(100) not null,
-  phone character varying(20) null,
-  access_level character varying(15) null default 'emergency_only'::character varying,
-  status character varying(10) null default 'pending'::character varying,
-  date_connected timestamp without time zone null default CURRENT_TIMESTAMP,
-  user_id uuid null,
-  constraint parentalconnections_pkey primary key (connection_id),
-  constraint parental_connections_user_id_fkey foreign KEY (user_id) references users (user_id),
-  constraint parentalconnections_access_level_check check (
-    (
-      (access_level)::text = any (
-        (
-          array[
-            'emergency_only'::character varying,
-            'limited'::character varying,
-            'full'::character varying
-          ]
-        )::text[]
-      )
-    )
-  ),
-  constraint parentalconnections_status_check check (
-    (
-      (status)::text = any (
-        (
-          array[
-            'pending'::character varying,
-            'active'::character varying,
-            'declined'::character varying,
-            'revoked'::character varying
-          ]
-        )::text[]
-      )
-    )
-  )
-) TABLESPACE pg_default;
-
-create table public.parents (
-  parent_id uuid not null default extensions.uuid_generate_v4 (),
-  user_id uuid null,
-  first_name character varying(100) not null,
-  last_name character varying(100) not null,
-  email character varying(255) not null,
-  phone character varying(20) null,
-  address text null,
-  created_at timestamp with time zone null default CURRENT_TIMESTAMP,
-  updated_at timestamp with time zone null default CURRENT_TIMESTAMP,
-  constraint parents_pkey primary key (parent_id),
-  constraint parents_email_key unique (email),
-  constraint fk_user foreign KEY (user_id) references users (user_id) on delete CASCADE,
-  constraint parents_user_id_fkey foreign KEY (user_id) references users (user_id)
-) TABLESPACE pg_default;
-
-create index IF not exists idx_parents_user_id on public.parents using btree (user_id) TABLESPACE pg_default;
-
-create trigger update_parents_updated_at BEFORE
-update on parents for EACH row
-execute FUNCTION update_updated_at_column ();
-
 create table public.password_resets (
   reset_id serial not null,
   reset_token character varying(255) not null,
@@ -290,24 +216,6 @@ create table public.questionnaire_answers (
   constraint questionnaire_answers_question_id_fkey foreign key (question_id) references questions (question_id)
 ) TABLESPACE pg_default;
 
-create table public.stress_gauge_readings (
-  reading_id serial not null,
-  stress_level integer not null,
-  reading_timestamp timestamp without time zone null default CURRENT_TIMESTAMP,
-  alert_triggered boolean null default false,
-  alert_type character varying(50) null,
-  response_action character varying(255) null,
-  user_id uuid null,
-  constraint stressgaugereadings_pkey primary key (reading_id),
-  constraint stress_gauge_readings_user_id_fkey foreign KEY (user_id) references users (user_id),
-  constraint chk_stress_gauge_level check (
-    (
-      (stress_level >= 1)
-      and (stress_level <= 10)
-    )
-  )
-) TABLESPACE pg_default;
-
 create table public.students (
   student_id serial not null,
   student_code character varying(20) not null,
@@ -328,36 +236,6 @@ create table public.students (
 ) TABLESPACE pg_default;
 
 create index IF not exists idx_students_student_code on public.students using btree (student_code) TABLESPACE pg_default;
-
-create table public.user_achievements (
-  achievement_id serial not null,
-  achievement_type character varying(50) not null,
-  date_earned timestamp without time zone null default CURRENT_TIMESTAMP,
-  description text not null,
-  points_awarded integer null default 0,
-  user_id uuid null,
-  constraint userachievements_pkey primary key (achievement_id),
-  constraint user_achievements_user_id_fkey foreign KEY (user_id) references users (user_id)
-) TABLESPACE pg_default;
-
-create table public.user_activities (
-  user_activity_id serial not null,
-  activity_id integer not null,
-  start_time timestamp without time zone null default CURRENT_TIMESTAMP,
-  completion_time timestamp without time zone null,
-  user_rating integer null,
-  notes text null,
-  user_id uuid null,
-  constraint useractivities_pkey primary key (user_activity_id),
-  constraint user_activities_activity_id_fkey foreign KEY (activity_id) references breathing_exercises (id),
-  constraint user_activities_user_id_fkey foreign KEY (user_id) references users (user_id),
-  constraint chk_user_rating check (
-    (
-      (user_rating >= 1)
-      and (user_rating <= 5)
-    )
-  )
-) TABLESPACE pg_default;
 
 create table public.user_notifications (
   notification_id serial not null,
