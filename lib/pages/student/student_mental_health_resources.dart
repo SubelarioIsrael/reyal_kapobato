@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../components/student_drawer.dart';
+import '../../components/student_notification_button.dart';
 
 class StudentMentalHealthResources extends StatefulWidget {
   const StudentMentalHealthResources({super.key});
@@ -226,39 +228,44 @@ class _StudentMentalHealthResourcesState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 242, 241, 248),
-      body: SafeArea(
-        child: isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : ListView(
-                padding: const EdgeInsets.all(24),
-                children: [
-                  Row(
-                    children: [
-                      GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: const Icon(
-                          Icons.arrow_back_ios_new_rounded,
-                          color: Color(0xFF3A3A50),
-                          size: 26,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        'Mental Health Resources',
-                        style: GoogleFonts.poppins(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF3A3A50),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  _buildSection('Videos', videos),
-                  _buildSection('Articles', articles),
-                ],
-              ),
+      appBar: AppBar(
+        backgroundColor: const Color.fromARGB(255, 242, 241, 248),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              color: Color(0xFF5D5D72)),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text(
+          "BreatheBetter",
+          style: GoogleFonts.poppins(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFF3A3A50),
+          ),
+        ),
+        centerTitle: true,
+        actions: [
+          const StudentNotificationButton(),
+        ],
       ),
+      drawer: const StudentDrawer(),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 0),
+                    _buildSection('Videos', videos),
+                    const SizedBox(height: 24),
+                    _buildSection('Articles', articles),
+                  ],
+                ),
+              ),
+            ),
     );
   }
 }

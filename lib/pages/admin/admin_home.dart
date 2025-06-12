@@ -11,6 +11,80 @@ class AdminHome extends StatefulWidget {
 
 class _AdminHomeState extends State<AdminHome> {
   final int _selectedIndex = 0;
+  int totalUsers = 0;
+  int activeUsers = 0;
+  List<Map<String, dynamic>> recentRegistrations = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    try {
+      final supabase = Supabase.instance.client;
+
+      // Get total users count
+      final totalUsersResponse = await supabase.from('users').select('user_id');
+      final totalUsersCount = totalUsersResponse.length;
+
+      // Get active users (users who have logged in within the last 24 hours)
+      final activeUsersResponse = await supabase
+          .from('students')
+          .select('user_id')
+          .gte(
+              'last_login',
+              DateTime.now()
+                  .subtract(const Duration(hours: 24))
+                  .toIso8601String());
+      final activeUsersCount = activeUsersResponse.length;
+
+      // Get recent user registrations (last 5)
+      final recentRegistrationsResponse = await supabase
+          .from('users')
+          .select('username, registration_date')
+          .order('registration_date', ascending: false)
+          .limit(5);
+
+      final recentRegistrationsList = recentRegistrationsResponse.map((user) {
+        final registrationDate = DateTime.parse(user['registration_date']);
+        final now = DateTime.now();
+        final difference = now.difference(registrationDate);
+
+        String timeAgo;
+        if (difference.inHours < 24) {
+          timeAgo = '${difference.inHours} hours ago';
+        } else if (difference.inDays < 7) {
+          timeAgo = '${difference.inDays} days ago';
+        } else {
+          timeAgo = '${difference.inDays ~/ 7} weeks ago';
+        }
+
+        return {
+          'name': user['username'],
+          'time': timeAgo,
+        };
+      }).toList();
+
+      if (mounted) {
+        setState(() {
+          totalUsers = totalUsersCount;
+          activeUsers = activeUsersCount;
+          recentRegistrations = recentRegistrationsList;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading data: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -77,68 +151,238 @@ class _AdminHomeState extends State<AdminHome> {
       ),
       backgroundColor: const Color.fromARGB(255, 242, 241, 248),
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 20),
-                Text(
-                  "Admin Dashboard",
-                  style: GoogleFonts.poppins(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF3A3A50),
+        child: RefreshIndicator(
+          onRefresh: _loadData,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 20),
+                  Text(
+                    "Admin Dashboard",
+                    style: GoogleFonts.poppins(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF3A3A50),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 30),
-                GridView.count(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  childAspectRatio: 1.1,
-                  children: [
-                    _buildDashboardCard(
-                      icon: Icons.person_add,
-                      title: "Manage Accounts",
-                      description: "Add/Remove counselors and admins",
-                      onTap: () =>
-                          Navigator.pushNamed(context, 'admin-accounts'),
-                      color: const Color(0xFF7C83FD),
+                  const SizedBox(height: 30),
+                  // KPI Section
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildKPICard(
+                          title: "Total Users",
+                          value: totalUsers.toString(),
+                          icon: Icons.people,
+                          color: const Color(0xFF7C83FD),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildKPICard(
+                          title: "Active Users",
+                          value: activeUsers.toString(),
+                          icon: Icons.person,
+                          color: const Color(0xFF81C784),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 30),
+                  Text(
+                    "Quick Actions",
+                    style: GoogleFonts.poppins(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF3A3A50),
                     ),
-                    _buildDashboardCard(
-                      icon: Icons.people,
-                      title: "User Management",
-                      description: "Manage student accounts",
-                      onTap: () => Navigator.pushNamed(context, 'admin-users'),
-                      color: const Color(0xFF81C784),
+                  ),
+                  const SizedBox(height: 16),
+                  GridView.count(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    childAspectRatio: 1.1,
+                    children: [
+                      _buildDashboardCard(
+                        icon: Icons.people,
+                        title: "User Management",
+                        description: "Manage all user accounts",
+                        onTap: () =>
+                            Navigator.pushNamed(context, 'admin-users'),
+                        color: const Color(0xFF7C83FD),
+                      ),
+                      _buildDashboardCard(
+                        icon: Icons.psychology,
+                        title: "Mental Health Resources",
+                        description: "Add/Edit resources",
+                        onTap: () =>
+                            Navigator.pushNamed(context, 'admin-resources'),
+                        color: const Color(0xFF4F646F),
+                      ),
+                      _buildDashboardCard(
+                        icon: Icons.self_improvement,
+                        title: "Breathing Exercises",
+                        description: "Manage breathing exercises",
+                        onTap: () =>
+                            Navigator.pushNamed(context, 'admin-exercises'),
+                        color: const Color(0xFFBFDCE5),
+                      ),
+                      _buildDashboardCard(
+                        icon: Icons.quiz,
+                        title: "Questionnaire",
+                        description: "Manage assessment questions",
+                        onTap: () => Navigator.pushNamed(
+                            context, '/admin-questionnaire'),
+                        color: const Color(0xFFE57373),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 30),
+                  Text(
+                    "Recent Activity",
+                    style: GoogleFonts.poppins(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF3A3A50),
                     ),
-                    _buildDashboardCard(
-                      icon: Icons.psychology,
-                      title: "Mental Health Resources",
-                      description: "Add/Edit resources",
-                      onTap: () =>
-                          Navigator.pushNamed(context, 'admin-resources'),
-                      color: const Color(0xFF4F646F),
-                    ),
-                    _buildDashboardCard(
-                      icon: Icons.self_improvement,
-                      title: "Breathing Exercises",
-                      description: "Manage breathing exercises",
-                      onTap: () =>
-                          Navigator.pushNamed(context, 'admin-exercises'),
-                      color: const Color(0xFFBFDCE5),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-              ],
+                  ),
+                  const SizedBox(height: 16),
+                  _buildRecentActivityCard(),
+                  const SizedBox(height: 20),
+                ],
+              ),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildKPICard({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(13),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withAlpha(26),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            value,
+            style: GoogleFonts.poppins(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF3A3A50),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecentActivityCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(13),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Recent User Registrations",
+            style: GoogleFonts.poppins(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF3A3A50),
+            ),
+          ),
+          const SizedBox(height: 16),
+          ...recentRegistrations.map((registration) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  children: [
+                    const CircleAvatar(
+                      backgroundColor: Color(0xFF7C83FD),
+                      child:
+                          Icon(Icons.person_add, color: Colors.white, size: 16),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            registration['name'],
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: const Color(0xFF3A3A50),
+                            ),
+                          ),
+                          Text(
+                            registration['time'],
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              )),
+        ],
       ),
     );
   }

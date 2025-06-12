@@ -2,6 +2,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../components/question.dart';
+import '../../components/student_drawer.dart';
+import '../../components/student_notification_button.dart';
 
 class StudentMtq extends StatefulWidget {
   const StudentMtq({super.key});
@@ -126,6 +128,7 @@ class _StudentMtqState extends State<StudentMtq> {
             'response_id': responseId,
             'question_id': question.questionId,
             'chosen_answer': question.selectedOption,
+            'question_text_snapshot': question.questionText,
           });
         }
       }
@@ -175,6 +178,28 @@ class _StudentMtqState extends State<StudentMtq> {
     if (showIntroduction) {
       return Scaffold(
         backgroundColor: pastelBlue,
+        appBar: AppBar(
+          backgroundColor: pastelBlue,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                color: Color(0xFF5D5D72)),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          title: Text(
+            "BreatheBetter",
+            style: GoogleFonts.poppins(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF3A3A50),
+            ),
+          ),
+          centerTitle: true,
+          actions: [
+            const StudentNotificationButton(),
+          ],
+        ),
+        drawer: const StudentDrawer(),
         body: SafeArea(
           child: SingleChildScrollView(
             child: Padding(
@@ -183,15 +208,7 @@ class _StudentMtqState extends State<StudentMtq> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Back Button
-                  GestureDetector(
-                    onTap: () => Navigator.pushNamed(context, 'student-home'),
-                    child: const Icon(
-                      Icons.arrow_back_ios_new_rounded,
-                      color: Color(0xFF3A3A50),
-                      size: 28,
-                    ),
-                  ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 0),
 
                   // Title
                   Text(
@@ -226,27 +243,24 @@ class _StudentMtqState extends State<StudentMtq> {
                   const SizedBox(height: 24),
 
                   // Guidelines
-                  Text(
-                    'Guidelines:',
-                    style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF3A3A50),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: pastelPurple,
                       borderRadius: BorderRadius.circular(12),
-                      border:
-                          Border.all(color: const Color(0xFF7C83FD), width: 1),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Text(
+                          'Guidelines:',
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF3A3A50),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
                         _buildBulletPoint(
                             'Take your time to answer each question thoughtfully'),
                         _buildBulletPoint(
@@ -259,6 +273,33 @@ class _StudentMtqState extends State<StudentMtq> {
                     ),
                   ),
                   const SizedBox(height: 24),
+
+                  // History Button
+                  Center(
+                    child: TextButton.icon(
+                      onPressed: () {
+                        Navigator.pushNamed(context, 'questionnaire-history');
+                      },
+                      icon: const Icon(Icons.history, color: Color(0xFF5D5D72)),
+                      label: Text(
+                        'View Previous Summaries',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          color: const Color(0xFF5D5D72),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          side: const BorderSide(color: Color(0xFF5D5D72)),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
 
                   // Disclaimer
                   Container(

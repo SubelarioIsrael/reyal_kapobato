@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'; // Import Supabase for the drawer logout functionality
+import '../../components/student_drawer.dart';
+import '../../components/student_notification_button.dart';
 
 class StudentSettings extends StatefulWidget {
   const StudentSettings({super.key});
@@ -18,89 +21,103 @@ class _StudentSettingsState extends State<StudentSettings> {
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 242, 241, 248),
       appBar: AppBar(
-        title: Text(
-          "Settings",
-          style: GoogleFonts.poppins(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
+        backgroundColor: const Color.fromARGB(
+            255, 242, 241, 248), // Consistent background color
+        elevation: 0,
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu, color: Color(0xFF5D5D72)),
+            onPressed: () => Scaffold.of(context).openDrawer(),
           ),
         ),
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF3A3A50),
-        elevation: 0,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _buildSection(
-            title: "General",
-            children: [
-              _buildSwitchTile(
-                title: "Notifications",
-                subtitle: "Enable push notifications",
-                value: _notificationsEnabled,
-                onChanged: (value) {
-                  setState(() {
-                    _notificationsEnabled = value;
-                  });
-                },
-              ),
-              _buildSwitchTile(
-                title: "Dark Mode",
-                subtitle: "Enable dark theme",
-                value: _darkMode,
-                onChanged: (value) {
-                  setState(() {
-                    _darkMode = value;
-                  });
-                },
-              ),
-              _buildDropdownTile(
-                title: "Language",
-                subtitle: "Select your preferred language",
-                value: _selectedLanguage,
-                items: const ['English', 'Spanish', 'French', 'German'],
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() {
-                      _selectedLanguage = value;
-                    });
-                  }
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          _buildSection(
-            title: "Account",
-            children: [
-              _buildListTile(
-                title: "Change Password",
-                subtitle: "Update your password",
-                icon: Icons.lock_outline,
-                onTap: () {
-                  // TODO: Implement change password
-                },
-              ),
-              _buildListTile(
-                title: "Privacy Policy",
-                subtitle: "Read our privacy policy",
-                icon: Icons.privacy_tip_outlined,
-                onTap: () {
-                  // TODO: Show privacy policy
-                },
-              ),
-              _buildListTile(
-                title: "Terms of Service",
-                subtitle: "Read our terms of service",
-                icon: Icons.description_outlined,
-                onTap: () {
-                  // TODO: Show terms of service
-                },
-              ),
-            ],
-          ),
+        title: Text(
+          "BreatheBetter", // Changed title to BreatheBetter
+          style: GoogleFonts.poppins(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFF3A3A50),
+          ), // Updated text style
+        ),
+        centerTitle: true,
+        actions: [
+          const StudentNotificationButton(),
         ],
+      ),
+      drawer: const StudentDrawer(),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _buildSection(
+              title: "General",
+              children: [
+                _buildSwitchTile(
+                  title: "Notifications",
+                  subtitle: "Enable push notifications",
+                  value: _notificationsEnabled,
+                  onChanged: (value) {
+                    setState(() {
+                      _notificationsEnabled = value;
+                    });
+                  },
+                ),
+                _buildSwitchTile(
+                  title: "Dark Mode",
+                  subtitle: "Enable dark theme",
+                  value: _darkMode,
+                  onChanged: (value) {
+                    setState(() {
+                      _darkMode = value;
+                    });
+                  },
+                ),
+                _buildDropdownTile(
+                  title: "Language",
+                  subtitle: "Select your preferred language",
+                  value: _selectedLanguage,
+                  items: const ['English', 'Spanish', 'French', 'German'],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        _selectedLanguage = value;
+                      });
+                    }
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            _buildSection(
+              title: "Account",
+              children: [
+                _buildListTile(
+                  title: "Change Password",
+                  subtitle: "Update your password",
+                  icon: Icons.lock_outline,
+                  onTap: () {
+                    // TODO: Implement change password
+                  },
+                ),
+                _buildListTile(
+                  title: "Privacy Policy",
+                  subtitle: "Read our privacy policy",
+                  icon: Icons.privacy_tip_outlined,
+                  onTap: () {
+                    // TODO: Show privacy policy
+                  },
+                ),
+                _buildListTile(
+                  title: "Terms of Service",
+                  subtitle: "Read our terms of service",
+                  icon: Icons.description_outlined,
+                  onTap: () {
+                    // TODO: Show terms of service
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

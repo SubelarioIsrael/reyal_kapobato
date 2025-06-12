@@ -375,3 +375,6 @@ CREATE TABLE public.counseling_session_notes (
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE public.questionnaire_answers
+ADD COLUMN question_text_snapshot text NOT NULL DEFAULT '';

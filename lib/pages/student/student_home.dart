@@ -4,6 +4,8 @@ import '../../services/user_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:async';
 import 'package:intl/intl.dart';
+import '../../components/student_drawer.dart';
+import '../../components/student_notification_button.dart';
 // Assuming it's styled to match now
 
 class StudentHome extends StatefulWidget {
@@ -17,7 +19,8 @@ class _StudentHomeState extends State<StudentHome> {
   String? username;
   bool isLoading = true;
   StreamSubscription? _usernameSubscription;
-  int _selectedIndex = 0;
+  int _selectedIndex = 1;
+  final _refreshKey = GlobalKey<RefreshIndicatorState>();
 
   Map<String, dynamic>? todayCheckIn;
   bool isCheckInLoading = true;
@@ -66,13 +69,6 @@ class _StudentHomeState extends State<StudentHome> {
     ),
   ];
   final List<_FeatureCardData> _connectManage = [
-    const _FeatureCardData(
-      title: 'Chatbot',
-      icon: Icons.chat,
-      image:
-          'https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=crop&w=400&q=80',
-      route: 'student-chatbot',
-    ),
     const _FeatureCardData(
       title: 'Counselors',
       icon: Icons.people,
@@ -324,17 +320,33 @@ class _StudentHomeState extends State<StudentHome> {
       _selectedIndex = index;
     });
     switch (index) {
-      case 0: // Home
+      case 0: // Breathing Exercises
+        Navigator.pushNamed(context, 'student-breathing-exercises');
         break;
-      case 1: // Settings
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Settings coming soon!')),
-        );
+      case 1: // Home (stay on this page)
+        // No navigation needed, already on home
         break;
-      case 2: // Profile
-        Navigator.pushNamed(context, '/student-profile');
+      case 2: // Track Mood (Daily Check-in)
+        Navigator.pushNamed(context, '/student-daily-checkin');
         break;
     }
+  }
+
+  Future<void> _refreshData() async {
+    setState(() {
+      isCheckInLoading = true;
+      isWeeklyMoodLoading = true;
+    });
+
+    await Future.wait([
+      _fetchTodayCheckIn(),
+      _fetchWeeklyMood(),
+    ]);
+
+    setState(() {
+      isCheckInLoading = false;
+      isWeeklyMoodLoading = false;
+    });
   }
 
   @override
@@ -343,154 +355,158 @@ class _StudentHomeState extends State<StudentHome> {
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
         backgroundColor: const Color.fromARGB(255, 242, 241, 248),
-        drawer: _buildDrawer(context),
-        body: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
-          children: [
-            const SizedBox(height: 30),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  "Welcome Back",
-                  style: GoogleFonts.poppins(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w500,
-                    color: const Color(0xFF5D5D72),
-                  ),
-                ),
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.notifications_none,
-                          color: Color(0xFF5D5D72)),
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('No new notifications.')),
-                        );
-                      },
-                    ),
-                    Builder(
-                      builder: (context) => IconButton(
-                        icon: const Icon(
-                          Icons.menu,
-                          color: Color(0xFF5D5D72),
-                        ),
-                        onPressed: () => Scaffold.of(context).openDrawer(),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+        appBar: AppBar(
+          backgroundColor: const Color.fromARGB(255, 242, 241, 248),
+          elevation: 0,
+          leading: Builder(
+            builder: (context) => IconButton(
+              icon: const Icon(Icons.menu, color: Color(0xFF5D5D72)),
+              onPressed: () => Scaffold.of(context).openDrawer(),
             ),
-            const SizedBox(height: 10),
-            Text(
-              isLoading ? "Loading..." : "Hi, $username!",
-              style: GoogleFonts.poppins(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: const Color(0xFF3A3A50),
-              ),
+          ),
+          title: Text(
+            "BreatheBetter",
+            style: GoogleFonts.poppins(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF3A3A50),
             ),
-            _buildWeeklyMoodBar(),
-            const SizedBox(height: 20),
-            // Daily Uplift Card
-            Card(
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
-              color: Colors.cyan.shade50,
-              elevation: 0,
-              child: Padding(
-                padding: const EdgeInsets.all(18.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Healing takes time, and asking for help is a courageous step.',
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: const Color(0xFF3A3A50),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '— Mariska Hargitay',
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        color: Colors.grey[700],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Emotional Well-being',
-              style: GoogleFonts.poppins(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF3A3A50),
-              ),
-            ),
-            const SizedBox(height: 12),
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 1.2,
-              children: _emotionalWellbeing
-                  .map((feature) => _FeatureCard(feature: feature))
-                  .toList(),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Support & Self-Care Tools',
-              style: GoogleFonts.poppins(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF3A3A50),
-              ),
-            ),
-            const SizedBox(height: 12),
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 1.2,
-              children: _supportTools
-                  .map((feature) => _FeatureCard(feature: feature))
-                  .toList(),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Connect & Manage',
-              style: GoogleFonts.poppins(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF3A3A50),
-              ),
-            ),
-            const SizedBox(height: 12),
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 1.2,
-              children: _connectManage
-                  .map((feature) => _FeatureCard(feature: feature))
-                  .toList(),
-            ),
-            const SizedBox(height: 24),
+          ),
+          centerTitle: true,
+          actions: [
+            const StudentNotificationButton(),
           ],
+        ),
+        drawer: const StudentDrawer(),
+        body: RefreshIndicator(
+          key: _refreshKey,
+          onRefresh: _refreshData,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 20), // Add some space below AppBar
+                  Text(
+                    "Welcome Back",
+                    style: GoogleFonts.poppins(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFF5D5D72),
+                    ),
+                  ),
+                  const SizedBox(height: 5), // Reduced space
+                  Text(
+                    isLoading ? "Loading..." : "Hi, $username!",
+                    style: GoogleFonts.poppins(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF3A3A50),
+                    ),
+                  ),
+                  _buildWeeklyMoodBar(),
+                  const SizedBox(height: 20),
+                  // Daily Uplift Card
+                  Card(
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                    color: Colors.cyan.shade50,
+                    elevation: 0,
+                    child: Padding(
+                      padding: const EdgeInsets.all(18.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Healing takes time, and asking for help is a courageous step.',
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: const Color(0xFF3A3A50),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '— Mariska Hargitay',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Emotional Well-being',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF3A3A50),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  GridView.count(
+                    crossAxisCount: 2,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    childAspectRatio: 1.2,
+                    children: _emotionalWellbeing
+                        .map((feature) => _FeatureCard(feature: feature))
+                        .toList(),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Support & Self-Care Tools',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF3A3A50),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  GridView.count(
+                    crossAxisCount: 2,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    childAspectRatio: 1.2,
+                    children: _supportTools
+                        .map((feature) => _FeatureCard(feature: feature))
+                        .toList(),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Connect & Manage',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF3A3A50),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  GridView.count(
+                    crossAxisCount: 2,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    childAspectRatio: 1.2,
+                    children: _connectManage
+                        .map((feature) => _FeatureCard(feature: feature))
+                        .toList(),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+              ),
+            ),
+          ),
         ),
         bottomNavigationBar: BottomNavigationBar(
           backgroundColor: Colors.white,
@@ -501,65 +517,14 @@ class _StudentHomeState extends State<StudentHome> {
           currentIndex: _selectedIndex,
           onTap: _onItemTapped,
           items: const [
+            BottomNavigationBarItem(
+                icon: Icon(Icons.self_improvement),
+                label: 'Breathing Exercises'),
             BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
             BottomNavigationBarItem(
-                icon: Icon(Icons.settings), label: 'Settings'),
-            BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+                icon: Icon(Icons.emoji_emotions), label: 'Track Mood'),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildDrawer(BuildContext context) {
-    return Drawer(
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          DrawerHeader(
-            decoration: const BoxDecoration(color: Color(0xFF7C83FD)),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.account_circle, size: 80, color: Colors.white),
-                const SizedBox(height: 8),
-                Text(
-                  isLoading ? "Loading..." : "$username!",
-                  style: GoogleFonts.poppins(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: const Color.fromARGB(255, 255, 255, 255),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          ListTile(
-            leading: const Icon(Icons.settings),
-            title: const Text('Settings'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushNamed(context, 'student-settings');
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.home),
-            title: const Text('Profile'),
-            onTap: () => Navigator.pushNamed(context, '/student-profile'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.logout),
-            title: const Text('Logout'),
-            onTap: () async {
-              await Supabase.instance.client.auth.signOut();
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                '/login',
-                (route) => false,
-              );
-            },
-          ),
-        ],
       ),
     );
   }

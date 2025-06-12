@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../services/chatbot_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../components/student_drawer.dart';
+import '../../components/student_notification_button.dart';
 
 class StudentChatbot extends StatefulWidget {
   const StudentChatbot({super.key});
@@ -50,14 +53,27 @@ class _StudentChatbotState extends State<StudentChatbot> {
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 242, 241, 248),
       appBar: AppBar(
-        title: Text(
-          "Chat with Eirene",
-          style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600),
-        ),
-        backgroundColor: const Color(0xFFBFDCE5),
-        foregroundColor: Colors.black87,
+        backgroundColor: const Color.fromARGB(255, 242, 241, 248),
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              color: Color(0xFF5D5D72)),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text(
+          "BreatheBetter",
+          style: GoogleFonts.poppins(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFF3A3A50),
+          ),
+        ),
+        centerTitle: true,
+        actions: [
+          const StudentNotificationButton(),
+        ],
       ),
+      drawer: const StudentDrawer(),
       body: Column(
         children: [
           Expanded(

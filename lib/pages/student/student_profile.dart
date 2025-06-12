@@ -5,15 +5,17 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as path;
 import '../../services/user_service.dart';
+import '../../components/student_drawer.dart';
+import '../../components/student_notification_button.dart';
 
-class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
+class StudentProfile extends StatefulWidget {
+  const StudentProfile({super.key});
 
   @override
-  State<ProfilePage> createState() => _ProfilePageState();
+  State<StudentProfile> createState() => _StudentProfileState();
 }
 
-class _ProfilePageState extends State<ProfilePage> {
+class _StudentProfileState extends State<StudentProfile> {
   Map<String, dynamic>? userProfile;
   bool isLoading = true;
   bool isUploading = false;
@@ -151,6 +153,29 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 242, 241, 248),
+      appBar: AppBar(
+        backgroundColor: const Color.fromARGB(255, 242, 241, 248),
+        elevation: 0,
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu, color: Color(0xFF5D5D72)),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
+        title: Text(
+          "BreatheBetter",
+          style: GoogleFonts.poppins(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFF3A3A50),
+          ),
+        ),
+        centerTitle: true,
+        actions: [
+          const StudentNotificationButton(),
+        ],
+      ),
+      drawer: const StudentDrawer(),
       body: SafeArea(
         child: isLoading
             ? const Center(child: CircularProgressIndicator())
@@ -160,28 +185,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   key: _formKey,
                   child: Column(
                     children: [
-                      Row(
-                        children: [
-                          GestureDetector(
-                            onTap: () => Navigator.pop(context),
-                            child: const Icon(
-                              Icons.arrow_back_ios_new_rounded,
-                              color: Color(0xFF3A3A50),
-                              size: 26,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            'Profile',
-                            style: GoogleFonts.poppins(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFF3A3A50),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 0),
                       Stack(
                         children: [
                           CircleAvatar(

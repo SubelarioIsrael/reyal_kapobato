@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../components/student_drawer.dart';
+import '../../components/student_notification_button.dart';
 
 class QuestionnaireSummary extends StatefulWidget {
   final int responseId;
@@ -88,10 +90,10 @@ class _QuestionnaireSummaryState extends State<QuestionnaireSummary> {
 
   String _determineSeverityLevel(int totalScore) {
     // For a 10-question questionnaire with 0-4 scale (max score = 40)
-    if (totalScore <= 10) return 'mild'; // 0-25% of max score
-    if (totalScore <= 20) return 'moderate'; // 26-50% of max score
-    if (totalScore <= 30) return 'severe'; // 51-75% of max score
-    return 'critical'; // 76-100% of max score
+    if (totalScore <= 4) return 'mild'; // 0-10% of max score
+    if (totalScore <= 9) return 'moderate'; // 11-25% of max score
+    if (totalScore <= 14) return 'severe'; // 26-40% of max score
+    return 'critical'; // >40% of max score
   }
 
   String _generateInsights(String severityLevel) {
@@ -125,25 +127,43 @@ class _QuestionnaireSummaryState extends State<QuestionnaireSummary> {
   }
 
   Future<int?> _selectBreathingExercise(String severityLevel) async {
-    // Get all breathing exercises
-    final exercises = await Supabase.instance.client
-        .from('breathing_exercises')
-        .select()
-        .inFilter(
-            'name', ['4-7-8 Breathing', 'Box Breathing', 'Deep Breathing']);
+    try {
+      // Get all breathing exercises
+      final exercises = await Supabase.instance.client
+          .from('breathing_exercises')
+          .select()
+          .inFilter(
+              'name', ['4-7-8 Breathing', 'Box Breathing', 'Deep Breathing']);
 
-    // Select appropriate exercise based on severity
-    switch (severityLevel) {
-      case 'mild':
-        return exercises.firstWhere((e) => e['name'] == 'Deep Breathing')['id'];
-      case 'moderate':
-        return exercises.firstWhere((e) => e['name'] == 'Box Breathing')['id'];
-      case 'severe':
-      case 'critical':
-        return exercises
-            .firstWhere((e) => e['name'] == '4-7-8 Breathing')['id'];
-      default:
-        return exercises.first['id'];
+      if (exercises.isEmpty) {
+        print('No breathing exercises found');
+        return null;
+      }
+
+      // Select appropriate exercise based on severity
+      switch (severityLevel) {
+        case 'mild':
+          return exercises.firstWhere(
+            (e) => e['name'] == 'Deep Breathing',
+            orElse: () => exercises.first,
+          )['id'];
+        case 'moderate':
+          return exercises.firstWhere(
+            (e) => e['name'] == 'Box Breathing',
+            orElse: () => exercises.first,
+          )['id'];
+        case 'severe':
+        case 'critical':
+          return exercises.firstWhere(
+            (e) => e['name'] == '4-7-8 Breathing',
+            orElse: () => exercises.first,
+          )['id'];
+        default:
+          return exercises.first['id'];
+      }
+    } catch (e) {
+      print('Error selecting breathing exercise: $e');
+      return null;
     }
   }
 
@@ -159,8 +179,48 @@ class _QuestionnaireSummaryState extends State<QuestionnaireSummary> {
       );
     }
 
+    if (summaryData == null) {
+      return Scaffold(
+        backgroundColor: pastelBlue,
+        body: Center(
+          child: Text(
+            'Error loading summary data',
+            style: GoogleFonts.poppins(
+              fontSize: 16,
+              color: const Color(0xFF3A3A50),
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: pastelBlue,
+      appBar: AppBar(
+        backgroundColor: pastelBlue,
+        elevation: 0,
+        leading: Builder(
+          builder: (BuildContext context) {
+            return IconButton(
+              icon: const Icon(Icons.menu, color: Color(0xFF5D5D72)),
+              onPressed: () => Scaffold.of(context).openDrawer(),
+            );
+          },
+        ),
+        title: Text(
+          "BreatheBetter",
+          style: GoogleFonts.poppins(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFF3A3A50),
+          ),
+        ),
+        centerTitle: true,
+        actions: [
+          const StudentNotificationButton(),
+        ],
+      ),
+      drawer: const StudentDrawer(),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -168,27 +228,7 @@ class _QuestionnaireSummaryState extends State<QuestionnaireSummary> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Back Button
-                GestureDetector(
-                  onTap: () => Navigator.pushNamed(context, 'student-home'),
-                  child: const Icon(
-                    Icons.arrow_back_ios_new_rounded,
-                    color: Color(0xFF3A3A50),
-                    size: 28,
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Title
-                Text(
-                  'Your Assessment Summary',
-                  style: GoogleFonts.poppins(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF3A3A50),
-                  ),
-                ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 0),
 
                 // Severity Level
                 Container(
@@ -355,29 +395,67 @@ class _QuestionnaireSummaryState extends State<QuestionnaireSummary> {
                   ),
                   const SizedBox(height: 16),
                 ],
-                Center(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF7C83FD),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 30,
-                        vertical: 14,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+
+                // Navigation Buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    // Go Back Button
+                    Expanded(
+                      child: TextButton.icon(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.arrow_back,
+                            color: Color(0xFF5D5D72)),
+                        label: Text(
+                          'Go Back to History',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            color: const Color(0xFF5D5D72),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            side: const BorderSide(color: Color(0xFF5D5D72)),
+                          ),
+                        ),
                       ),
                     ),
-                    onPressed: () =>
-                        Navigator.pushNamed(context, 'student-chatbot'),
-                    child: Text(
-                      'Talk to Chatbot',
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
+
+                    const SizedBox(width: 10), // Add some space between buttons
+
+                    // Return to Home Button
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => Navigator.pushReplacementNamed(
+                            context, 'student-home'),
+                        icon: const Icon(Icons.home, color: Colors.white),
+                        label: Text(
+                          'Return to Home',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF7C83FD),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
                 const SizedBox(height: 24),
               ],

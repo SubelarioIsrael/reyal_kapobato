@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'dart:async';
+import '../../components/student_drawer.dart';
+import '../../components/student_notification_button.dart';
 
 class StudentDailyCheckInPage extends StatefulWidget {
   const StudentDailyCheckInPage({Key? key}) : super(key: key);
@@ -19,6 +23,8 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
   bool isComplete = false;
   Map<String, dynamic>? todayCheckIn;
 
+  int _selectedIndex = 2;
+
   final moodOptions = [
     {'type': 'angry', 'emoji': '😡'},
     {'type': 'sad', 'emoji': '😔'},
@@ -37,53 +43,170 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
   Future<void> _fetchTodayCheckIn() async {
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null) return;
+
     final today = DateTime.now();
-    final response = await Supabase.instance.client
-        .from('mood_entries')
-        .select()
-        .eq('user_id', userId)
-        .eq('entry_date',
-            "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}")
-        .maybeSingle();
-    setState(() {
-      todayCheckIn = response;
-      isComplete = response != null;
-    });
+    // Get the start and end of today in the local timezone
+    final startOfToday = DateTime(today.year, today.month, today.day);
+    final endOfToday =
+        DateTime(today.year, today.month, today.day, 23, 59, 59, 999);
+
+    try {
+      final response = await Supabase.instance.client
+          .from('mood_entries')
+          .select()
+          .eq('user_id', userId)
+          .gte(
+              'entry_date',
+              startOfToday
+                  .toIso8601String()) // Greater than or equal to start of day
+          .lte('entry_date',
+              endOfToday.toIso8601String()) // Less than or equal to end of day
+          .maybeSingle()
+          .timeout(
+        const Duration(seconds: 10), // Add timeout for fetching as well
+        onTimeout: () {
+          throw TimeoutException('Fetching check-in timed out');
+        },
+      );
+
+      if (mounted) {
+        setState(() {
+          todayCheckIn = response;
+          isComplete = response != null;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        // Handle error during fetch, maybe show a message or set isComplete to false
+        print('Error fetching today\'s check-in: ${e.toString()}');
+        setState(() {
+          isComplete = false; // Allow submission if fetching fails
+        });
+      }
+    }
   }
 
   Future<void> _submitCheckIn() async {
+    if (moodType == null) return;
+    if (isComplete) return;
+
     setState(() => isSubmitting = true);
-    final userId = Supabase.instance.client.auth.currentUser?.id;
-    if (userId == null) return;
-    await Supabase.instance.client.from('mood_entries').insert({
-      'user_id': userId,
-      'mood_type': moodType,
-      'emoji_code': emojiCode,
-      'reasons': reasons,
-      'notes': noteController.text,
-    });
+
+    try {
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) {
+        throw Exception('User not authenticated');
+      }
+      // Format current date
+      final now = DateTime.now();
+      final formattedDate =
+          "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+
+      // Add timeout to the operation
+      final response =
+          await Supabase.instance.client.from('mood_entries').insert({
+        'user_id': userId,
+        'mood_type': moodType,
+        'emoji_code': emojiCode,
+        'reasons': reasons,
+        'notes': noteController.text,
+      }).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw TimeoutException('The operation timed out');
+        },
+      );
+
+      if (mounted) {
+        setState(() {
+          isSubmitting = false;
+          isComplete = true;
+        });
+        await _fetchTodayCheckIn();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          isSubmitting = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              e is TimeoutException
+                  ? 'The operation took too long. Please try again.'
+                  : 'Error submitting mood: ${e.toString()}',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _onItemTapped(int index) {
     setState(() {
-      isSubmitting = false;
-      isComplete = true;
+      _selectedIndex = index;
     });
-    await _fetchTodayCheckIn();
+    switch (index) {
+      case 0:
+        Navigator.pushReplacementNamed(context, 'student-breathing-exercises');
+        break;
+      case 1:
+        Navigator.pushReplacementNamed(context, 'student-home');
+        break;
+      case 2:
+        break;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color.fromARGB(255, 242, 241, 248),
       appBar: AppBar(
-        title: const Text('Daily Mood Check-in'),
-        centerTitle: true,
-        backgroundColor: Colors.white,
+        backgroundColor: const Color.fromARGB(255, 242, 241, 248),
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu, color: Color(0xFF5D5D72)),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
+        title: Text(
+          "BreatheBetter",
+          style: GoogleFonts.poppins(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFF3A3A50),
+          ),
+        ),
+        centerTitle: true,
+        actions: [
+          const StudentNotificationButton(),
+        ],
       ),
+      drawer: const StudentDrawer(),
       body: Padding(
         padding: const EdgeInsets.all(20.0),
         child: isComplete && todayCheckIn != null
             ? _buildSummary()
             : _buildStepper(),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        backgroundColor: Colors.white,
+        selectedItemColor: const Color(0xFF7C83FD),
+        unselectedItemColor: const Color(0xFFB0B0C3),
+        showSelectedLabels: false,
+        showUnselectedLabels: false,
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
+        items: const [
+          BottomNavigationBarItem(
+              icon: Icon(Icons.self_improvement), label: 'Breathing Exercises'),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.emoji_emotions), label: 'Track Mood'),
+        ],
       ),
     );
   }
@@ -199,20 +322,29 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
                   child: Text('Back'),
                 ),
               ),
-              SizedBox(width: 12),
+              SizedBox(width: 16),
               Expanded(
                 child: ElevatedButton(
                   onPressed:
-                      reasons.isEmpty || isSubmitting ? null : _submitCheckIn,
+                      isSubmitting || moodType == null ? null : _submitCheckIn,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    minimumSize: Size(double.infinity, 48),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
+                      backgroundColor: Colors.green,
+                      minimumSize: Size(double.infinity, 48),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12))),
                   child: isSubmitting
-                      ? CircularProgressIndicator(color: Colors.white)
-                      : Text('Add Mood', style: TextStyle(color: Colors.white)),
+                      ? SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 3,
+                          ),
+                        )
+                      : Text(
+                          'Submit',
+                          style: TextStyle(color: Colors.white),
+                        ),
                 ),
               ),
             ],
@@ -223,54 +355,53 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
   }
 
   Widget _buildSummary() {
+    if (todayCheckIn == null) return SizedBox();
     final emoji = todayCheckIn!['emoji_code'] ?? '';
     final mood = todayCheckIn!['mood_type'] ?? '';
-    final reasonsStr = (todayCheckIn!['reasons'] as List?)?.join(', ') ?? '';
+    final reasons = (todayCheckIn!['reasons'] as List?)?.join(', ') ?? '';
     final notes = todayCheckIn!['notes'] ?? '';
-    final time =
-        todayCheckIn!['entry_timestamp']?.toString().substring(11, 16) ?? '';
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        SizedBox(height: 40),
         Text(
-          '$emoji $mood'.capitalize(),
-          style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+          'You have already checked in today!',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          textAlign: TextAlign.center,
+        ),
+        SizedBox(height: 24),
+        Text(
+          emoji,
+          style: TextStyle(fontSize: 64),
+        ),
+        SizedBox(height: 16),
+        Text(
+          'You felt $mood',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
         ),
         SizedBox(height: 8),
-        Text('at $time',
-            style: TextStyle(fontSize: 16, color: Colors.grey[700])),
-        SizedBox(height: 16),
-        if (reasonsStr.isNotEmpty)
-          Text('Because of $reasonsStr',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
+        if (reasons.isNotEmpty)
+          Text(
+            'Because: $reasons',
+            style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+          ),
+        SizedBox(height: 8),
         if (notes.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 12.0),
-            child: Text('"$notes"',
-                style: TextStyle(
-                    fontSize: 16,
-                    fontStyle: FontStyle.italic,
-                    color: Colors.grey[800])),
+          Text(
+            'Note: $notes',
+            style: TextStyle(fontSize: 16, color: Colors.grey[700]),
           ),
-        SizedBox(height: 40),
-        ElevatedButton(
-          onPressed: () => Navigator.pop(context),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.green,
-            minimumSize: Size(double.infinity, 48),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-          child: Text('Back to Home', style: TextStyle(color: Colors.white)),
-        ),
       ],
     );
   }
 }
 
-extension StringCasingExtension on String {
-  String capitalize() =>
-      this.isNotEmpty ? "${this[0].toUpperCase()}${substring(1)}" : "";
+extension StringExtension on String {
+  String capitalize() {
+    if (isEmpty) {
+      return this;
+    }
+    return this[0].toUpperCase() + substring(1);
+  }
 }

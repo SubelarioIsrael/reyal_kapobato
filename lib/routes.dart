@@ -18,6 +18,7 @@ import 'pages/student/student_counselors.dart';
 import 'pages/student/student_appointments.dart';
 import 'pages/student/student_settings.dart';
 import 'pages/student/questionnaire_summary.dart';
+import 'pages/student/questionnaire_history.dart';
 import 'pages/student/student_daily_checkin.dart';
 
 //admin
@@ -29,6 +30,7 @@ import 'pages/admin/admin_exercises.dart';
 import 'pages/admin/admin_notifications.dart';
 import 'pages/admin/admin_settings.dart';
 import 'pages/admin/admin_profile.dart';
+import 'pages/admin/admin_questionnaire.dart';
 import 'pages/counselor/counselor_home.dart';
 import 'pages/counselor/counselor_settings.dart';
 import 'pages/counselor/student_history.dart';
@@ -44,18 +46,28 @@ final Map<String, WidgetBuilder> appRoutes = {
   'counselor-home': (context) => const AuthGuard(child: CounselorHome()),
 
   //profile
-  '/student-profile': (context) => const AuthGuard(child: ProfilePage()),
+  '/student-profile': (context) => const AuthGuard(child: StudentProfile()),
 
   //student page routes
   'student-mtq': (context) => const AuthGuard(child: StudentMtq()),
-  'questionnaire-summary': (context) => AuthGuard(
-        child: QuestionnaireSummary(
-          responseId: (ModalRoute.of(context)?.settings.arguments
-              as Map<String, dynamic>)['responseId'] as int,
-          totalScore: (ModalRoute.of(context)?.settings.arguments
-              as Map<String, dynamic>)['totalScore'] as int,
+  'questionnaire-summary': (context) {
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args == null || args is! Map<String, dynamic>) {
+      return const Scaffold(
+        body: Center(
+          child: Text('Error: Missing required arguments'),
         ),
+      );
+    }
+    return AuthGuard(
+      child: QuestionnaireSummary(
+        responseId: args['responseId'] as int,
+        totalScore: args['totalScore'] as int,
       ),
+    );
+  },
+  'questionnaire-history': (context) =>
+      const AuthGuard(child: QuestionnaireHistory()),
   'student-breathing-exercises': (context) =>
       const AuthGuard(child: StudentBreathingExercises()),
   'student-mood-journal': (context) =>
@@ -80,6 +92,8 @@ final Map<String, WidgetBuilder> appRoutes = {
       const AuthGuard(child: AdminNotifications()),
   'admin-settings': (context) => const AuthGuard(child: AdminSettings()),
   'admin-profile': (context) => const AuthGuard(child: AdminProfile()),
+  '/admin-questionnaire': (context) =>
+      const AuthGuard(child: AdminQuestionnaire()),
 
   // counselor page routes
   'counselor-settings': (context) =>

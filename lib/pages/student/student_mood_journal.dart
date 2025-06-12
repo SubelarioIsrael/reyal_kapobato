@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../components/student_drawer.dart';
+import '../../components/student_notification_button.dart';
 
 class StudentMoodJournal extends StatefulWidget {
   const StudentMoodJournal({super.key});
@@ -65,6 +67,28 @@ class _StudentMoodJournalState extends State<StudentMoodJournal> {
 
     return Scaffold(
       backgroundColor: pastelBlue,
+      appBar: AppBar(
+        backgroundColor: pastelBlue,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              color: Color(0xFF5D5D72)),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text(
+          "BreatheBetter",
+          style: GoogleFonts.poppins(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFF3A3A50),
+          ),
+        ),
+        centerTitle: true,
+        actions: [
+          const StudentNotificationButton(),
+        ],
+      ),
+      drawer: const StudentDrawer(),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -72,28 +96,7 @@ class _StudentMoodJournalState extends State<StudentMoodJournal> {
             key: _formKey,
             child: Column(
               children: [
-                Row(
-                  children: [
-                    GestureDetector(
-                      onTap: () => Navigator.pushNamed(context, 'student-home'),
-                      child: const Icon(
-                        Icons.arrow_back_ios_new_rounded,
-                        color: Color(0xFF3A3A50),
-                        size: 26,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      'New Journal Entry',
-                      style: GoogleFonts.poppins(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
-                        color: darkText,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 0),
 
                 // Title input
                 TextFormField(

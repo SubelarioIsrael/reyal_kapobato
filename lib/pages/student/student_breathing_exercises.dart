@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../components/student_drawer.dart';
+import '../../components/student_notification_button.dart';
 
 class StudentBreathingExercises extends StatefulWidget {
   const StudentBreathingExercises({super.key});
@@ -26,6 +28,8 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises>
   final double _minCircleSize = 200.0;
   final double _maxCircleSize = 300.0;
 
+  int _selectedIndex = 0; // Set initial index to Breathing Exercises (index 0)
+
   @override
   void initState() {
     super.initState();
@@ -34,6 +38,13 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises>
       duration: const Duration(seconds: 4),
     );
     _loadExercises();
+  }
+
+  @override
+  void dispose() {
+    _stopExercise();
+    _animationController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadExercises() async {
@@ -90,22 +101,17 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises>
     }
   }
 
-  @override
-  void dispose() {
-    _stopExercise();
-    _animationController.dispose();
-    super.dispose();
-  }
-
   void _startExercise(Map<String, dynamic> exercise) {
     // Reset all states before starting new exercise
     _stopExercise();
 
     setState(() {
       _remainingSeconds = exercise['duration'];
+      _isExerciseActive = true;
     });
 
     showDialog(
+      // Keep the dialog before starting the exercise view
       context: context,
       builder: (context) => AlertDialog(
         title: Text(
@@ -121,7 +127,12 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises>
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              Navigator.pop(context);
+              setState(() {
+                _isExerciseActive = false;
+              }); // Go back to list if cancelled
+            },
             child: Text(
               'Cancel',
               style: GoogleFonts.poppins(color: Colors.grey),
@@ -130,7 +141,8 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises>
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              _beginExercise(exercise);
+              _runBreathingPattern(
+                  exercise['pattern']); // Start pattern after dialog
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF7C83FD),
@@ -145,19 +157,6 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises>
     );
   }
 
-  void _beginExercise(Map<String, dynamic> exercise) {
-    // Reset all states before starting
-    _stopExercise();
-
-    setState(() {
-      _isExerciseActive = true;
-      _remainingSeconds = exercise['duration'];
-      _currentPhase = '';
-      _phaseSecondsLeft = 0;
-    });
-    _runBreathingPattern(exercise['pattern']);
-  }
-
   void _runBreathingPattern(Map<String, dynamic> pattern) {
     int totalCycleDuration = 0;
     pattern.forEach((key, value) => totalCycleDuration += value as int);
@@ -168,6 +167,9 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises>
     for (final phase in phaseOrder) {
       if (pattern.containsKey(phase)) {
         phases.add(MapEntry(phase, pattern[phase]));
+      } else if (phase == 'hold2' && pattern.containsKey('hold')) {
+        // If hold2 is not present but hold is, use hold duration for hold2
+        phases.add(MapEntry('hold2', pattern['hold']));
       }
     }
     int currentPhaseIndex = 0;
@@ -176,7 +178,7 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises>
       if (!_isExerciseActive) return;
       if (index >= phases.length) {
         currentPhaseIndex = 0;
-        startPhase(0);
+        startPhase(0); // Loop the pattern
         return;
       }
 
@@ -192,8 +194,7 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises>
         } else if (phase.key == 'exhale') {
           _animationController.reverse(from: 1);
         } else {
-          // For hold phases, keep the current size
-          _animationController.stop();
+          _animationController.stop(); // Stop animation for hold phases
         }
       });
     }
@@ -223,7 +224,10 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises>
               ElevatedButton(
                 onPressed: () {
                   Navigator.pop(context);
-                  Navigator.pop(context);
+                  // Stay on the breathing exercises page after completing the exercise
+                  setState(() {
+                    _isExerciseActive = false;
+                  }); // Go back to the exercise list
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF7C83FD),
@@ -270,99 +274,82 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises>
     return '$minutes:${remainingSeconds.toString().padLeft(2, '0')}';
   }
 
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+    switch (index) {
+      case 0: // Breathing Exercises
+        // Stay on this page
+        break;
+      case 1: // Home
+        Navigator.pushReplacementNamed(context, 'student-home');
+        break;
+      case 2: // Track Mood (Daily Check-in)
+        Navigator.pushReplacementNamed(context, '/student-daily-checkin');
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 242, 241, 248),
+      appBar: AppBar(
+        backgroundColor: const Color.fromARGB(255, 242, 241, 248),
+        elevation: 0,
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu, color: Color(0xFF5D5D72)),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
+        title: Text(
+          "BreatheBetter",
+          style: GoogleFonts.poppins(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFF3A3A50),
+          ),
+        ),
+        centerTitle: true,
+        actions: [
+          const StudentNotificationButton(),
+        ],
+      ),
+      drawer: const StudentDrawer(),
       body: SafeArea(
-        child: _isExerciseActive
-            ? _buildExerciseView()
-            : _isLoading
-                ? const Center(child: CircularProgressIndicator())
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _isExerciseActive
+                ? _buildExerciseView()
                 : _buildExerciseList(),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        backgroundColor: Colors.white,
+        selectedItemColor: const Color(0xFF7C83FD), // Adjust color as needed
+        unselectedItemColor: const Color(0xFFB0B0C3), // Adjust color as needed
+        showSelectedLabels: false,
+        showUnselectedLabels: false,
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
+        items: const [
+          BottomNavigationBarItem(
+              icon: Icon(Icons.self_improvement), // Breathing Exercises Icon
+              label: 'Breathing Exercises'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.home), // Home Icon
+              label: 'Home'),
+          BottomNavigationBarItem(
+              icon: Icon(
+                  Icons.emoji_emotions), // Track Mood Icon (Daily Check-in)
+              label: 'Track Mood'),
+        ],
       ),
     );
   }
 
   Widget _buildExerciseView() {
-    if (!_isExerciseActive) {
-      return Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.pop(context),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Text(
-                    'Get Ready',
-                    style: GoogleFonts.poppins(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 32),
-            Text(
-              'Instructions:',
-              style: GoogleFonts.poppins(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF3A3A50),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              '1. Find a comfortable position\n'
-              '2. Close your eyes or maintain a soft gaze\n'
-              '3. Follow the breathing pattern shown on screen\n'
-              '4. Breathe in through your nose\n'
-              '5. Breathe out through your mouth',
-              style: GoogleFonts.poppins(
-                fontSize: 16,
-                height: 1.8,
-                color: const Color(0xFF5D5D72),
-              ),
-            ),
-            const Spacer(),
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    _isExerciseActive = true;
-                    _startBreathing();
-                  });
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF7C83FD),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: Text(
-                  'Start Exercise',
-                  style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
     return Padding(
       padding: const EdgeInsets.all(24.0),
       child: Column(
@@ -370,7 +357,8 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises>
           Row(
             children: [
               IconButton(
-                icon: const Icon(Icons.close),
+                icon:
+                    const Icon(Icons.close), // Use close icon to stop exercise
                 onPressed: () {
                   showDialog(
                     context: context,
@@ -432,25 +420,12 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises>
     );
   }
 
-  void _startBreathing() {
-    // Reset all states before starting
-    _stopExercise();
-
-    final currentExercise = _exercises.firstWhere(
-      (exercise) => exercise['duration'] == _remainingSeconds,
-      orElse: () => _exercises[0], // Default to first exercise if none found
-    );
-    setState(() {
-      _remainingSeconds = currentExercise['duration'];
-    });
-    _runBreathingPattern(currentExercise['pattern']);
-  }
-
   Widget _buildBreathingCircle() {
     return AnimatedBuilder(
       animation: _animationController,
       builder: (context, child) {
         double size;
+        // Animation logic based on phase
         if (_currentPhase == 'inhale') {
           size = _minCircleSize +
               (_maxCircleSize - _minCircleSize) * _animationController.value;
@@ -458,8 +433,11 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises>
           size = _maxCircleSize -
               (_maxCircleSize - _minCircleSize) *
                   (1 - _animationController.value);
+        } else if (_currentPhase == 'hold2') {
+          // After exhale, for hold2, maintain the minimum size
+          size = _minCircleSize;
         } else {
-          // For hold phases, maintain the size from the last inhale
+          // For the first hold phase, keep the size from the end of inhale (max size)
           size = _maxCircleSize;
         }
 
@@ -478,7 +456,9 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      _currentPhase.toUpperCase(),
+                      _currentPhase == 'hold2'
+                          ? 'HOLD'
+                          : _currentPhase.toUpperCase(),
                       style: GoogleFonts.poppins(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -512,7 +492,8 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises>
                           color: const Color(0xFF7C83FD),
                         ),
                       )
-                    else if (_currentPhase == 'hold')
+                    else if (_currentPhase == 'hold' ||
+                        _currentPhase == 'hold2')
                       Text(
                         'Hold your breath',
                         style: GoogleFonts.poppins(
@@ -536,26 +517,14 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: const Icon(
-                  Icons.arrow_back_ios_new_rounded,
-                  color: Color(0xFF3A3A50),
-                  size: 26,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                'Breathing Exercises',
-                style: GoogleFonts.poppins(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF3A3A50),
-                ),
-              ),
-            ],
+          // Title
+          Text(
+            'Breathing Exercises',
+            style: GoogleFonts.poppins(
+              fontSize: 24,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF3A3A50),
+            ),
           ),
           const SizedBox(height: 24),
           Text(
@@ -632,7 +601,8 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises>
                             Icons.arrow_forward_ios,
                             color: Color(0xFF7C83FD),
                           ),
-                          onTap: () => _startExercise(exercise),
+                          onTap: () => _startExercise(
+                              exercise), // Call _startExercise here
                         ),
                       );
                     },
