@@ -423,14 +423,20 @@ class _AdminQuestionnaireState extends State<AdminQuestionnaire> {
 
   Future<void> _deleteQuestion(int questionId) async {
     try {
-      // First remove from questionnaire_questions
+      // First delete related answers
+      await Supabase.instance.client
+          .from('questionnaire_answers')
+          .delete()
+          .eq('question_id', questionId);
+
+      // Then remove from questionnaire_questions
       await Supabase.instance.client
           .from('questionnaire_questions')
           .delete()
           .eq('question_id', questionId)
           .eq('version_id', _selectedVersionId);
 
-      // Then delete the question itself
+      // Finally delete the question itself
       await Supabase.instance.client
           .from('questions')
           .delete()

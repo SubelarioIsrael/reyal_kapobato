@@ -260,6 +260,17 @@ class _StudentProfileState extends State<StudentProfile> {
                         ),
                       ),
                       const SizedBox(height: 32),
+                      Text(
+                        _nameController.text.isNotEmpty
+                            ? _nameController.text[0].toUpperCase() +
+                                _nameController.text.substring(1)
+                            : '',
+                        style: GoogleFonts.poppins(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF3A3A50),
+                        ),
+                      ),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(

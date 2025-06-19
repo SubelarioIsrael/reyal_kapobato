@@ -16,7 +16,7 @@ class _AdminUsersState extends State<AdminUsers> {
   final _nameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  String _selectedRole = 'student';
+  String _selectedRole = 'counselor';
   String _selectedFilter = 'all';
   bool _isLoading = false;
   List<Map<String, dynamic>> _users = [];
@@ -167,7 +167,6 @@ class _AdminUsersState extends State<AdminUsers> {
                   prefixIcon: Icon(Icons.work_outline),
                 ),
                 items: const [
-                  DropdownMenuItem(value: 'student', child: Text('Student')),
                   DropdownMenuItem(
                       value: 'counselor', child: Text('Counselor')),
                   DropdownMenuItem(value: 'admin', child: Text('Admin')),
@@ -270,7 +269,7 @@ class _AdminUsersState extends State<AdminUsers> {
                           _nameController.clear();
                           _passwordController.clear();
                           _confirmPasswordController.clear();
-                          _selectedRole = 'student';
+                          _selectedRole = 'counselor';
                         });
                       }
                     }
@@ -404,7 +403,11 @@ class _AdminUsersState extends State<AdminUsers> {
                                 ),
                               ),
                               title: Text(
-                                user['username'] ?? 'No Name',
+                                user['username'] != null &&
+                                        user['username'].isNotEmpty
+                                    ? user['username'][0].toUpperCase() +
+                                        user['username'].substring(1)
+                                    : 'No Name',
                                 style: GoogleFonts.poppins(
                                   fontWeight: FontWeight.w600,
                                   color: const Color(0xFF3A3A50),

@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 
 class StudentHistory extends StatefulWidget {
   final String userId;
@@ -107,11 +111,163 @@ class _StudentHistoryState extends State<StudentHistory>
     }
   }
 
+  Future<void> _generateReportPdf() async {
+    // Create a PDF document
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        build: (pw.Context context) => [
+          pw.Header(
+              level: 0,
+              text:
+                  'Student Report: ${widget.username} (ID: ${widget.studentId})'),
+          pw.Header(level: 1, text: 'Journal Entries'),
+          if (_journalEntries.isEmpty)
+            pw.Text('No shared journal entries.')
+          else
+            ..._journalEntries.map((entry) {
+              return pw.Container(
+                margin: const pw.EdgeInsets.only(bottom: 10),
+                padding: const pw.EdgeInsets.all(10),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: PdfColors.grey400),
+                  borderRadius: pw.BorderRadius.circular(5),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      entry['title'] ?? 'No Title',
+                      style: pw.TextStyle(
+                          fontWeight: pw.FontWeight.bold, fontSize: 14),
+                    ),
+                    pw.SizedBox(height: 5),
+                    pw.Text(entry['content'] ?? 'No Content'),
+                    pw.SizedBox(height: 5),
+                    pw.Text(
+                      'Date: ${DateTime.parse(entry['entry_timestamp']).toString().split('.')[0]}',
+                      style: const pw.TextStyle(
+                          color: PdfColors.grey600, fontSize: 10),
+                    ),
+                    if (entry['sentiment_score'] != null)
+                      pw.Text(
+                        'Sentiment Score: ${entry['sentiment_score']}',
+                        style: const pw.TextStyle(
+                            color: PdfColors.grey600, fontSize: 10),
+                      ),
+                  ],
+                ),
+              );
+            }).toList(),
+          pw.Header(level: 1, text: 'Questionnaire Summaries'),
+          if (_questionnaireSummaries.isEmpty)
+            pw.Text('No questionnaire summaries.')
+          else
+            ..._questionnaireSummaries.map((summary) {
+              final summaryData = summary['questionnaire_summaries'] as List?;
+              if (summaryData == null || summaryData.isEmpty) {
+                return pw.SizedBox.shrink();
+              }
+              final summaryItem = summaryData[0];
+              return pw.Container(
+                margin: const pw.EdgeInsets.only(bottom: 10),
+                padding: const pw.EdgeInsets.all(10),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: PdfColors.grey400),
+                  borderRadius: pw.BorderRadius.circular(5),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      'Questionnaire Summary',
+                      style: pw.TextStyle(
+                          fontWeight: pw.FontWeight.bold, fontSize: 14),
+                    ),
+                    pw.SizedBox(height: 10),
+                    pw.Text(
+                        'Severity Level: ${summaryItem['severity_level'] ?? 'N/A'}'),
+                    pw.Text('Insights: ${summaryItem['insights'] ?? 'N/A'}'),
+                    pw.Text(
+                        'Recommendations: ${summaryItem['recommendations'] ?? 'N/A'}'),
+                    pw.SizedBox(height: 10),
+                    pw.Text(
+                      'Date: ${DateTime.parse(summaryItem['created_at']).toString().split('.')[0]}',
+                      style: const pw.TextStyle(
+                          color: PdfColors.grey600, fontSize: 10),
+                    ),
+                    pw.Text(
+                      'Total Score: ${summary['total_score']}',
+                      style: const pw.TextStyle(
+                          color: PdfColors.grey600, fontSize: 10),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+        ],
+      ),
+    );
+
+    try {
+      final directory =
+          await getExternalStorageDirectory(); // This typically points to .../Android/data/com.example.breathe_better/files
+      if (directory == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not access external storage.')),
+          );
+        }
+        print('Error: Could not access external storage.');
+        return;
+      }
+
+      final customDownloadsPath = '${directory.path}/downloads';
+      final customDownloadsDir = Directory(customDownloadsPath);
+
+      if (!await customDownloadsDir.exists()) {
+        await customDownloadsDir.create(recursive: true);
+      }
+
+      final file = File(
+          '$customDownloadsPath/student_report_${widget.username.replaceAll(' ', '_')}.pdf');
+
+      // Write the PDF bytes to the file
+      await file.writeAsBytes(await pdf.save());
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Report saved to: ${file.path}')),
+        );
+      }
+      print('Report saved to: ${file.path}');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error generating PDF: $e')),
+        );
+      }
+      print('Error generating PDF: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text('${widget.username}\'s History'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.download),
+            onPressed: () => _showDownloadConfirmation(
+                'Student Report',
+                'Do you want to download the report for ${widget.username}?',
+                _generateReportPdf),
+            tooltip: 'Download Report',
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
@@ -310,6 +466,30 @@ class _StudentHistoryState extends State<StudentHistory>
                           ),
                   ],
                 ),
+    );
+  }
+
+  void _showDownloadConfirmation(
+      String title, String message, Function onConfirm) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context), // Dismiss dialog
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context); // Dismiss dialog
+              onConfirm(); // Proceed with download
+            },
+            child: const Text('Download'),
+          ),
+        ],
+      ),
     );
   }
 }

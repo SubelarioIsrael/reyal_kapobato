@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../components/student_drawer.dart';
 import '../../components/student_notification_button.dart';
+import '../../services/activity_service.dart';
 
 class StudentMoodJournal extends StatefulWidget {
   const StudentMoodJournal({super.key});
@@ -40,6 +41,9 @@ class _StudentMoodJournalState extends State<StudentMoodJournal> {
         'is_shared_with_counselor': _isSharedWithCounselor,
         'user_id': userId,
       });
+
+      // Record activity completion
+      await ActivityService.recordActivityCompletion('mood_journal');
 
       ScaffoldMessenger.of(
         context,

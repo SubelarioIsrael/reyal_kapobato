@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'dart:async';
 import '../../components/student_drawer.dart';
 import '../../components/student_notification_button.dart';
+import '../../services/activity_service.dart';
 
 class StudentDailyCheckInPage extends StatefulWidget {
   const StudentDailyCheckInPage({Key? key}) : super(key: key);
@@ -87,56 +88,46 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
   }
 
   Future<void> _submitCheckIn() async {
-    if (moodType == null) return;
-    if (isComplete) return;
-
-    setState(() => isSubmitting = true);
+    if (moodType == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select your mood'),
+        ),
+      );
+      return;
+    }
 
     try {
-      final userId = Supabase.instance.client.auth.currentUser?.id;
-      if (userId == null) {
-        throw Exception('User not authenticated');
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) {
+        throw Exception('User not logged in');
       }
-      // Format current date
-      final now = DateTime.now();
-      final formattedDate =
-          "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
 
-      // Add timeout to the operation
-      final response =
-          await Supabase.instance.client.from('mood_entries').insert({
-        'user_id': userId,
+      await Supabase.instance.client.from('mood_entries').insert({
+        'user_id': user.id,
         'mood_type': moodType,
         'emoji_code': emojiCode,
         'reasons': reasons,
         'notes': noteController.text,
-      }).timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {
-          throw TimeoutException('The operation timed out');
-        },
-      );
+      });
+
+      // Record activity completion
+      await ActivityService.recordActivityCompletion('daily_checkin');
 
       if (mounted) {
-        setState(() {
-          isSubmitting = false;
-          isComplete = true;
-        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Check-in saved successfully!'),
+          ),
+        );
         await _fetchTodayCheckIn();
       }
     } catch (e) {
+      print('Error saving check-in: $e');
       if (mounted) {
-        setState(() {
-          isSubmitting = false;
-        });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              e is TimeoutException
-                  ? 'The operation took too long. Please try again.'
-                  : 'Error submitting mood: ${e.toString()}',
-            ),
-            backgroundColor: Colors.red,
+          const SnackBar(
+            content: Text('Error saving check-in. Please try again.'),
           ),
         );
       }

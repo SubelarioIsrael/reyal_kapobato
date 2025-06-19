@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 
 class AdminHome extends StatefulWidget {
   const AdminHome({super.key});
@@ -147,6 +151,16 @@ class _AdminHomeState extends State<AdminHome> {
         backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF3A3A50),
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.download),
+            onPressed: () => _showDownloadConfirmation(
+                'Analytics Report',
+                'Do you want to download the Admin Analytics Report?',
+                _generateAnalyticsReportPdf),
+            tooltip: 'Download Analytics Report',
+          ),
+        ],
         // The burger menu icon is shown automatically when a Drawer is present
       ),
       backgroundColor: const Color.fromARGB(255, 242, 241, 248),
@@ -453,6 +467,103 @@ class _AdminHomeState extends State<AdminHome> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Future<void> _generateAnalyticsReportPdf() async {
+    try {
+      final supabase = Supabase.instance.client;
+
+      // Generate PDF content
+      final pdf = pw.Document();
+
+      pdf.addPage(
+        pw.MultiPage(
+          build: (context) => [
+            pw.Header(level: 0, text: 'BreatheBetter Admin Analytics Report'),
+            pw.SizedBox(height: 20),
+            pw.Header(level: 1, text: 'User Statistics'),
+            pw.Text('Total Users: $totalUsers'),
+            pw.Text('Active Users (last 24h): $activeUsers'),
+            pw.SizedBox(height: 20),
+            pw.Header(level: 1, text: 'Recent Registrations'),
+            if (recentRegistrations.isEmpty)
+              pw.Text('No recent registrations.')
+            else
+              pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: recentRegistrations.map((user) {
+                  return pw.Padding(
+                    padding: const pw.EdgeInsets.only(bottom: 5),
+                    child: pw.Text('- ${user['name']} (${user['time']})'),
+                  );
+                }).toList(),
+              ),
+          ],
+        ),
+      );
+
+      // Save PDF to file
+      final directory =
+          await getExternalStorageDirectory(); // This typically points to .../Android/data/com.example.breathe_better/files
+      if (directory == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not access external storage.')),
+          );
+        }
+        print('Error: Could not access external storage.');
+        return;
+      }
+
+      final customDownloadsPath = '${directory.path}/downloads';
+      final customDownloadsDir = Directory(customDownloadsPath);
+
+      if (!await customDownloadsDir.exists()) {
+        await customDownloadsDir.create(recursive: true);
+      }
+
+      final file = File(
+          '$customDownloadsPath/breathe_better_analytics_report_${DateTime.now().toIso8601String().split('.')[0].replaceAll(':', '-')}.pdf');
+      await file.writeAsBytes(await pdf.save());
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Report saved to Downloads: ${file.path}')),
+        );
+      }
+      print('Report saved to Downloads: ${file.path}');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error generating PDF: $e')),
+        );
+      }
+      print('Error generating PDF: $e');
+    }
+  }
+
+  void _showDownloadConfirmation(
+      String title, String message, Function onConfirm) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context), // Dismiss dialog
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context); // Dismiss dialog
+              onConfirm(); // Proceed with download
+            },
+            child: const Text('Download'),
+          ),
+        ],
       ),
     );
   }

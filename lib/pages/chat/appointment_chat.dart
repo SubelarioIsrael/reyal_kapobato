@@ -1,0 +1,407 @@
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../models/appointment.dart';
+import '../../services/counselor_service.dart';
+
+class AppointmentChat extends StatefulWidget {
+  final Appointment appointment;
+  final bool isCounselor;
+
+  const AppointmentChat({
+    super.key,
+    required this.appointment,
+    required this.isCounselor,
+  });
+
+  @override
+  State<AppointmentChat> createState() => _AppointmentChatState();
+}
+
+class _AppointmentChatState extends State<AppointmentChat> {
+  final TextEditingController _messageController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  final SupabaseClient _supabase = Supabase.instance.client;
+  List<Map<String, dynamic>> _messages = [];
+  bool _isLoading = true;
+  String? _errorMessage;
+  String? _otherUserName;
+  String? _otherUserRole;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMessages();
+    _loadOtherUserInfo();
+    _setupRealtimeSubscription();
+  }
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadOtherUserInfo() async {
+    try {
+      String targetUserId;
+      if (widget.isCounselor) {
+        // If we're a counselor, use the student's user_id directly
+        targetUserId = widget.appointment.userId;
+      } else {
+        // If we're a student, get the counselor's user_id from the counselors table
+        final counselorResponse = await _supabase
+            .from('counselors')
+            .select('user_id')
+            .eq('counselor_id', widget.appointment.counselorId)
+            .single();
+        targetUserId = counselorResponse['user_id'].toString();
+      }
+
+      print('Loading info for user ID: $targetUserId'); // Debug log
+
+      final userResponse = await _supabase
+          .from('users')
+          .select('username, user_type')
+          .eq('user_id', targetUserId)
+          .single();
+
+      print('User response: $userResponse'); // Debug log
+
+      setState(() {
+        _otherUserName = userResponse['username'];
+        _otherUserRole = userResponse['user_type'];
+      });
+    } catch (e) {
+      print('Error loading other user info: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading user info: $e')),
+        );
+      }
+    }
+  }
+
+  void _setupRealtimeSubscription() {
+    _supabase
+        .channel('messages')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'messages',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'appointment_id',
+            value: widget.appointment.id.toString(),
+          ),
+          callback: (payload) {
+            _loadMessages();
+          },
+        )
+        .subscribe();
+  }
+
+  Future<void> _loadMessages() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+
+      print(
+          'Loading messages for appointment ID: ${widget.appointment.id}'); // Debug log
+
+      final response = await _supabase
+          .from('messages')
+          .select('*, users!messages_sender_id_fkey(username)')
+          .eq('appointment_id', widget.appointment.id)
+          .order('created_at', ascending: true);
+
+      print('Messages response: $response'); // Debug log
+
+      setState(() {
+        _messages = List<Map<String, dynamic>>.from(response);
+        _isLoading = false;
+      });
+
+      // Scroll to bottom after messages load
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
+      });
+    } catch (e) {
+      print('Error loading messages: $e'); // Debug log
+      setState(() {
+        _errorMessage = 'Error loading messages: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _sendMessage() async {
+    if (_messageController.text.trim().isEmpty) return;
+
+    final currentUser = _supabase.auth.currentUser;
+    if (currentUser == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('You must be logged in to send messages')),
+        );
+      }
+      return;
+    }
+
+    try {
+      String targetUserId;
+      if (widget.isCounselor) {
+        // If we're a counselor, use the student's user_id directly
+        targetUserId = widget.appointment.userId;
+      } else {
+        // If we're a student, get the counselor's user_id from the counselors table
+        final counselorResponse = await _supabase
+            .from('counselors')
+            .select('user_id')
+            .eq('counselor_id', widget.appointment.counselorId)
+            .single();
+        targetUserId = counselorResponse['user_id'].toString();
+      }
+
+      await _supabase.from('messages').insert({
+        'appointment_id': widget.appointment.id,
+        'sender_id': currentUser.id,
+        'receiver_id': targetUserId,
+        'message': _messageController.text.trim(),
+      });
+
+      _messageController.clear();
+      // Explicitly reload messages to ensure the sent message appears immediately
+      await _loadMessages();
+    } catch (e) {
+      print('Error sending message: $e'); // Debug log
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error sending message: $e')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color.fromARGB(255, 242, 241, 248),
+      appBar: AppBar(
+        backgroundColor: const Color.fromARGB(255, 242, 241, 248),
+        elevation: 0,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _otherUserName ?? 'Loading...',
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF3A3A50),
+              ),
+            ),
+            if (_otherUserRole != null)
+              Text(
+                _otherUserRole!.toUpperCase(),
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+              ),
+          ],
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF5D5D72)),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _errorMessage != null
+                    ? Center(child: Text(_errorMessage!))
+                    : _messages.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.chat_bubble_outline,
+                                  size: 64,
+                                  color: Colors.grey[400],
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'No messages yet',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 18,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Start the conversation',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 14,
+                                    color: Colors.grey[500],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            controller: _scrollController,
+                            padding: const EdgeInsets.all(16),
+                            itemCount: _messages.length,
+                            itemBuilder: (context, index) {
+                              final message = _messages[index];
+                              final isMe = message['sender_id'] ==
+                                  _supabase.auth.currentUser?.id;
+
+                              return _MessageBubble(
+                                message: message['message'],
+                                isMe: isMe,
+                                timestamp:
+                                    DateTime.parse(message['created_at']),
+                                senderName: isMe
+                                    ? 'You'
+                                    : message['users']?['username'] ??
+                                        'Unknown',
+                              );
+                            },
+                          ),
+          ),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, -4),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _messageController,
+                    decoration: InputDecoration(
+                      hintText: 'Type a message...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide.none,
+                      ),
+                      filled: true,
+                      fillColor: const Color(0xFFF5F5F7),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 10,
+                      ),
+                    ),
+                    maxLines: null,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: _sendMessage,
+                  icon: const Icon(Icons.send),
+                  color: const Color(0xFF5D5D72),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MessageBubble extends StatelessWidget {
+  final String message;
+  final bool isMe;
+  final DateTime timestamp;
+  final String senderName;
+
+  const _MessageBubble({
+    required this.message,
+    required this.isMe,
+    required this.timestamp,
+    required this.senderName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: isMe ? const Color(0xFF5D5D72) : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 5,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.75,
+        ),
+        child: Column(
+          crossAxisAlignment:
+              isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          children: [
+            if (!isMe) ...[
+              Text(
+                senderName.isNotEmpty
+                    ? senderName[0].toUpperCase() + senderName.substring(1)
+                    : '',
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey[600],
+                ),
+              ),
+              const SizedBox(height: 4),
+            ],
+            Text(
+              message,
+              style: GoogleFonts.poppins(
+                color: isMe ? Colors.white : const Color(0xFF3A3A50),
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              TimeOfDay(hour: timestamp.hour, minute: timestamp.minute)
+                  .format(context),
+              style: GoogleFonts.poppins(
+                color: isMe ? Colors.white70 : Colors.grey[600],
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

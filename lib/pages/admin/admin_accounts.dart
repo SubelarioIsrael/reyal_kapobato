@@ -413,7 +413,11 @@ class _AdminAccountsState extends State<AdminAccounts> {
                                 ),
                               ),
                               title: Text(
-                                account['username'] ?? 'No Name',
+                                account['username'] != null &&
+                                        account['username'].isNotEmpty
+                                    ? account['username'][0].toUpperCase() +
+                                        account['username'].substring(1)
+                                    : 'No Name',
                                 style: GoogleFonts.poppins(
                                   fontWeight: FontWeight.w600,
                                   color: const Color(0xFF3A3A50),

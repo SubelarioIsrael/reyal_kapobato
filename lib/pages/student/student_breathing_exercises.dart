@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../components/student_drawer.dart';
 import '../../components/student_notification_button.dart';
+import '../../services/activity_service.dart';
 
 class StudentBreathingExercises extends StatefulWidget {
   const StudentBreathingExercises({super.key});
@@ -206,6 +207,8 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises>
     _exerciseTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_remainingSeconds <= 0) {
         _stopExercise();
+        // Record activity completion
+        ActivityService.recordActivityCompletion('breathing_exercise');
         showDialog(
           context: context,
           builder: (context) => AlertDialog(

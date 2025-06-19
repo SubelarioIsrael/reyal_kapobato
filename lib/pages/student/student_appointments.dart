@@ -5,6 +5,8 @@ import '../../services/counselor_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'; // Import Supabase for drawer logout
 import '../../components/student_drawer.dart';
 import '../../components/student_notification_button.dart';
+import '../chat/appointment_chat.dart';
+import 'student_chat_list.dart'; // New import for the chat list widget
 
 class StudentAppointments extends StatefulWidget {
   const StudentAppointments({super.key});
@@ -18,6 +20,94 @@ class _StudentAppointmentsState extends State<StudentAppointments> {
   List<Appointment> _appointments = [];
   bool _isLoading = true;
 
+  // Filtering state
+  String _selectedDateRange = 'All Appointments'; // Default to show all
+  final Set<String> _selectedStatuses = {};
+
+  List<String> get _dateRangeOptions => [
+        'All Appointments',
+        'Today',
+        'Tomorrow',
+        'This Week',
+        'Next Week',
+        'This Month',
+        'Next Month',
+      ];
+
+  List<String> get _allStatusOptions => [
+        'pending',
+        'accepted',
+        'cancelled',
+        'rejected',
+        'completed',
+        'no_show',
+        'rescheduled',
+      ];
+
+  List<Appointment> get _filteredAppointments {
+    final now = DateTime.now();
+    DateTime? startFilter, endFilter;
+
+    // Determine date range filters
+    switch (_selectedDateRange) {
+      case 'Today':
+        startFilter = DateTime(now.year, now.month, now.day);
+        endFilter = startFilter.add(const Duration(days: 1));
+        break;
+      case 'Tomorrow':
+        startFilter =
+            DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
+        endFilter = startFilter.add(const Duration(days: 1));
+        break;
+      case 'This Week':
+        startFilter = DateTime(now.year, now.month, now.day)
+            .subtract(Duration(days: now.weekday - 1)); // Monday
+        endFilter = startFilter.add(const Duration(days: 7));
+        break;
+      case 'Next Week':
+        startFilter = DateTime(now.year, now.month, now.day)
+            .subtract(Duration(days: now.weekday - 1))
+            .add(const Duration(days: 7)); // Next Monday
+        endFilter = startFilter.add(const Duration(days: 7));
+        break;
+      case 'This Month':
+        startFilter = DateTime(now.year, now.month, 1);
+        endFilter = DateTime(now.year, now.month + 1, 1);
+        break;
+      case 'Next Month':
+        startFilter = DateTime(now.year, now.month + 1, 1);
+        endFilter = DateTime(now.year, now.month + 2, 1);
+        break;
+      case 'All Appointments':
+      default:
+        // No date filter applied
+        break;
+    }
+
+    return _appointments.where((appt) {
+      // Date range filtering
+      bool inDateRange = true;
+      if (startFilter != null && endFilter != null) {
+        final apptDateTime = DateTime(
+          appt.appointmentDate.year,
+          appt.appointmentDate.month,
+          appt.appointmentDate.day,
+          appt.startTime.hour,
+          appt.startTime.minute,
+        );
+        inDateRange = apptDateTime
+                .isAfter(startFilter.subtract(const Duration(seconds: 1))) &&
+            apptDateTime.isBefore(endFilter);
+      }
+
+      // Status filtering
+      final statusMatch = _selectedStatuses.isEmpty ||
+          _selectedStatuses.contains(appt.status.toLowerCase());
+
+      return inDateRange && statusMatch;
+    }).toList();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -27,6 +117,25 @@ class _StudentAppointmentsState extends State<StudentAppointments> {
   Future<void> _loadAppointments() async {
     try {
       final appointments = await _counselorService.getUserAppointments();
+      // Sort appointments by date and time
+      appointments.sort((a, b) {
+        final DateTime dateTimeA = DateTime(
+          a.appointmentDate.year,
+          a.appointmentDate.month,
+          a.appointmentDate.day,
+          a.startTime.hour,
+          a.startTime.minute,
+        );
+        final DateTime dateTimeB = DateTime(
+          b.appointmentDate.year,
+          b.appointmentDate.month,
+          b.appointmentDate.day,
+          b.startTime.hour,
+          b.startTime.minute,
+        );
+        return dateTimeA.compareTo(dateTimeB);
+      });
+
       setState(() {
         _appointments = appointments;
         _isLoading = false;
@@ -104,84 +213,158 @@ class _StudentAppointmentsState extends State<StudentAppointments> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 242, 241, 248),
-      appBar: AppBar(
+    return DefaultTabController(
+      length: 2, // Two tabs: Appointments and Chats
+      child: Scaffold(
         backgroundColor: const Color.fromARGB(255, 242, 241, 248),
-        elevation: 0,
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu, color: Color(0xFF5D5D72)),
-            onPressed: () => Scaffold.of(context).openDrawer(),
+        appBar: AppBar(
+          backgroundColor: const Color.fromARGB(255, 242, 241, 248),
+          elevation: 0,
+          leading: Builder(
+            builder: (context) => IconButton(
+              icon: const Icon(Icons.menu, color: Color(0xFF5D5D72)),
+              onPressed: () => Scaffold.of(context).openDrawer(),
+            ),
           ),
-        ),
-        title: Text(
-          "BreatheBetter",
-          style: GoogleFonts.poppins(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: const Color(0xFF3A3A50),
+          title: Text(
+            "BreatheBetter",
+            style: GoogleFonts.poppins(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF3A3A50),
+            ),
           ),
-        ),
-        centerTitle: true,
-        actions: [
-          const StudentNotificationButton(),
-        ],
-      ),
-      drawer: const StudentDrawer(),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 0), // Adjusted spacing
-              if (_isLoading)
-                const Center(child: CircularProgressIndicator())
-              else if (_appointments.isEmpty)
-                Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.event_busy,
-                        size: 64,
-                        color: Colors.grey[400],
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'No appointments yet',
-                        style: GoogleFonts.poppins(
-                          fontSize: 18,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Book an appointment with a counselor',
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          color: Colors.grey[500],
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              else
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: _appointments.length,
-                    itemBuilder: (context, index) {
-                      final appointment = _appointments[index];
-                      return _AppointmentCard(
-                        appointment: appointment,
-                        onCancel: () => _showCancelConfirmation(appointment),
-                      );
-                    },
-                  ),
-                ),
+          centerTitle: true,
+          actions: const [
+            StudentNotificationButton(),
+          ],
+          bottom: TabBar(
+            indicatorColor: const Color(0xFF5D5D72),
+            labelColor: const Color(0xFF3A3A50),
+            unselectedLabelColor: Colors.grey[600],
+            labelStyle: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+            unselectedLabelStyle:
+                GoogleFonts.poppins(fontWeight: FontWeight.w500),
+            tabs: const [
+              Tab(text: 'Appointments'),
+              Tab(text: 'Chats'),
             ],
           ),
+        ),
+        drawer: const StudentDrawer(),
+        body: TabBarView(
+          children: [
+            // Appointments Tab Content
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // FILTER UI
+                    Row(
+                      children: [
+                        // Date Range Dropdown
+                        DropdownButton<String>(
+                          value: _selectedDateRange,
+                          items: _dateRangeOptions
+                              .map((option) => DropdownMenuItem(
+                                    value: option,
+                                    child: Text(option),
+                                  ))
+                              .toList(),
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() => _selectedDateRange = val);
+                            }
+                          },
+                        ),
+                        const SizedBox(width: 16),
+                        // Status Filter Chips
+                        Expanded(
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: _allStatusOptions.map((status) {
+                                final selected =
+                                    _selectedStatuses.contains(status);
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 2.0),
+                                  child: FilterChip(
+                                    label: Text(status.toUpperCase()),
+                                    selected: selected,
+                                    onSelected: (val) {
+                                      setState(() {
+                                        if (val) {
+                                          _selectedStatuses.add(status);
+                                        } else {
+                                          _selectedStatuses.remove(status);
+                                        }
+                                      });
+                                    },
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    const SizedBox(height: 0), // Adjusted spacing
+                    if (_isLoading)
+                      const Center(child: CircularProgressIndicator())
+                    else if (_filteredAppointments.isEmpty)
+                      Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.event_busy,
+                              size: 64,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No appointments yet',
+                              style: GoogleFonts.poppins(
+                                fontSize: 18,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Book an appointment with a counselor',
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                color: Colors.grey[500],
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      Expanded(
+                        child: ListView.builder(
+                          itemCount: _filteredAppointments.length,
+                          itemBuilder: (context, index) {
+                            final appointment = _filteredAppointments[index];
+                            return _AppointmentCard(
+                              appointment: appointment,
+                              onCancel: () =>
+                                  _showCancelConfirmation(appointment),
+                            );
+                          },
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            // Chats Tab Content
+            const StudentChatList(), // Our new widget will go here
+          ],
         ),
       ),
     );
@@ -201,13 +384,25 @@ class _AppointmentCard extends StatelessWidget {
     switch (appointment.status.toLowerCase()) {
       case 'pending':
         return Colors.orange;
-      case 'confirmed':
+      case 'accepted':
         return Colors.green;
       case 'cancelled':
         return Colors.red;
       default:
         return Colors.grey;
     }
+  }
+
+  void _openChat(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AppointmentChat(
+          appointment: appointment,
+          isCounselor: false,
+        ),
+      ),
+    );
   }
 
   @override
@@ -251,74 +446,58 @@ class _AppointmentCard extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                if (appointment.status.toLowerCase() == 'pending')
-                  TextButton(
+                if (appointment.status.toLowerCase() == 'accepted')
+                  IconButton(
+                    onPressed: () => _openChat(context),
+                    icon: const Icon(Icons.chat_bubble_outline),
+                    color: const Color(0xFF5D5D72),
+                    tooltip: 'Chat with counselor',
+                  ),
+                if (appointment.status.toLowerCase() == 'pending' ||
+                    appointment.status.toLowerCase() == 'accepted')
+                  IconButton(
                     onPressed: onCancel,
-                    child: Text(
-                      'Cancel',
-                      style: GoogleFonts.poppins(
-                        color: Colors.red,
-                        fontSize: 14,
-                      ),
-                    ),
+                    icon: const Icon(Icons.cancel_outlined),
+                    color: Colors.red,
+                    tooltip: 'Cancel appointment',
                   ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                const Icon(
-                  Icons.calendar_today,
-                  size: 16,
-                  color: Color(0xFF7C83FD),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '${appointment.appointmentDate.day}/${appointment.appointmentDate.month}/${appointment.appointmentDate.year}',
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    color: const Color(0xFF3A3A50),
-                  ),
-                ),
               ],
             ),
             const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(
-                  Icons.access_time,
-                  size: 16,
-                  color: Color(0xFF7C83FD),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '${appointment.startTime.hour}:${appointment.startTime.minute.toString().padLeft(2, '0')} - ${appointment.endTime.hour}:${appointment.endTime.minute.toString().padLeft(2, '0')}',
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    color: const Color(0xFF3A3A50),
-                  ),
-                ),
-              ],
+            Text(
+              (appointment.counselorName ?? '').isNotEmpty
+                  ? appointment.counselorName![0].toUpperCase() +
+                      appointment.counselorName!.substring(1)
+                  : '',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF3A3A50),
+              ),
             ),
-            if (appointment.notes != null && appointment.notes!.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Text(
-                'Notes:',
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: const Color(0xFF3A3A50),
-                ),
+            Text(
+              'Date: ${appointment.appointmentDate.day}/${appointment.appointmentDate.month}/${appointment.appointmentDate.year}',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                color: Colors.grey[700],
               ),
-              const SizedBox(height: 4),
-              Text(
-                appointment.notes!,
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                ),
+            ),
+            Text(
+              'Time: ' +
+                  TimeOfDay(
+                          hour: appointment.startTime.hour,
+                          minute: appointment.startTime.minute)
+                      .format(context) +
+                  ' - ' +
+                  TimeOfDay(
+                          hour: appointment.endTime.hour,
+                          minute: appointment.endTime.minute)
+                      .format(context),
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                color: Colors.grey[700],
               ),
-            ],
+            ),
           ],
         ),
       ),

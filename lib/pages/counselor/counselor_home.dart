@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/appointment.dart';
 import '../../services/counselor_service.dart';
+import '../chat/appointment_chat.dart';
 
 class CounselorHome extends StatefulWidget {
   const CounselorHome({super.key});
@@ -206,17 +207,136 @@ class _CounselorHomeState extends State<CounselorHome> {
       },
     );
     if (message == null) return; // Cancelled
+
     try {
+      // Update appointment status
       await Supabase.instance.client
           .from('counseling_appointments')
           .update({'status': newStatus, 'status_message': message}).eq(
               'appointment_id', appt.id);
+
+      // Send notification to user
+      await Supabase.instance.client.from('user_notifications').insert({
+        'user_id': appt.userId,
+        'notification_type': 'Appointment Status Update',
+        'content':
+            'Your appointment on ${appt.appointmentDate.toString().split(' ')[0]} from ${appt.startTime.toString().split(' ')[1].substring(0, 5)} to ${appt.endTime.toString().split(' ')[1].substring(0, 5)} has been changed to ${newStatus.toUpperCase()}. ${message?.isNotEmpty == true ? "Message: $message" : ""}',
+        'action_url': '/appointments'
+      });
+
+      // If status is completed, show session notes dialog
+      if (newStatus.toLowerCase() == 'completed') {
+        await _showSessionNotesDialog(appt);
+      }
+
       await _loadAppointments();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Error updating appointment status')),
         );
+      }
+    }
+  }
+
+  Future<void> _showSessionNotesDialog(Appointment appt) async {
+    final summaryController = TextEditingController();
+    final topicsController = TextEditingController();
+    final recommendationsController = TextEditingController();
+    bool? dialogResult;
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Session Notes'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: summaryController,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Session Summary *',
+                    hintText: 'Brief summary of the counseling session',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: topicsController,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Topics Discussed',
+                    hintText: 'Key topics covered during the session',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: recommendationsController,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Recommendations',
+                    hintText: 'Recommendations or next steps for the student',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                dialogResult = false;
+                Navigator.pop(context);
+              },
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (summaryController.text.trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Summary is required')),
+                  );
+                  return;
+                }
+                dialogResult = true;
+                Navigator.pop(context);
+              },
+              child: const Text('Save Notes'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (dialogResult == true) {
+      try {
+        final user = Supabase.instance.client.auth.currentUser;
+        if (user == null) throw Exception('Not logged in');
+
+        final counselorId = await _getCounselorIdForUser(user.id);
+        if (counselorId == null) throw Exception('Counselor profile not found');
+
+        await Supabase.instance.client.from('counseling_session_notes').insert({
+          'appointment_id': appt.id,
+          'counselor_id': counselorId,
+          'student_user_id': appt.userId,
+          'summary': summaryController.text.trim(),
+          'topics_discussed': topicsController.text.trim(),
+          'recommendations': recommendationsController.text.trim(),
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Session notes saved successfully')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Error saving session notes')),
+          );
+        }
       }
     }
   }
@@ -305,6 +425,23 @@ class _CounselorHomeState extends State<CounselorHome> {
     'no_show',
     'rescheduled',
   ];
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return Colors.orange;
+      case 'accepted':
+        return Colors.green;
+      case 'completed':
+        return Colors.blue;
+      case 'cancelled':
+      case 'rejected':
+      case 'no_show':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -438,187 +575,177 @@ class _CounselorHomeState extends State<CounselorHome> {
                                   final appt = _filteredAppointments[index];
                                   print(
                                       'appt.userId: \'${appt.userId.toString().trim()}\'');
-                                  return Card(
-                                    margin: const EdgeInsets.only(bottom: 16),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(16.0),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    _studentInfo[appt.userId
-                                                                .toString()
-                                                                .trim()]
-                                                            ?['username'] ??
-                                                        'Unknown',
-                                                    style: const TextStyle(
-                                                      fontSize: 16,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                    ),
-                                                  ),
-                                                  if ((_studentInfo[appt.userId
-                                                                  .toString()
-                                                                  .trim()]
-                                                              ?['student_id'] ??
-                                                          '')
-                                                      .isNotEmpty)
-                                                    Text(
-                                                      'Student ID: ${_studentInfo[appt.userId.toString().trim()]?['student_id']}',
-                                                      style: const TextStyle(
-                                                        fontSize: 13,
-                                                        color: Colors.grey,
-                                                      ),
-                                                    ),
-                                                ],
-                                              ),
-                                              Row(
-                                                children: [
-                                                  PopupMenuButton<String>(
-                                                    icon: const Icon(
-                                                        Icons.more_vert),
-                                                    onSelected: (value) {
-                                                      if (value ==
-                                                          'view_history') {
-                                                        Navigator.pushNamed(
-                                                          context,
-                                                          '/student-history',
-                                                          arguments: {
-                                                            'userId':
-                                                                appt.userId,
-                                                            'username': _studentInfo[appt
-                                                                        .userId
-                                                                        .toString()
-                                                                        .trim()]
-                                                                    ?[
-                                                                    'username'] ??
-                                                                'Unknown',
-                                                            'studentId': _studentInfo[appt
-                                                                        .userId
-                                                                        .toString()
-                                                                        .trim()]
-                                                                    ?[
-                                                                    'student_id'] ??
-                                                                '',
-                                                          },
-                                                        );
-                                                      }
-                                                    },
-                                                    itemBuilder: (context) => [
-                                                      const PopupMenuItem(
-                                                        value: 'view_history',
-                                                        child: Row(
-                                                          children: [
-                                                            Icon(Icons.history),
-                                                            SizedBox(width: 8),
-                                                            Text(
-                                                                'View History'),
-                                                          ],
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                  const SizedBox(width: 8),
-                                                  Chip(
-                                                    label: Text(appt.status
-                                                        .toUpperCase()),
-                                                    backgroundColor:
-                                                        Colors.blue.shade50,
-                                                  ),
-                                                ],
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                              'Date: ${appt.appointmentDate.day}/${appt.appointmentDate.month}/${appt.appointmentDate.year}'),
-                                          Text(
-                                              'Time: ${appt.startTime.hour.toString().padLeft(2, '0')}:${appt.startTime.minute.toString().padLeft(2, '0')} - ${appt.endTime.hour.toString().padLeft(2, '0')}:${appt.endTime.minute.toString().padLeft(2, '0')}'),
-                                          if (appt.notes != null &&
-                                              appt.notes!.isNotEmpty) ...[
-                                            const SizedBox(height: 8),
-                                            Text('Notes: ${appt.notes!}'),
-                                          ],
-                                          const SizedBox(height: 12),
-                                          Wrap(
-                                            spacing: 8,
-                                            children:
-                                                statusOptions.map((status) {
-                                              if (status == 'rescheduled') {
-                                                return ElevatedButton(
-                                                  style:
-                                                      ElevatedButton.styleFrom(
-                                                    backgroundColor:
-                                                        appt.status == status
-                                                            ? Colors.blue
-                                                            : Colors
-                                                                .grey.shade200,
-                                                    foregroundColor:
-                                                        appt.status == status
-                                                            ? Colors.white
-                                                            : Colors.black,
-                                                  ),
-                                                  onPressed: appt.status ==
-                                                          status
-                                                      ? null
-                                                      : () =>
-                                                          _showRescheduleDialog(
-                                                              appt),
-                                                  child:
-                                                      const Text('RESCHEDULE'),
-                                                );
-                                              }
-                                              return ElevatedButton(
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor:
-                                                      appt.status == status
-                                                          ? Colors.blue
-                                                          : Colors
-                                                              .grey.shade200,
-                                                  foregroundColor:
-                                                      appt.status == status
-                                                          ? Colors.white
-                                                          : Colors.black,
-                                                ),
-                                                onPressed: appt.status == status
-                                                    ? null
-                                                    : () =>
-                                                        _updateAppointmentStatusWithMessage(
-                                                            appt, status),
-                                                child: Text(status
-                                                    .replaceAll('_', ' ')
-                                                    .toUpperCase()),
-                                              );
-                                            }).toList(),
-                                          ),
-                                          if (appt.statusMessage != null &&
-                                              appt.statusMessage!
-                                                  .isNotEmpty) ...[
-                                            const SizedBox(height: 8),
-                                            Text(
-                                              'Status Message: ${appt.statusMessage!}',
-                                              style: const TextStyle(
-                                                  color: Colors.deepPurple),
-                                            ),
-                                          ],
-                                        ],
-                                      ),
-                                    ),
-                                  );
+                                  return _buildAppointmentCard(appt);
                                 },
                               ),
                       ),
                     ],
                   ),
+      ),
+    );
+  }
+
+  Widget _buildAppointmentCard(Appointment appt) {
+    final studentInfo = _studentInfo[appt.userId.toString().trim()] ?? {};
+    final username = studentInfo['username'] ?? 'Unknown';
+    final studentId = studentInfo['student_id'] ?? '';
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        username.isNotEmpty
+                            ? username[0].toUpperCase() + username.substring(1)
+                            : 'Unknown',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      if (studentId.isNotEmpty)
+                        Text(
+                          'Student ID: $studentId',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 14,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                if (appt.status.toLowerCase() == 'accepted')
+                  IconButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AppointmentChat(
+                            appointment: appt,
+                            isCounselor: true,
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.chat_bubble_outline),
+                    color: const Color(0xFF5D5D72),
+                    tooltip: 'Chat with student',
+                  ),
+                PopupMenuButton<String>(
+                  onSelected: (value) {
+                    switch (value) {
+                      case 'accept':
+                        _updateAppointmentStatusWithMessage(appt, 'accepted');
+                        break;
+                      case 'reject':
+                        _updateAppointmentStatusWithMessage(appt, 'rejected');
+                        break;
+                      case 'complete':
+                        _updateAppointmentStatusWithMessage(appt, 'completed');
+                        break;
+                      case 'no_show':
+                        _updateAppointmentStatusWithMessage(appt, 'no_show');
+                        break;
+                      case 'reschedule':
+                        _showRescheduleDialog(appt);
+                        break;
+                      case 'view_history':
+                        Navigator.pushNamed(
+                          context,
+                          '/student-history',
+                          arguments: {
+                            'userId': appt.userId,
+                            'username': username,
+                            'studentId': studentId,
+                          },
+                        );
+                        break;
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    if (appt.status.toLowerCase() == 'pending')
+                      const PopupMenuItem(
+                        value: 'accept',
+                        child: Text('Accept'),
+                      ),
+                    if (appt.status.toLowerCase() == 'pending')
+                      const PopupMenuItem(
+                        value: 'reject',
+                        child: Text('Reject'),
+                      ),
+                    if (appt.status.toLowerCase() == 'accepted')
+                      const PopupMenuItem(
+                        value: 'complete',
+                        child: Text('Mark as Completed'),
+                      ),
+                    if (appt.status.toLowerCase() == 'accepted')
+                      const PopupMenuItem(
+                        value: 'no_show',
+                        child: Text('Mark as No Show'),
+                      ),
+                    if (appt.status.toLowerCase() == 'accepted')
+                      const PopupMenuItem(
+                        value: 'reschedule',
+                        child: Text('Reschedule'),
+                      ),
+                    PopupMenuItem(
+                      value: 'view_history',
+                      child: Row(
+                        children: [
+                          const Icon(Icons.history),
+                          const SizedBox(width: 8),
+                          const Text('View History'),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Date: ${appt.appointmentDate.toString().split(' ')[0]}',
+              style: const TextStyle(fontSize: 14),
+            ),
+            Text(
+              'Time: ' +
+                  TimeOfDay(
+                          hour: appt.startTime.hour,
+                          minute: appt.startTime.minute)
+                      .format(context) +
+                  ' - ' +
+                  TimeOfDay(
+                          hour: appt.endTime.hour, minute: appt.endTime.minute)
+                      .format(context),
+              style: const TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: _getStatusColor(appt.status).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                appt.status.toUpperCase(),
+                style: TextStyle(
+                  color: _getStatusColor(appt.status),
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

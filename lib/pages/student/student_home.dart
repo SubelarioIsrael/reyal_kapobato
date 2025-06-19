@@ -6,6 +6,7 @@ import 'dart:async';
 import 'package:intl/intl.dart';
 import '../../components/student_drawer.dart';
 import '../../components/student_notification_button.dart';
+import '../../services/activity_service.dart';
 // Assuming it's styled to match now
 
 class StudentHome extends StatefulWidget {
@@ -27,6 +28,15 @@ class _StudentHomeState extends State<StudentHome> {
 
   List<Map<String, dynamic>> weeklyMood = [];
   bool isWeeklyMoodLoading = true;
+
+  double _todayProgress = 0.0;
+  bool _isProgressLoading = true;
+  Map<String, bool> _todayCompletions = {
+    'track_mood': false,
+    'mood_journal': false,
+    'daily_checkin': false,
+    'breathing_exercise': false,
+  };
 
   // List of grid features for the home page
   final List<_FeatureCardData> _emotionalWellbeing = [
@@ -92,6 +102,7 @@ class _StudentHomeState extends State<StudentHome> {
     _listenToUsernameChanges();
     _fetchTodayCheckIn();
     _fetchWeeklyMood();
+    _loadTodayProgress();
   }
 
   @override
@@ -166,8 +177,10 @@ class _StudentHomeState extends State<StudentHome> {
       'reasons': data['reasons'],
       'notes': data['notes'],
     });
+    await ActivityService.recordActivityCompletion('daily_checkin');
     await _fetchTodayCheckIn();
-    await _fetchWeeklyMood(); // Refresh weekly mood after check-in
+    await _fetchWeeklyMood();
+    await _loadTodayProgress();
   }
 
   void _showCheckInDialog() async {
@@ -349,6 +362,104 @@ class _StudentHomeState extends State<StudentHome> {
     });
   }
 
+  Future<void> _loadTodayProgress() async {
+    setState(() => _isProgressLoading = true);
+    final completions = await ActivityService.getTodayCompletions();
+    final progress = await ActivityService.getTodayProgress();
+    if (mounted) {
+      setState(() {
+        _todayCompletions = completions;
+        _todayProgress = progress;
+        _isProgressLoading = false;
+      });
+    }
+  }
+
+  Widget _buildProgressBar() {
+    if (_isProgressLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    // Get remaining activities
+    final remainingActivities = <String>[];
+    if (!_todayCompletions['track_mood']!)
+      remainingActivities.add('Track your mood');
+    if (!_todayCompletions['mood_journal']!)
+      remainingActivities.add('Write in your mood journal');
+    if (!_todayCompletions['daily_checkin']!)
+      remainingActivities.add('Complete your daily check-in');
+    if (!_todayCompletions['breathing_exercise']!)
+      remainingActivities.add('Do a breathing exercise');
+
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: Colors.blue.shade50,
+      elevation: 0,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Today\'s Progress',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF3A3A50),
+              ),
+            ),
+            const SizedBox(height: 8),
+            LinearProgressIndicator(
+              value: _todayProgress,
+              backgroundColor: Colors.blue.shade100,
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.blue.shade700),
+              borderRadius: BorderRadius.circular(10),
+              minHeight: 10,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '${(_todayProgress * 100).toInt()}% Complete',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                color: Colors.blue.shade700,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            if (remainingActivities.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Complete these activities to reach 100%:',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: const Color(0xFF3A3A50),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ...remainingActivities.map((activity) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      children: [
+                        Icon(Icons.circle,
+                            size: 8, color: Colors.blue.shade700),
+                        const SizedBox(width: 8),
+                        Text(
+                          activity,
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            color: const Color(0xFF5D5D72),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -380,7 +491,12 @@ class _StudentHomeState extends State<StudentHome> {
         drawer: const StudentDrawer(),
         body: RefreshIndicator(
           key: _refreshKey,
-          onRefresh: _refreshData,
+          onRefresh: () async {
+            await Future.wait([
+              _refreshData(),
+              _loadTodayProgress(),
+            ]);
+          },
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             child: Padding(
@@ -397,15 +513,20 @@ class _StudentHomeState extends State<StudentHome> {
                       color: const Color(0xFF5D5D72),
                     ),
                   ),
-                  const SizedBox(height: 5), // Reduced space
+                  const SizedBox(height: 5),
                   Text(
-                    isLoading ? "Loading..." : "Hi, $username!",
+                    isLoading
+                        ? "Loading..."
+                        : "Hi, ${(username ?? '').isNotEmpty ? username![0].toUpperCase() + username!.substring(1) : ''}!",
                     style: GoogleFonts.poppins(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
                       color: const Color(0xFF3A3A50),
                     ),
                   ),
+                  const SizedBox(height: 32),
+                  _buildProgressBar(),
+                  const SizedBox(height: 32),
                   _buildWeeklyMoodBar(),
                   const SizedBox(height: 20),
                   // Daily Uplift Card

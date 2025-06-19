@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../components/question.dart';
 import '../../components/student_drawer.dart';
 import '../../components/student_notification_button.dart';
+import '../../services/activity_service.dart';
 
 class StudentMtq extends StatefulWidget {
   const StudentMtq({super.key});
@@ -132,6 +133,9 @@ class _StudentMtqState extends State<StudentMtq> {
           });
         }
       }
+
+      // Record activity completion
+      await ActivityService.recordActivityCompletion('track_mood');
 
       if (mounted) {
         // Navigate to summary page

@@ -8,6 +8,7 @@ class Appointment {
   final String status;
   final String? notes;
   final String? statusMessage;
+  final String? counselorName;
 
   Appointment({
     required this.id,
@@ -19,6 +20,7 @@ class Appointment {
     required this.status,
     this.notes,
     this.statusMessage,
+    this.counselorName,
   });
 
   factory Appointment.fromJson(Map<String, dynamic> json) {
@@ -60,6 +62,7 @@ class Appointment {
       status: json['status'],
       notes: json['notes'],
       statusMessage: json['status_message'],
+      counselorName: json['counselor_name'],
     );
   }
 
@@ -74,6 +77,7 @@ class Appointment {
       'status': status,
       'notes': notes,
       'status_message': statusMessage,
+      'counselor_name': counselorName,
     };
   }
 }

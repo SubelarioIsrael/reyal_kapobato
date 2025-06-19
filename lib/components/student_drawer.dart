@@ -29,7 +29,7 @@ class StudentDrawer extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'Student Portal',
+                  'Student',
                   style: GoogleFonts.poppins(
                     color: Colors.white,
                     fontSize: 20,
