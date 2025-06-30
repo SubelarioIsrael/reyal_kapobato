@@ -213,7 +213,15 @@ class _CounselorCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        counselor.fullName,
+                        (counselor.fullName.isNotEmpty
+                            ? counselor.fullName
+                                .split(' ')
+                                .map((part) => part.isNotEmpty
+                                    ? part[0].toUpperCase() +
+                                        part.substring(1).toLowerCase()
+                                    : '')
+                                .join(' ')
+                            : ''),
                         style: GoogleFonts.poppins(
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
@@ -426,7 +434,16 @@ class _AppointmentBookingDialogState extends State<AppointmentBookingDialog> {
               ),
               const SizedBox(height: 8),
               Text(
-                'with ${widget.counselor.fullName}',
+                'with ' +
+                    (widget.counselor.fullName.isNotEmpty
+                        ? widget.counselor.fullName
+                            .split(' ')
+                            .map((part) => part.isNotEmpty
+                                ? part[0].toUpperCase() +
+                                    part.substring(1).toLowerCase()
+                                : '')
+                            .join(' ')
+                        : ''),
                 style: GoogleFonts.poppins(
                   fontSize: 16,
                   color: Colors.grey[600],

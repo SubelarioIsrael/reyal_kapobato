@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../components/student_drawer.dart';
 import '../../components/student_notification_button.dart';
 import '../../services/activity_service.dart';
+import '../../utils/responsive_utils.dart';
 // Assuming it's styled to match now
 
 class StudentHome extends StatefulWidget {
@@ -527,6 +528,14 @@ class _StudentHomeState extends State<StudentHome> {
                   const SizedBox(height: 32),
                   _buildProgressBar(),
                   const SizedBox(height: 32),
+                  Text(
+                    'Daily Mood Check-in',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF3A3A50),
+                    ),
+                  ),
                   _buildWeeklyMoodBar(),
                   const SizedBox(height: 20),
                   // Daily Uplift Card
@@ -570,55 +579,52 @@ class _StudentHomeState extends State<StudentHome> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  GridView.count(
-                    crossAxisCount: 2,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: 1.2,
+                  ResponsiveUtils.responsiveGridView(
+                    context,
                     children: _emotionalWellbeing
                         .map((feature) => _FeatureCard(feature: feature))
                         .toList(),
                   ),
                   const SizedBox(height: 24),
-                  Text(
+                  ResponsiveUtils.responsiveText(
+                    context,
                     'Support & Self-Care Tools',
                     style: GoogleFonts.poppins(
-                      fontSize: 16,
+                      fontSize: ResponsiveUtils.getResponsiveFontSize(
+                        context,
+                        small: 14.0,
+                        medium: 16.0,
+                        large: 18.0,
+                      ),
                       fontWeight: FontWeight.w600,
                       color: const Color(0xFF3A3A50),
                     ),
                   ),
                   const SizedBox(height: 12),
-                  GridView.count(
-                    crossAxisCount: 2,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: 1.2,
+                  ResponsiveUtils.responsiveGridView(
+                    context,
                     children: _supportTools
                         .map((feature) => _FeatureCard(feature: feature))
                         .toList(),
                   ),
                   const SizedBox(height: 24),
-                  Text(
+                  ResponsiveUtils.responsiveText(
+                    context,
                     'Connect & Manage',
                     style: GoogleFonts.poppins(
-                      fontSize: 16,
+                      fontSize: ResponsiveUtils.getResponsiveFontSize(
+                        context,
+                        small: 14.0,
+                        medium: 16.0,
+                        large: 18.0,
+                      ),
                       fontWeight: FontWeight.w600,
                       color: const Color(0xFF3A3A50),
                     ),
                   ),
                   const SizedBox(height: 12),
-                  GridView.count(
-                    crossAxisCount: 2,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: 1.2,
+                  ResponsiveUtils.responsiveGridView(
+                    context,
                     children: _connectManage
                         .map((feature) => _FeatureCard(feature: feature))
                         .toList(),
@@ -684,23 +690,51 @@ class _FeatureCard extends StatelessWidget {
                 child: Image.network(
                   feature.image,
                   fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: Colors.grey[200],
+                      child: Icon(
+                        feature.icon,
+                        color: const Color(0xFF7C83FD),
+                        size: ResponsiveUtils.getResponsiveIconSize(context),
+                      ),
+                    );
+                  },
                 ),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(10.0),
+              padding: ResponsiveUtils.getResponsivePadding(context),
               child: Row(
                 children: [
-                  Icon(feature.icon, color: const Color(0xFF7C83FD)),
-                  const SizedBox(width: 8),
+                  Icon(
+                    feature.icon,
+                    color: const Color(0xFF7C83FD),
+                    size: ResponsiveUtils.getResponsiveIconSize(
+                      context,
+                      small: 16.0,
+                      medium: 18.0,
+                      large: 20.0,
+                    ),
+                  ),
+                  SizedBox(
+                      width: ResponsiveUtils.getResponsiveSpacing(context)),
                   Expanded(
-                    child: Text(
+                    child: ResponsiveUtils.responsiveText(
+                      context,
                       feature.title,
                       style: GoogleFonts.poppins(
-                        fontSize: 14,
+                        fontSize: ResponsiveUtils.getResponsiveFontSize(
+                          context,
+                          small: 12.0,
+                          medium: 14.0,
+                          large: 16.0,
+                        ),
                         fontWeight: FontWeight.w600,
                         color: const Color(0xFF3A3A50),
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],

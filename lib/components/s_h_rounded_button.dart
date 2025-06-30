@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/responsive_utils.dart';
 
 class RoundedButton extends StatelessWidget {
   final IconData icon;
@@ -57,13 +58,13 @@ class RoundedButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+      padding: ResponsiveUtils.getResponsiveHorizontalPadding(context),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(25),
         child: Container(
           width: double.infinity, // Full width
-          height: 180,
+          height: ResponsiveUtils.getResponsiveCardHeight(context),
           decoration: BoxDecoration(
             color: const Color.fromARGB(
               255,
@@ -83,16 +84,33 @@ class RoundedButton extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: Colors.white, size: 50),
-              const SizedBox(height: 12),
-              Text(
+              Icon(
+                icon,
+                color: Colors.white,
+                size: ResponsiveUtils.getResponsiveIconSize(
+                  context,
+                  small: 40.0,
+                  medium: 45.0,
+                  large: 50.0,
+                ),
+              ),
+              SizedBox(height: ResponsiveUtils.getResponsiveSpacing(context)),
+              ResponsiveUtils.responsiveText(
+                context,
                 label,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 20,
+                style: TextStyle(
+                  fontSize: ResponsiveUtils.getResponsiveFontSize(
+                    context,
+                    small: 16.0,
+                    medium: 18.0,
+                    large: 20.0,
+                  ),
                   fontWeight: FontWeight.w600,
                   color: Colors.white,
                 ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),

@@ -27,7 +27,8 @@ class _LoginPageState extends State<LoginPage> {
           .from('users')
           .select('user_type, status') // Select the user_type and status fields
           .eq('user_id', userId)
-          .maybeSingle();
+          .maybeSingle()
+          .timeout(const Duration(seconds: 10));
 
       // Log the response for debugging
       print('User Data: $userId');
@@ -111,10 +112,12 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       // Sign in with email and password using Supabase
-      final response = await _supabase.auth.signInWithPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
+      final response = await _supabase.auth
+          .signInWithPassword(
+            email: _emailController.text.trim(),
+            password: _passwordController.text.trim(),
+          )
+          .timeout(const Duration(seconds: 10));
 
       // Check if we have a user
       if (response.user != null) {

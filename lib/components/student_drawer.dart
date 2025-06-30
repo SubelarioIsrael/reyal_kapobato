@@ -2,8 +2,50 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-class StudentDrawer extends StatelessWidget {
+class StudentDrawer extends StatefulWidget {
   const StudentDrawer({super.key});
+
+  @override
+  State<StudentDrawer> createState() => _StudentDrawerState();
+}
+
+class _StudentDrawerState extends State<StudentDrawer> {
+  final _supabase = Supabase.instance.client;
+  String _username = '';
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUsername();
+  }
+
+  Future<void> _fetchUsername() async {
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId != null) {
+        final userData = await _supabase
+            .from('users')
+            .select('username')
+            .eq('user_id', userId)
+            .single();
+
+        if (mounted) {
+          setState(() {
+            _username = userData['username'] ?? '';
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _username = '';
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,14 +70,19 @@ class StudentDrawer extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 10),
-                Text(
-                  'Student',
-                  style: GoogleFonts.poppins(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : Text(
+                        _username.isNotEmpty
+                            ? _username[0].toUpperCase() +
+                                _username.substring(1)
+                            : 'Student',
+                        style: GoogleFonts.poppins(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
               ],
             ),
           ),

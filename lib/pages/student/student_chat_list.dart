@@ -218,10 +218,15 @@ class _StudentChatListState extends State<StudentChatList> {
                           child: Icon(Icons.person, color: Colors.white),
                         ),
                         title: Text(
-                          chat['counselor_username'] != null &&
-                                  chat['counselor_username'].isNotEmpty
-                              ? chat['counselor_username'][0].toUpperCase() +
-                                  chat['counselor_username'].substring(1)
+                          (chat['counselor_username'] != null &&
+                                  chat['counselor_username'].isNotEmpty)
+                              ? chat['counselor_username']
+                                  .split(' ')
+                                  .map((part) => part.isNotEmpty
+                                      ? part[0].toUpperCase() +
+                                          part.substring(1).toLowerCase()
+                                      : '')
+                                  .join(' ')
                               : '',
                           style: GoogleFonts.poppins(
                             fontWeight: FontWeight.w600,

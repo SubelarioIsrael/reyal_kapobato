@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../services/chatbot_service.dart';
+import '../../services/intervention_service.dart';
+import '../../services/chat_message_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../components/student_drawer.dart';
 import '../../components/student_notification_button.dart';
@@ -27,11 +29,20 @@ class _StudentChatbotState extends State<StudentChatbot> {
 
     _controller.clear();
 
+    // Store the user message for intervention analysis
+    await ChatMessageService.storeMessage(text, 'user');
+
+    // Check for intervention triggers
+    await _checkForIntervention(text);
+
     try {
       final response = await ChatbotService.generateResponse(text);
       setState(() {
         _messages.add({"sender": "bot", "text": response});
       });
+
+      // Store the bot response
+      await ChatMessageService.storeMessage(response, 'bot');
     } catch (e) {
       print('Error getting response: $e');
       setState(() {
@@ -45,6 +56,34 @@ class _StudentChatbotState extends State<StudentChatbot> {
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  /// Checks if the message requires intervention
+  Future<void> _checkForIntervention(String message) async {
+    try {
+      // Analyze the current message
+      final messageLevel = InterventionService.analyzeMessage(message);
+
+      // If the message itself is concerning, trigger intervention
+      if (messageLevel != InterventionLevel.none) {
+        final hasRecent = await InterventionService.hasRecentIntervention();
+        if (!hasRecent) {
+          await InterventionService.triggerIntervention(messageLevel, message);
+        }
+        return;
+      }
+
+      // Analyze recent chat history for patterns
+      final historyLevel = await InterventionService.analyzeRecentChatHistory();
+      if (historyLevel != InterventionLevel.none) {
+        final hasRecent = await InterventionService.hasRecentIntervention();
+        if (!hasRecent) {
+          await InterventionService.triggerIntervention(historyLevel, message);
+        }
+      }
+    } catch (e) {
+      print('Error checking for intervention: $e');
     }
   }
 
