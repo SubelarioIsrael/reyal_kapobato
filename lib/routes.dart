@@ -20,6 +20,7 @@ import 'pages/student/student_settings.dart';
 import 'pages/student/questionnaire_summary.dart';
 import 'pages/student/questionnaire_history.dart';
 import 'pages/student/student_daily_checkin.dart';
+import 'pages/student/student_journal_entries.dart';
 
 //admin
 import 'pages/admin/admin_home.dart';
@@ -82,6 +83,8 @@ final Map<String, WidgetBuilder> appRoutes = {
   'student-settings': (context) => const AuthGuard(child: StudentSettings()),
   '/student-daily-checkin': (context) =>
       const AuthGuard(child: StudentDailyCheckInPage()),
+  'student-journal-entries': (context) =>
+      const AuthGuard(child: StudentJournalEntries()),
 
   // admin page routes
   'admin-accounts': (context) => const AuthGuard(child: AdminAccounts()),

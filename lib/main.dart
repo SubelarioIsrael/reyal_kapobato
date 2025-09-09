@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'routes.dart';
 import 'pages/student/student_daily_checkin.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  String url = 'https://yferkhdvbykfnsdnstwu.supabase.co';
-  String anonKey =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlmZXJraGR2YnlrZm5zZG5zdHd1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYyMzY0MDUsImV4cCI6MjA2MTgxMjQwNX0.4nNYEgRkSmFQwa_2cuQCNEsDywHlUYXKBmY0248dzxA';
+  await dotenv.load(fileName: 'important_stuff.env');
+
+  final String? url = dotenv.env['SUPABASE_URL'];
+  final String? anonKey = dotenv.env['SUPABASE_ANON_KEY'];
+
+  if (url == null || url.isEmpty || anonKey == null || anonKey.isEmpty) {
+    throw Exception('Missing SUPABASE_URL or SUPABASE_ANON_KEY');
+  }
 
   await Supabase.initialize(url: url, anonKey: anonKey);
   runApp(const MyApp());

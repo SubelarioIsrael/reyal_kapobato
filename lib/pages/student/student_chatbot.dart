@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../services/chatbot_service.dart';
 import '../../services/intervention_service.dart';
 import '../../services/chat_message_service.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../components/student_drawer.dart';
 import '../../components/student_notification_button.dart';
 
@@ -18,6 +17,17 @@ class _StudentChatbotState extends State<StudentChatbot> {
   final List<Map<String, String>> _messages = [];
   final TextEditingController _controller = TextEditingController();
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Seed the chat with an initial gray system message
+    _messages.add({
+      "sender": "system",
+      "text":
+          "You are chatting with ${ChatbotService.botName}. Please be respectful and kind. This app offers general support and is not a substitute for professional help. If you're in immediate danger or experiencing a crisis, contact local emergency services or a mental health professional.",
+    });
+  }
 
   Future<void> _sendMessage(String text) async {
     if (text.trim().isEmpty) return;
@@ -122,6 +132,7 @@ class _StudentChatbotState extends State<StudentChatbot> {
               itemBuilder: (context, index) {
                 final msg = _messages[index];
                 final isUser = msg["sender"] == "user";
+                final isSystem = msg["sender"] == "system";
                 return Align(
                   alignment:
                       isUser ? Alignment.centerRight : Alignment.centerLeft,
@@ -135,7 +146,11 @@ class _StudentChatbotState extends State<StudentChatbot> {
                       maxWidth: MediaQuery.of(context).size.width * 0.75,
                     ),
                     decoration: BoxDecoration(
-                      color: isUser ? const Color(0xFF7C83FD) : Colors.white,
+                      color: isSystem
+                          ? Colors.grey.shade300
+                          : isUser
+                              ? const Color(0xFF7C83FD)
+                              : Colors.white,
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
@@ -149,7 +164,11 @@ class _StudentChatbotState extends State<StudentChatbot> {
                       msg["text"] ?? "",
                       style: GoogleFonts.poppins(
                         fontSize: 15,
-                        color: isUser ? Colors.white : Colors.black87,
+                        color: isSystem
+                            ? const Color(0xFF3A3A50)
+                            : isUser
+                                ? Colors.white
+                                : Colors.black87,
                       ),
                     ),
                   ),

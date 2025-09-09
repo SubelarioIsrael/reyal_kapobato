@@ -125,6 +125,19 @@ class _StudentDrawerState extends State<StudentDrawer> {
               Navigator.pushNamed(context, 'student-chatbot');
             },
           ),
+          ListTile(
+            leading: const Icon(Icons.chat, color: Color(0xFF5D5D72)),
+            title: Text(
+              'Journal Entries',
+              style: GoogleFonts.poppins(
+                color: const Color(0xFF5D5D72),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            onTap: () {
+              Navigator.pushNamed(context, 'student-chatbot');
+            },
+          ),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.settings, color: Color(0xFF5D5D72)),
