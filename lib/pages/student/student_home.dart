@@ -11,13 +11,17 @@ import '../../utils/responsive_utils.dart';
 // Assuming it's styled to match now
 
 class StudentHome extends StatefulWidget {
+  
   const StudentHome({super.key});
 
+
+  
   @override
   State<StudentHome> createState() => _StudentHomeState();
 }
 
 class _StudentHomeState extends State<StudentHome> {
+  final textEditingController = TextEditingController();
   String? username;
   bool isLoading = true;
   StreamSubscription? _usernameSubscription;

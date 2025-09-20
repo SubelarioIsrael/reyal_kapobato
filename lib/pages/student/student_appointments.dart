@@ -7,6 +7,7 @@ import '../../components/student_drawer.dart';
 import '../../components/student_notification_button.dart';
 import '../chat/appointment_chat.dart';
 import 'student_chat_list.dart'; // New import for the chat list widget
+import '../call/call.dart'; // Add this import (adjust path if needed)
 
 class StudentAppointments extends StatefulWidget {
   const StudentAppointments({super.key});
@@ -233,6 +234,7 @@ class _StudentAppointmentsState extends State<StudentAppointments> {
               fontWeight: FontWeight.bold,
               color: const Color(0xFF3A3A50),
             ),
+          
           ),
           centerTitle: true,
           actions: const [
@@ -371,7 +373,7 @@ class _StudentAppointmentsState extends State<StudentAppointments> {
   }
 }
 
-class _AppointmentCard extends StatelessWidget {
+class _AppointmentCard extends StatefulWidget {
   final Appointment appointment;
   final VoidCallback onCancel;
 
@@ -380,8 +382,21 @@ class _AppointmentCard extends StatelessWidget {
     required this.onCancel,
   });
 
+  @override
+  State<_AppointmentCard> createState() => _AppointmentCardState();
+}
+
+class _AppointmentCardState extends State<_AppointmentCard> {
+  final callIdController = TextEditingController(); // Use final and initialize here
+
+  @override
+  void dispose() {
+    callIdController.dispose();
+    super.dispose();
+  }
+
   Color _getStatusColor() {
-    switch (appointment.status.toLowerCase()) {
+    switch (widget.appointment.status.toLowerCase()) {
       case 'pending':
         return Colors.orange;
       case 'accepted':
@@ -398,7 +413,7 @@ class _AppointmentCard extends StatelessWidget {
       context,
       MaterialPageRoute(
         builder: (context) => AppointmentChat(
-          appointment: appointment,
+          appointment: widget.appointment,
           isCounselor: false,
         ),
       ),
@@ -437,7 +452,7 @@ class _AppointmentCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    appointment.status.toUpperCase(),
+                    widget.appointment.status.toUpperCase(),
                     style: GoogleFonts.poppins(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
@@ -446,17 +461,17 @@ class _AppointmentCard extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                if (appointment.status.toLowerCase() == 'accepted')
+                if (widget.appointment.status.toLowerCase() == 'accepted')
                   IconButton(
                     onPressed: () => _openChat(context),
                     icon: const Icon(Icons.chat_bubble_outline),
                     color: const Color(0xFF5D5D72),
                     tooltip: 'Chat with counselor',
                   ),
-                if (appointment.status.toLowerCase() == 'pending' ||
-                    appointment.status.toLowerCase() == 'accepted')
+                if (widget.appointment.status.toLowerCase() == 'pending' ||
+                    widget.appointment.status.toLowerCase() == 'accepted')
                   IconButton(
-                    onPressed: onCancel,
+                    onPressed: widget.onCancel,
                     icon: const Icon(Icons.cancel_outlined),
                     color: Colors.red,
                     tooltip: 'Cancel appointment',
@@ -465,9 +480,9 @@ class _AppointmentCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              (appointment.counselorName ?? '').isNotEmpty
-                  ? appointment.counselorName![0].toUpperCase() +
-                      appointment.counselorName!.substring(1)
+              (widget.appointment.counselorName ?? '').isNotEmpty
+                  ? widget.appointment.counselorName![0].toUpperCase() +
+                      widget.appointment.counselorName!.substring(1)
                   : '',
               style: GoogleFonts.poppins(
                 fontSize: 16,
@@ -476,7 +491,7 @@ class _AppointmentCard extends StatelessWidget {
               ),
             ),
             Text(
-              'Date: ${appointment.appointmentDate.day}/${appointment.appointmentDate.month}/${appointment.appointmentDate.year}',
+              'Date: ${widget.appointment.appointmentDate.day}/${widget.appointment.appointmentDate.month}/${widget.appointment.appointmentDate.year}',
               style: GoogleFonts.poppins(
                 fontSize: 14,
                 color: Colors.grey[700],
@@ -485,18 +500,38 @@ class _AppointmentCard extends StatelessWidget {
             Text(
               'Time: ' +
                   TimeOfDay(
-                          hour: appointment.startTime.hour,
-                          minute: appointment.startTime.minute)
+                          hour: widget.appointment.startTime.hour,
+                          minute: widget.appointment.startTime.minute)
                       .format(context) +
                   ' - ' +
                   TimeOfDay(
-                          hour: appointment.endTime.hour,
-                          minute: appointment.endTime.minute)
+                          hour: widget.appointment.endTime.hour,
+                          minute: widget.appointment.endTime.minute)
                       .format(context),
               style: GoogleFonts.poppins(
                 fontSize: 14,
                 color: Colors.grey[700],
               ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: callIdController,
+              decoration: const InputDecoration(
+                labelText: 'Enter Call ID',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 8),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CallPage(callID: callIdController.text),
+                  ),
+                );
+              },
+              child: const Text("Call"),
             ),
           ],
         ),
@@ -504,3 +539,4 @@ class _AppointmentCard extends StatelessWidget {
     );
   }
 }
+

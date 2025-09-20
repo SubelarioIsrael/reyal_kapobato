@@ -557,6 +557,124 @@ class _CounselorHomeState extends State<CounselorHome> {
                         ],
                       ),
                       const SizedBox(height: 16),
+                      // Pending Requests Section
+                      const Text(
+                        'Pending Requests',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Builder(
+                        builder: (context) {
+                          final pendingAppointments = _appointments
+                              .where((a) => a.status.toLowerCase() == 'pending')
+                              .toList();
+                          if (pendingAppointments.isEmpty) {
+                            return const Text(
+                              'No pending requests.',
+                              style: TextStyle(color: Colors.grey),
+                            );
+                          }
+                          return ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: pendingAppointments.length,
+                            itemBuilder: (context, index) {
+                              final appt = pendingAppointments[index];
+                              final studentInfo = _studentInfo[appt.userId.toString().trim()] ?? {};
+                              final username = studentInfo['username'] ?? 'Unknown';
+                              final studentId = studentInfo['student_id'] ?? '';
+                              return Card(
+                                margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 0),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(12),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  username.isNotEmpty
+                                                      ? username[0].toUpperCase() + username.substring(1)
+                                                      : 'Unknown',
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 16,
+                                                  ),
+                                                ),
+                                                if (studentId.isNotEmpty)
+                                                  Text(
+                                                    'Student ID: $studentId',
+                                                    style: TextStyle(
+                                                      color: Colors.grey[600],
+                                                      fontSize: 14,
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(Icons.check_circle, color: Colors.green),
+                                            tooltip: 'Accept',
+                                            onPressed: () => _updateAppointmentStatusWithMessage(appt, 'accepted'),
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(Icons.cancel, color: Colors.red),
+                                            tooltip: 'Reject',
+                                            onPressed: () => _updateAppointmentStatusWithMessage(appt, 'rejected'),
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(Icons.visibility),
+                                            tooltip: 'View',
+                                            onPressed: () {
+                                              // Optionally show more details or history
+                                              Navigator.pushNamed(
+                                                context,
+                                                '/student-history',
+                                                arguments: {
+                                                  'userId': appt.userId,
+                                                  'username': username,
+                                                  'studentId': studentId,
+                                                },
+                                              );
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Date: ${appt.appointmentDate.toString().split(' ')[0]}',
+                                        style: const TextStyle(fontSize: 14),
+                                      ),
+                                      Text(
+                                        'Time: ' +
+                                            TimeOfDay(
+                                                    hour: appt.startTime.hour,
+                                                    minute: appt.startTime.minute)
+                                                .format(context) +
+                                            ' - ' +
+                                            TimeOfDay(
+                                                    hour: appt.endTime.hour, minute: appt.endTime.minute)
+                                                .format(context),
+                                        style: const TextStyle(fontSize: 14),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+
+                      const SizedBox(height: 24),
                       const Text(
                         'Appointments',
                         style: TextStyle(
