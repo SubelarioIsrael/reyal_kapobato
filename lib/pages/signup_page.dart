@@ -23,44 +23,111 @@ class _SignUpPageState extends State<SignUpPage> {
   bool _isLoading = false;
 
   Future<void> _signup() async {
-    // Only set loading state after all validation checks pass
     if (_formKey.currentState?.validate() ?? false) {
       setState(() {
         _isLoading = true;
       });
 
       try {
+        // Check for duplicates
+        final email = _emailController.text.trim();
+        final username = _usernameController.text.trim();
+        final studentCode = _studentIdController.text.trim();
+
+        // Check email in users table
+        final emailExists = await Supabase.instance.client
+            .from('users')
+            .select('user_id')
+            .eq('email', email)
+            .maybeSingle();
+
+        // Check username in users table
+        final usernameExists = await Supabase.instance.client
+            .from('users')
+            .select('user_id')
+            .eq('username', username)
+            .maybeSingle();
+
+        // Check student_code in students table
+        final studentCodeExists = await Supabase.instance.client
+            .from('students')
+            .select('user_id')
+            .eq('student_code', studentCode)
+            .maybeSingle();
+
+        if (emailExists != null ||
+            usernameExists != null ||
+            studentCodeExists != null) {
+          String message = '';
+          if (emailExists != null) message += 'Email.\n';
+          if (usernameExists != null) message += 'Username is already taken.\n';
+          if (studentCodeExists != null) message += 'Student ID is already taken.\n';
+
+          await showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Signup Error'),
+              content: Text(message.trim()),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          );
+          setState(() {
+            _isLoading = false;
+          });
+          return;
+        }
+
         final authResponse = await Supabase.instance.client.auth.signUp(
-          email: _emailController.text.trim(),
+          email: email,
           password: _passwordController.text.trim(),
         );
 
         final user = authResponse.user;
 
         if (user != null) {
-          // Assuming 'user.id' is the primary key for the 'users' table
-          final userId = user.id;
+          // Show email verification dialog
+          await showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => AlertDialog(
+              title: const Text('Verify your email'),
+              content: const Text(
+                'A verification link has been sent to your email address. '
+                'Please check your inbox and click the link to verify your email before logging in.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    Navigator.pushReplacementNamed(context, '/login');
+                  },
+                  child: const Text('Go to Login'),
+                ),
+              ],
+            ),
+          );
 
-          // Insert into the 'users' table (if needed, else this can be omitted)
+          // Insert into the 'users' table
           await Supabase.instance.client.from('users').insert({
-            'user_id': userId, // foreign key to auth.users
-            'username': _usernameController.text.trim(),
-            'email': _emailController.text.trim(),
+            'user_id': user.id,
+            'username': username,
+            'email': email,
             'registration_date': DateTime.now().toIso8601String(),
-            'user_type': 'student', // or 'admin' based on your logic
+            'user_type': 'student',
           });
 
           // Insert into the 'students' table
           await Supabase.instance.client.from('students').insert({
-            'user_id': userId, // foreign key to auth.users
-            'student_code': _studentIdController.text.trim(),
+            'user_id': user.id,
+            'student_code': studentCode,
             'course': _selectedCourse,
             'year_level': int.tryParse(_yearLevelController.text.trim()),
           });
-
-          if (context.mounted) {
-            Navigator.pushReplacementNamed(context, '/login');
-          }
         }
       } on AuthException catch (e) {
         print('Supabase Auth error: ${e.message}');
