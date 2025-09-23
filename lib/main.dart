@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'routes.dart';
-import 'pages/student/student_daily_checkin.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
