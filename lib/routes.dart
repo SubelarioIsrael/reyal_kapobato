@@ -6,6 +6,8 @@ import 'widgets/auth_guard.dart';
 import 'pages/login_page.dart';
 import 'pages/signup_page.dart';
 
+import 'pages/counselor/counselor_profile.dart';
+
 //student
 import 'pages/student/student_home.dart';
 import 'pages/student/student_breathing_exercises.dart';
@@ -21,6 +23,7 @@ import 'pages/student/questionnaire_summary.dart';
 import 'pages/student/questionnaire_history.dart';
 import 'pages/student/student_daily_checkin.dart';
 import 'pages/student/student_journal_entries.dart';
+import 'pages/student/counselor_profile_view.dart';
 
 //admin
 import 'pages/admin/admin_home.dart';
@@ -85,6 +88,36 @@ final Map<String, WidgetBuilder> appRoutes = {
       const AuthGuard(child: StudentDailyCheckInPage()),
   'student-journal-entries': (context) =>
       const AuthGuard(child: StudentJournalEntries()),
+  '/counselor-profile-view': (context) {
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args == null || args is! Map<String, dynamic>) {
+      return const Scaffold(
+        body: Center(child: Text('Error: Missing counselorId')),
+      );
+    }
+    final id = args['counselorId'];
+    if (id is! int) {
+      return const Scaffold(
+        body: Center(child: Text('Error: Invalid counselorId')),
+      );
+    }
+    return AuthGuard(child: CounselorProfileView(counselorId: id));
+  },
+  'counselor-profile-view': (context) {
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args == null || args is! Map<String, dynamic>) {
+      return const Scaffold(
+        body: Center(child: Text('Error: Missing counselorId')),
+      );
+    }
+    final id = args['counselorId'];
+    if (id is! int) {
+      return const Scaffold(
+        body: Center(child: Text('Error: Invalid counselorId')),
+      );
+    }
+    return AuthGuard(child: CounselorProfileView(counselorId: id));
+  },
 
   // admin page routes
   'admin-accounts': (context) => const AuthGuard(child: AdminAccounts()),
@@ -99,6 +132,7 @@ final Map<String, WidgetBuilder> appRoutes = {
       const AuthGuard(child: AdminQuestionnaire()),
 
   // counselor page routes
+  '/counselor-profile': (context) => const AuthGuard(child: CounselorProfile()),
   'counselor-settings': (context) =>
       const AuthGuard(child: CounselorSettings()),
   '/student-history': (context) => AuthGuard(

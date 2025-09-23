@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../models/counselor.dart';
 import '../../services/counselor_service.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../components/student_drawer.dart';
 import '../../components/student_notification_button.dart';
 
@@ -150,6 +149,15 @@ class _StudentCounselorsState extends State<StudentCounselors> {
                         counselor: counselor,
                         onBookAppointment: () =>
                             _showBookAppointmentDialog(counselor),
+                        onViewProfile: () {
+                          Navigator.pushNamed(
+                            context,
+                            '/counselor-profile-view',
+                            arguments: {
+                              'counselorId': counselor.id,
+                            },
+                          );
+                        },
                       );
                     },
                   ),
@@ -165,10 +173,12 @@ class _StudentCounselorsState extends State<StudentCounselors> {
 class _CounselorCard extends StatelessWidget {
   final Counselor counselor;
   final VoidCallback onBookAppointment;
+  final VoidCallback? onViewProfile;
 
   const _CounselorCard({
     required this.counselor,
     required this.onBookAppointment,
+    this.onViewProfile,
   });
 
   @override
@@ -275,10 +285,23 @@ class _CounselorCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                const Icon(
-                  Icons.arrow_forward_ios,
-                  color: Color(0xFF7C83FD),
-                  size: 16,
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      onPressed: onViewProfile,
+                      icon: const Icon(Icons.person_outline),
+                      color: const Color(0xFF7C83FD),
+                      tooltip: 'View Profile',
+                    ),
+                    const SizedBox(height: 8),
+                    const Icon(
+                      Icons.arrow_forward_ios,
+                      color: Color(0xFF7C83FD),
+                      size: 16,
+                    ),
+                  ],
                 ),
               ],
             ),

@@ -251,6 +251,20 @@ class _AdminAccountsState extends State<AdminAccounts> {
                             'registration_date':
                                 DateTime.now().toIso8601String(),
                           });
+                          if (_selectedRole == 'counselor') {
+                            await Supabase.instance.client
+                                .from('counselors')
+                                .insert({
+                              'first_name': _nameController.text
+                                  .trim(), // or split first/last
+                              'last_name': '',
+                              'email': _emailController.text.trim(),
+                              'specialization': 'General', // sensible default
+                              'availability_status':
+                                  'available', // or your enum default
+                              'user_id': authResponse.user!.id,
+                            });
+                          }
 
                           if (mounted) {
                             Navigator.pop(context);

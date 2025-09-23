@@ -473,6 +473,14 @@ class _CounselorHomeState extends State<CounselorHome> {
               ),
             ),
             ListTile(
+              leading: const Icon(Icons.person),
+              title: const Text('Profile'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/counselor-profile');
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.settings),
               title: const Text('Settings'),
               onTap: () {
@@ -584,25 +592,33 @@ class _CounselorHomeState extends State<CounselorHome> {
                             itemCount: pendingAppointments.length,
                             itemBuilder: (context, index) {
                               final appt = pendingAppointments[index];
-                              final studentInfo = _studentInfo[appt.userId.toString().trim()] ?? {};
-                              final username = studentInfo['username'] ?? 'Unknown';
+                              final studentInfo =
+                                  _studentInfo[appt.userId.toString().trim()] ??
+                                      {};
+                              final username =
+                                  studentInfo['username'] ?? 'Unknown';
                               final studentId = studentInfo['student_id'] ?? '';
                               return Card(
-                                margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 0),
+                                margin: const EdgeInsets.symmetric(
+                                    vertical: 4, horizontal: 0),
                                 child: Padding(
                                   padding: const EdgeInsets.all(12),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Row(
                                         children: [
                                           Expanded(
                                             child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
                                               children: [
                                                 Text(
                                                   username.isNotEmpty
-                                                      ? username[0].toUpperCase() + username.substring(1)
+                                                      ? username[0]
+                                                              .toUpperCase() +
+                                                          username.substring(1)
                                                       : 'Unknown',
                                                   style: const TextStyle(
                                                     fontWeight: FontWeight.bold,
@@ -621,14 +637,20 @@ class _CounselorHomeState extends State<CounselorHome> {
                                             ),
                                           ),
                                           IconButton(
-                                            icon: const Icon(Icons.check_circle, color: Colors.green),
+                                            icon: const Icon(Icons.check_circle,
+                                                color: Colors.green),
                                             tooltip: 'Accept',
-                                            onPressed: () => _updateAppointmentStatusWithMessage(appt, 'accepted'),
+                                            onPressed: () =>
+                                                _updateAppointmentStatusWithMessage(
+                                                    appt, 'accepted'),
                                           ),
                                           IconButton(
-                                            icon: const Icon(Icons.cancel, color: Colors.red),
+                                            icon: const Icon(Icons.cancel,
+                                                color: Colors.red),
                                             tooltip: 'Reject',
-                                            onPressed: () => _updateAppointmentStatusWithMessage(appt, 'rejected'),
+                                            onPressed: () =>
+                                                _updateAppointmentStatusWithMessage(
+                                                    appt, 'rejected'),
                                           ),
                                           IconButton(
                                             icon: const Icon(Icons.visibility),
@@ -657,11 +679,13 @@ class _CounselorHomeState extends State<CounselorHome> {
                                         'Time: ' +
                                             TimeOfDay(
                                                     hour: appt.startTime.hour,
-                                                    minute: appt.startTime.minute)
+                                                    minute:
+                                                        appt.startTime.minute)
                                                 .format(context) +
                                             ' - ' +
                                             TimeOfDay(
-                                                    hour: appt.endTime.hour, minute: appt.endTime.minute)
+                                                    hour: appt.endTime.hour,
+                                                    minute: appt.endTime.minute)
                                                 .format(context),
                                         style: const TextStyle(fontSize: 14),
                                       ),

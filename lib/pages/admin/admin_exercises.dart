@@ -114,300 +114,303 @@ class _AdminExercisesState extends State<AdminExercises> {
     }
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          isEdit ? 'Edit Exercise' : 'Add New Exercise',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF3A3A50),
-          ),
-        ),
-        content: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: _nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Exercise Name',
-                    prefixIcon: Icon(Icons.title),
-                  ),
-                  validator: (value) =>
-                      value?.isEmpty ?? true ? 'Please enter a name' : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _descriptionController,
-                  decoration: const InputDecoration(
-                    labelText: 'Description',
-                    prefixIcon: Icon(Icons.description),
-                  ),
-                  maxLines: 3,
-                  validator: (value) => value?.isEmpty ?? true
-                      ? 'Please enter a description'
-                      : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _durationController,
-                  decoration: const InputDecoration(
-                    labelText: 'Duration (seconds)',
-                    prefixIcon: Icon(Icons.timer),
-                  ),
-                  keyboardType: TextInputType.number,
-                  validator: (value) {
-                    if (value?.isEmpty ?? true) {
-                      return 'Please enter duration';
-                    }
-                    if (int.tryParse(value!) == null) {
-                      return 'Please enter a valid number';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  value: _selectedIconName,
-                  decoration: const InputDecoration(
-                    labelText: 'Icon',
-                    prefixIcon: Icon(Icons.image),
-                  ),
-                  items: _iconOptions
-                      .map((icon) => DropdownMenuItem(
-                            value: icon,
-                            child: Text(icon),
-                          ))
-                      .toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedIconName = value ?? 'air';
-                    });
-                  },
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Breathing Pattern',
-                  style: GoogleFonts.poppins(
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF3A3A50),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _inhaleController,
-                        decoration: const InputDecoration(
-                          labelText: 'Inhale (s)',
-                          prefixIcon: Icon(Icons.arrow_upward),
-                        ),
-                        keyboardType: TextInputType.number,
-                        validator: (value) {
-                          if (value?.isEmpty ?? true) {
-                            return 'Required';
-                          }
-                          if (int.tryParse(value!) == null) {
-                            return 'Invalid';
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _holdController,
-                        decoration: const InputDecoration(
-                          labelText: 'Hold (s)',
-                          prefixIcon: Icon(Icons.pause),
-                        ),
-                        keyboardType: TextInputType.number,
-                        validator: (value) {
-                          if (value?.isEmpty ?? true) {
-                            return 'Required';
-                          }
-                          if (int.tryParse(value!) == null) {
-                            return 'Invalid';
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _exhaleController,
-                        decoration: const InputDecoration(
-                          labelText: 'Exhale (s)',
-                          prefixIcon: Icon(Icons.arrow_downward),
-                        ),
-                        keyboardType: TextInputType.number,
-                        validator: (value) {
-                          if (value?.isEmpty ?? true) {
-                            return 'Required';
-                          }
-                          if (int.tryParse(value!) == null) {
-                            return 'Invalid';
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _hold2Controller,
-                        decoration: const InputDecoration(
-                          labelText: 'Hold 2 (s)',
-                          prefixIcon: Icon(Icons.pause),
-                        ),
-                        keyboardType: TextInputType.number,
-                        enabled: _hasSecondHold,
-                        validator: _hasSecondHold
-                            ? (value) {
-                                if (value?.isEmpty ?? true) {
-                                  return 'Required';
-                                }
-                                if (int.tryParse(value!) == null) {
-                                  return 'Invalid';
-                                }
-                                return null;
-                              }
-                            : null,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                CheckboxListTile(
-                  title: const Text('Include second hold phase'),
-                  value: _hasSecondHold,
-                  onChanged: (value) {
-                    setState(() {
-                      _hasSecondHold = value ?? false;
-                      if (!_hasSecondHold) {
-                        _hold2Controller.clear();
-                      }
-                    });
-                  },
-                ),
-              ],
+      builder: (context) => StatefulBuilder(
+        builder: (context, localSetState) => AlertDialog(
+          title: Text(
+            isEdit ? 'Edit Exercise' : 'Add New Exercise',
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF3A3A50),
             ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: GoogleFonts.poppins(
-                color: Colors.grey[600],
+          content: Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Exercise Name',
+                      prefixIcon: Icon(Icons.title),
+                    ),
+                    validator: (value) =>
+                        value?.isEmpty ?? true ? 'Please enter a name' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _descriptionController,
+                    decoration: const InputDecoration(
+                      labelText: 'Description',
+                      prefixIcon: Icon(Icons.description),
+                    ),
+                    maxLines: 3,
+                    validator: (value) => value?.isEmpty ?? true
+                        ? 'Please enter a description'
+                        : null,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _durationController,
+                    decoration: const InputDecoration(
+                      labelText: 'Duration (seconds)',
+                      prefixIcon: Icon(Icons.timer),
+                    ),
+                    keyboardType: TextInputType.number,
+                    validator: (value) {
+                      if (value?.isEmpty ?? true) {
+                        return 'Please enter duration';
+                      }
+                      if (int.tryParse(value!) == null) {
+                        return 'Please enter a valid number';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    value: _selectedIconName,
+                    decoration: const InputDecoration(
+                      labelText: 'Icon',
+                      prefixIcon: Icon(Icons.image),
+                    ),
+                    items: _iconOptions
+                        .map((icon) => DropdownMenuItem(
+                              value: icon,
+                              child: Text(icon),
+                            ))
+                        .toList(),
+                    onChanged: (value) {
+                      localSetState(() {
+                        _selectedIconName = value ?? 'air';
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Breathing Pattern',
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF3A3A50),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _inhaleController,
+                          decoration: const InputDecoration(
+                            labelText: 'Inhale (s)',
+                            prefixIcon: Icon(Icons.arrow_upward),
+                          ),
+                          keyboardType: TextInputType.number,
+                          validator: (value) {
+                            if (value?.isEmpty ?? true) {
+                              return 'Required';
+                            }
+                            if (int.tryParse(value!) == null) {
+                              return 'Invalid';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _holdController,
+                          decoration: const InputDecoration(
+                            labelText: 'Hold (s)',
+                            prefixIcon: Icon(Icons.pause),
+                          ),
+                          keyboardType: TextInputType.number,
+                          validator: (value) {
+                            if (value?.isEmpty ?? true) {
+                              return 'Required';
+                            }
+                            if (int.tryParse(value!) == null) {
+                              return 'Invalid';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _exhaleController,
+                          decoration: const InputDecoration(
+                            labelText: 'Exhale (s)',
+                            prefixIcon: Icon(Icons.arrow_downward),
+                          ),
+                          keyboardType: TextInputType.number,
+                          validator: (value) {
+                            if (value?.isEmpty ?? true) {
+                              return 'Required';
+                            }
+                            if (int.tryParse(value!) == null) {
+                              return 'Invalid';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _hold2Controller,
+                          decoration: const InputDecoration(
+                            labelText: 'Hold 2 (s)',
+                            prefixIcon: Icon(Icons.pause),
+                          ),
+                          keyboardType: TextInputType.number,
+                          enabled: _hasSecondHold,
+                          validator: _hasSecondHold
+                              ? (value) {
+                                  if (value?.isEmpty ?? true) {
+                                    return 'Required';
+                                  }
+                                  if (int.tryParse(value!) == null) {
+                                    return 'Invalid';
+                                  }
+                                  return null;
+                                }
+                              : null,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  CheckboxListTile(
+                    title: const Text('Include second hold phase'),
+                    value: _hasSecondHold,
+                    onChanged: (value) {
+                      localSetState(() {
+                        _hasSecondHold = value ?? false;
+                        if (!_hasSecondHold) {
+                          _hold2Controller.clear();
+                        }
+                      });
+                    },
+                  ),
+                ],
               ),
             ),
           ),
-          ElevatedButton(
-            onPressed: _isLoading
-                ? null
-                : () async {
-                    if (_formKey.currentState?.validate() ?? false) {
-                      setState(() {
-                        _isLoading = true;
-                      });
-                      final pattern = {
-                        'inhale': int.parse(_inhaleController.text),
-                        'hold': int.parse(_holdController.text),
-                        'exhale': int.parse(_exhaleController.text),
-                      };
-                      if (_hasSecondHold && _hold2Controller.text.isNotEmpty) {
-                        pattern['hold2'] = int.parse(_hold2Controller.text);
-                      }
-                      // For demo, use a default color/icon
-                      final colorHex = exercise?['color_hex'] ?? '#7C83FD';
-                      final iconName = _selectedIconName;
-                      try {
-                        if (isEdit) {
-                          // Update
-                          await Supabase.instance.client
-                              .from('breathing_exercises')
-                              .update({
-                            'name': _nameController.text.trim(),
-                            'description': _descriptionController.text.trim(),
-                            'duration': int.parse(_durationController.text),
-                            'pattern': pattern,
-                            'color_hex': colorHex,
-                            'icon_name': iconName,
-                          }).eq('id', exercise!['id']);
-                        } else {
-                          // Insert
-                          await Supabase.instance.client
-                              .from('breathing_exercises')
-                              .insert({
-                            'name': _nameController.text.trim(),
-                            'description': _descriptionController.text.trim(),
-                            'duration': int.parse(_durationController.text),
-                            'pattern': pattern,
-                            'color_hex': colorHex,
-                            'icon_name': iconName,
-                          });
-                        }
-                        if (mounted) {
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(isEdit
-                                  ? 'Exercise updated successfully'
-                                  : 'Exercise added successfully'),
-                            ),
-                          );
-                          await _loadExercises();
-                        }
-                      } catch (e) {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Failed to save exercise: $e'),
-                            ),
-                          );
-                        }
-                      } finally {
-                        setState(() {
-                          _isLoading = false;
-                        });
-                        _nameController.clear();
-                        _descriptionController.clear();
-                        _durationController.clear();
-                        _inhaleController.clear();
-                        _holdController.clear();
-                        _exhaleController.clear();
-                        _hold2Controller.clear();
-                        _hasSecondHold = false;
-                        _selectedIconName = 'air';
-                      }
-                    }
-                  },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF7C83FD),
-              foregroundColor: Colors.white,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.poppins(
+                  color: Colors.grey[600],
+                ),
+              ),
             ),
-            child: _isLoading
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  )
-                : Text(isEdit ? 'Save Changes' : 'Add Exercise'),
-          ),
-        ],
+            ElevatedButton(
+              onPressed: _isLoading
+                  ? null
+                  : () async {
+                      if (_formKey.currentState?.validate() ?? false) {
+                        localSetState(() {
+                          _isLoading = true;
+                        });
+                        final pattern = {
+                          'inhale': int.parse(_inhaleController.text),
+                          'hold': int.parse(_holdController.text),
+                          'exhale': int.parse(_exhaleController.text),
+                        };
+                        if (_hasSecondHold &&
+                            _hold2Controller.text.isNotEmpty) {
+                          pattern['hold2'] = int.parse(_hold2Controller.text);
+                        }
+                        // For demo, use a default color/icon
+                        final colorHex = exercise?['color_hex'] ?? '#7C83FD';
+                        final iconName = _selectedIconName;
+                        try {
+                          if (isEdit) {
+                            // Update
+                            await Supabase.instance.client
+                                .from('breathing_exercises')
+                                .update({
+                              'name': _nameController.text.trim(),
+                              'description': _descriptionController.text.trim(),
+                              'duration': int.parse(_durationController.text),
+                              'pattern': pattern,
+                              'color_hex': colorHex,
+                              'icon_name': iconName,
+                            }).eq('id', exercise['id']);
+                          } else {
+                            // Insert
+                            await Supabase.instance.client
+                                .from('breathing_exercises')
+                                .insert({
+                              'name': _nameController.text.trim(),
+                              'description': _descriptionController.text.trim(),
+                              'duration': int.parse(_durationController.text),
+                              'pattern': pattern,
+                              'color_hex': colorHex,
+                              'icon_name': iconName,
+                            });
+                          }
+                          if (mounted) {
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(isEdit
+                                    ? 'Exercise updated successfully'
+                                    : 'Exercise added successfully'),
+                              ),
+                            );
+                            await _loadExercises();
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Failed to save exercise: $e'),
+                              ),
+                            );
+                          }
+                        } finally {
+                          localSetState(() {
+                            _isLoading = false;
+                          });
+                          _nameController.clear();
+                          _descriptionController.clear();
+                          _durationController.clear();
+                          _inhaleController.clear();
+                          _holdController.clear();
+                          _exhaleController.clear();
+                          _hold2Controller.clear();
+                          _hasSecondHold = false;
+                          _selectedIconName = 'air';
+                        }
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF7C83FD),
+                foregroundColor: Colors.white,
+              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : Text(isEdit ? 'Save Changes' : 'Add Exercise'),
+            ),
+          ],
+        ),
       ),
     );
   }
