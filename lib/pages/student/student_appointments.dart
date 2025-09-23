@@ -212,6 +212,41 @@ class _StudentAppointmentsState extends State<StudentAppointments> {
     );
   }
 
+  void _showCallDialog() {
+    final callIdController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Join Call'),
+        content: TextField(
+          controller: callIdController,
+          decoration: const InputDecoration(
+            labelText: 'Enter Call ID',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => CallPage(callID: callIdController.text),
+                ),
+              );
+            },
+            child: const Text('Join Call'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
@@ -234,7 +269,6 @@ class _StudentAppointmentsState extends State<StudentAppointments> {
               fontWeight: FontWeight.bold,
               color: const Color(0xFF3A3A50),
             ),
-          
           ),
           centerTitle: true,
           actions: const [
@@ -368,6 +402,12 @@ class _StudentAppointmentsState extends State<StudentAppointments> {
             const StudentChatList(), // Our new widget will go here
           ],
         ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: _showCallDialog,
+          backgroundColor: const Color(0xFF81C784),
+          child: const Icon(Icons.call),
+          tooltip: 'Join a call',
+        ),
       ),
     );
   }
@@ -387,14 +427,6 @@ class _AppointmentCard extends StatefulWidget {
 }
 
 class _AppointmentCardState extends State<_AppointmentCard> {
-  final callIdController = TextEditingController(); // Use final and initialize here
-
-  @override
-  void dispose() {
-    callIdController.dispose();
-    super.dispose();
-  }
-
   Color _getStatusColor() {
     switch (widget.appointment.status.toLowerCase()) {
       case 'pending':
@@ -512,26 +544,6 @@ class _AppointmentCardState extends State<_AppointmentCard> {
                 fontSize: 14,
                 color: Colors.grey[700],
               ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: callIdController,
-              decoration: const InputDecoration(
-                labelText: 'Enter Call ID',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 8),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => CallPage(callID: callIdController.text),
-                  ),
-                );
-              },
-              child: const Text("Call"),
             ),
           ],
         ),
