@@ -256,6 +256,14 @@ class _AdminHomeState extends State<AdminHome> {
                             context, '/admin-questionnaire'),
                         color: const Color(0xFFE57373),
                       ),
+                      _buildDashboardCard(
+                        icon: Icons.support_agent,
+                        title: "Manage Hotlines",
+                        description: "Manage emergency hotlines",
+                        onTap: () =>
+                            Navigator.pushNamed(context, 'admin-hotlines'),
+                        color: const Color(0xFF4DB6AC),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 30),

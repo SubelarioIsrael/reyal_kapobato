@@ -778,3 +778,11 @@ create table public.students (
 
 create index IF not exists idx_students_student_code on public.students using btree (student_code) TABLESPACE pg_default;
 
+create table mental_health_hotlines (
+  id serial primary key,             -- auto-incrementing integer
+  name text not null,                -- hotline/service name
+  phone text not null,               -- phone number
+  city_or_region text,               -- optional: region/city coverage
+  notes text,                        -- optional: description/remarks
+  created_at timestamptz default now()
+);

@@ -35,6 +35,7 @@ import 'pages/admin/admin_notifications.dart';
 import 'pages/admin/admin_settings.dart';
 import 'pages/admin/admin_profile.dart';
 import 'pages/admin/admin_questionnaire.dart';
+import 'pages/admin/admin_hotlines.dart';
 import 'pages/counselor/counselor_home.dart';
 import 'pages/counselor/counselor_settings.dart';
 import 'pages/counselor/student_history.dart';
@@ -130,6 +131,7 @@ final Map<String, WidgetBuilder> appRoutes = {
   'admin-profile': (context) => const AuthGuard(child: AdminProfile()),
   '/admin-questionnaire': (context) =>
       const AuthGuard(child: AdminQuestionnaire()),
+  'admin-hotlines': (context) => const AuthGuard(child: AdminHotlines()),
 
   // counselor page routes
   '/counselor-profile': (context) => const AuthGuard(child: CounselorProfile()),
