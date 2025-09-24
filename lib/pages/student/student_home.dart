@@ -82,6 +82,13 @@ class _StudentHomeState extends State<StudentHome> {
           'https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&w=400&q=80',
       route: 'student-mental-health-resources',
     ),
+    const _FeatureCardData(
+      title: 'Crisis Support',
+      icon: Icons.contact_emergency,
+      image:
+          'https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&w=400&q=80',
+      route: 'student-contacts', 
+    )
   ];
   final List<_FeatureCardData> _connectManage = [
     const _FeatureCardData(
@@ -208,6 +215,8 @@ class _StudentHomeState extends State<StudentHome> {
       ),
     );
   }
+
+  
 
   Widget _buildTodayCheckInSummary() {
     if (todayCheckIn == null) return SizedBox();
@@ -679,8 +688,80 @@ class _FeatureCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Special handling for Crisis Support card
+    if (feature.title == 'Crisis Support') {
+      return GestureDetector(
+        onTap: () => Navigator.pushNamed(context, 'student-contacts'), // Make sure this matches your routes.dart
+        child: Card(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          elevation: 2,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                  child: Image.network(
+                    feature.image,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: Colors.grey[200],
+                        child: Icon(
+                          feature.icon,
+                          color: const Color(0xFF7C83FD),
+                          size: ResponsiveUtils.getResponsiveIconSize(context),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              Padding(
+                padding: ResponsiveUtils.getResponsivePadding(context),
+                child: Row(
+                  children: [
+                    Icon(
+                      feature.icon,
+                      color: const Color(0xFF7C83FD),
+                      size: ResponsiveUtils.getResponsiveIconSize(
+                        context,
+                        small: 16.0,
+                        medium: 18.0,
+                        large: 20.0,
+                      ),
+                    ),
+                    SizedBox(width: ResponsiveUtils.getResponsiveSpacing(context)),
+                    Expanded(
+                      child: ResponsiveUtils.responsiveText(
+                        context,
+                        feature.title,
+                        style: GoogleFonts.poppins(
+                          fontSize: ResponsiveUtils.getResponsiveFontSize(
+                            context,
+                            small: 12.0,
+                            medium: 14.0,
+                            large: 16.0,
+                          ),
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF3A3A50),
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Default for other cards
     return GestureDetector(
-      onTap: () => Navigator.pushNamed(context, feature.route),
+      onTap: () => Navigator.pushNamed(context, feature.route), // This will use the route as defined in the card data
       child: Card(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         elevation: 2,
@@ -689,8 +770,7 @@ class _FeatureCard extends StatelessWidget {
           children: [
             Expanded(
               child: ClipRRect(
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(16)),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                 child: Image.network(
                   feature.image,
                   fit: BoxFit.cover,
@@ -721,8 +801,7 @@ class _FeatureCard extends StatelessWidget {
                       large: 20.0,
                     ),
                   ),
-                  SizedBox(
-                      width: ResponsiveUtils.getResponsiveSpacing(context)),
+                  SizedBox(width: ResponsiveUtils.getResponsiveSpacing(context)),
                   Expanded(
                     child: ResponsiveUtils.responsiveText(
                       context,

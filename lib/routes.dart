@@ -24,6 +24,7 @@ import 'pages/student/questionnaire_history.dart';
 import 'pages/student/student_daily_checkin.dart';
 import 'pages/student/student_journal_entries.dart';
 import 'pages/student/counselor_profile_view.dart';
+import 'pages/student/student_contacts.dart';
 
 //admin
 import 'pages/admin/admin_home.dart';
@@ -38,6 +39,7 @@ import 'pages/admin/admin_questionnaire.dart';
 import 'pages/counselor/counselor_home.dart';
 import 'pages/counselor/counselor_settings.dart';
 import 'pages/counselor/student_history.dart';
+
 
 // page routes
 final Map<String, WidgetBuilder> appRoutes = {
@@ -81,6 +83,7 @@ final Map<String, WidgetBuilder> appRoutes = {
   'student-chatbot': (context) => const AuthGuard(child: StudentChatbot()),
   'student-counselors': (context) =>
       const AuthGuard(child: StudentCounselors()),
+  'student-contacts': (context) => const AuthGuard(child: StudentContactsPage()),
   'student-appointments': (context) =>
       const AuthGuard(child: StudentAppointments()),
   'student-settings': (context) => const AuthGuard(child: StudentSettings()),
