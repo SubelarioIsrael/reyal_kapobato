@@ -216,7 +216,7 @@ class _AdminResourcesState extends State<AdminResources> {
                             .from('mental_health_resources')
                             .insert({
                           'title': _titleController.text.trim(),
-                          'content': _contentController.text.trim(),
+                          'description': _contentController.text.trim(),
                           'resource_type': _selectedType,
                           'media_url': _mediaUrlController.text.trim(),
                           'tags': _tagsController.text.trim(),
@@ -268,7 +268,7 @@ class _AdminResourcesState extends State<AdminResources> {
 
   void _showEditResourceDialog(Map<String, dynamic> resource) {
     _titleController.text = resource['title'] ?? '';
-    _contentController.text = resource['content'] ?? '';
+    _contentController.text = resource['description'] ?? '';
     _mediaUrlController.text = resource['media_url'] ?? '';
     _tagsController.text = resource['tags'] ?? '';
     _selectedType = resource['resource_type'] ?? 'article';
@@ -404,7 +404,7 @@ class _AdminResourcesState extends State<AdminResources> {
                             .from('mental_health_resources')
                             .update({
                           'title': _titleController.text.trim(),
-                          'content': _contentController.text.trim(),
+                          'description': _contentController.text.trim(),
                           'resource_type': _selectedType,
                           'media_url': _mediaUrlController.text.trim(),
                           'tags': _tagsController.text.trim(),
