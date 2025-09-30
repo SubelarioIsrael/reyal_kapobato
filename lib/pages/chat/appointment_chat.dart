@@ -264,15 +264,36 @@ class _AppointmentChatState extends State<AppointmentChat> {
         } else {
           // No messages exist yet, try counselors table as fallback
           try {
+            print('Looking up counselor with ID: ${widget.appointment.counselorId}'); // Debug log
+            
+            // Try to get counselor's user_id from counselors table
             final counselorResponse = await _supabase
                 .from('counselors')
                 .select('user_id')
-                .eq('counselor_id', widget.appointment.counselorId)
-                .single();
-            targetUserId = counselorResponse['user_id'].toString();
+                .eq('counselor_id', widget.appointment.counselorId);
+            
+            print('Counselor query response: $counselorResponse'); // Debug log
+            
+            if (counselorResponse.isNotEmpty) {
+              targetUserId = counselorResponse.first['user_id'].toString();
+              print('Found counselor user_id: $targetUserId'); // Debug log
+            } else {
+              // Alternative: try to get counselor info through appointment with join
+              print('No counselor found, trying alternative query...'); // Debug log
+              final appointmentResponse = await _supabase
+                  .from('counseling_appointments')
+                  .select('counselor_id, counselors!inner(user_id)')
+                  .eq('appointment_id', widget.appointment.id)
+                  .single();
+              
+              print('Appointment response: $appointmentResponse'); // Debug log
+              targetUserId = appointmentResponse['counselors']['user_id'].toString();
+              print('Found counselor user_id via appointment: $targetUserId'); // Debug log
+            }
           } catch (e) {
-            // If counselors table lookup fails, we cannot send the message
-            throw Exception('Cannot determine counselor user ID. Please try again later.');
+            print('Error looking up counselor: $e'); // Debug log
+            // If all lookups fail, we cannot send the message
+            throw Exception('Cannot determine counselor user ID. Please try again later. Error: $e');
           }
         }
       }

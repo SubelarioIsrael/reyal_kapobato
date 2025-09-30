@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../services/user_service.dart';
-import '../utils/responsive_utils.dart';
-import '../widgets/responsive_wrapper.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -12,27 +10,39 @@ class SignUpPage extends StatefulWidget {
 }
 
 class _SignUpPageState extends State<SignUpPage> {
-  final _usernameController = TextEditingController();
-  final _studentIdController = TextEditingController();
+  // Phase 1 - Login Info
   final _emailController = TextEditingController();
+  final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  
+  // Phase 2 - Personal Info
+  final _studentIdController = TextEditingController();
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
+  String? _selectedEducationLevel; // 'college' or 'basic_education'
   String? _selectedCourse;
+  String? _selectedStrand;
   final _yearLevelController = TextEditingController();
+  
   final _formKey = GlobalKey<FormState>();
   bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
   bool _isLoading = false;
+  
+  // Phase control
+  int _currentPhase = 1;
 
-  Future<void> _signup() async {
+  Future<void> _handlePhase1() async {
     if (_formKey.currentState?.validate() ?? false) {
       setState(() {
         _isLoading = true;
       });
 
       try {
-        // Check for duplicates
+        // Check for duplicates without creating account yet
         final email = _emailController.text.trim();
         final username = _usernameController.text.trim();
-        final studentCode = _studentIdController.text.trim();
 
         // Check email in users table
         final emailExists = await Supabase.instance.client
@@ -48,33 +58,14 @@ class _SignUpPageState extends State<SignUpPage> {
             .eq('username', username)
             .maybeSingle();
 
-        // Check student_code in students table
-        final studentCodeExists = await Supabase.instance.client
-            .from('students')
-            .select('user_id')
-            .eq('student_code', studentCode)
-            .maybeSingle();
+        if (emailExists != null || usernameExists != null) {
+          List<String> takenFields = [];
+          if (emailExists != null) takenFields.add('Email');
+          if (usernameExists != null) takenFields.add('Username');
 
-        if (emailExists != null ||
-            usernameExists != null ||
-            studentCodeExists != null) {
-          String message = '';
-          if (emailExists != null) message += 'Email\n';
-          if (usernameExists != null) message += 'Username\n';
-          if (studentCodeExists != null) message += 'Student ID\n';
-
-          await showDialog(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('The following fields are already taken:'),
-              content: Text(message.trim()),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('OK'),
-                ),
-              ],
-            ),
+          _showErrorDialog(
+            'Account Already Exists',
+            'The following fields are already taken:\n• ${takenFields.join('\n• ')}\n\nPlease use different information.',
           );
           setState(() {
             _isLoading = false;
@@ -82,57 +73,15 @@ class _SignUpPageState extends State<SignUpPage> {
           return;
         }
 
-        final authResponse = await Supabase.instance.client.auth.signUp(
-          email: email,
-          password: _passwordController.text.trim(),
-        );
-
-        final user = authResponse.user;
-
-        if (user != null) {
-          // Show email verification dialog
-          await showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (context) => AlertDialog(
-              title: const Text('Verify your email'),
-              content: const Text(
-                'A verification link has been sent to your email address.\n'
-                'Please check your inbox and click the link to verify your email before logging in.',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    Navigator.pushReplacementNamed(context, '/login');
-                  },
-                  child: const Text('Go to Login'),
-                ),
-              ],
-            ),
-          );
-
-          // Insert into the 'users' table
-          await Supabase.instance.client.from('users').insert({
-            'user_id': user.id,
-            'username': username,
-            'email': email,
-            'registration_date': DateTime.now().toIso8601String(),
-            'user_type': 'student',
-          });
-
-          // Insert into the 'students' table
-          await Supabase.instance.client.from('students').insert({
-            'user_id': user.id,
-            'student_code': studentCode,
-            'course': _selectedCourse,
-            'year_level': int.tryParse(_yearLevelController.text.trim()),
-          });
-        }
-      } on AuthException catch (e) {
-        print('Supabase Auth error: ${e.message}');
+        // Just move to phase 2 without creating account yet
+        setState(() {
+          _currentPhase = 2;
+          _isLoading = false;
+        });
+        
       } catch (e) {
-        print('Signup error: $e');
+        print('Phase 1 validation error: $e');
+        _showErrorDialog('Validation Failed', 'Something went wrong. Please try again later.');
       } finally {
         if (context.mounted) {
           setState(() {
@@ -143,258 +92,806 @@ class _SignUpPageState extends State<SignUpPage> {
     }
   }
 
+  Future<void> _handlePhase2() async {
+    if (_formKey.currentState?.validate() ?? false) {
+      setState(() {
+        _isLoading = true;
+      });
+
+      try {
+        final email = _emailController.text.trim();
+        final username = _usernameController.text.trim();
+        final studentCode = _studentIdController.text.trim();
+
+        // Check if student_code already exists
+        final studentCodeExists = await Supabase.instance.client
+            .from('students')
+            .select('user_id')
+            .eq('student_code', studentCode)
+            .maybeSingle();
+
+        if (studentCodeExists != null) {
+          _showErrorDialog(
+            'Student ID Already Exists',
+            'This Student ID is already registered. Please use a different Student ID.',
+          );
+          setState(() {
+            _isLoading = false;
+          });
+          return;
+        }
+
+        // Now create the account with Supabase Auth
+        final authResponse = await Supabase.instance.client.auth.signUp(
+          email: email,
+          password: _passwordController.text.trim(),
+        );
+
+        final user = authResponse.user;
+
+        if (user != null) {
+          // Insert into the 'users' table
+          await Supabase.instance.client.from('users').insert({
+            'user_id': user.id,
+            'username': username,
+            'email': email,
+            'registration_date': DateTime.now().toIso8601String(),
+            'user_type': 'student',
+            'status': 'active',
+          });
+
+          // Prepare student data
+          Map<String, dynamic> studentData = {
+            'user_id': user.id,
+            'student_code': studentCode,
+            'first_name': _firstNameController.text.trim(),
+            'last_name': _lastNameController.text.trim(),
+            'year_level': int.tryParse(_yearLevelController.text.trim()),
+          };
+
+          // Add education-specific fields
+          if (_selectedEducationLevel == 'college') {
+            studentData['course'] = _selectedCourse;
+            studentData['strand'] = null;
+          } else if (_selectedEducationLevel == 'basic_education') {
+            studentData['course'] = null;
+            if (_selectedStrand == 'Not Applicable') {
+              studentData['strand'] = null;
+            } else {
+              studentData['strand'] = _selectedStrand;
+            }
+          }
+
+          // Insert into the 'students' table
+          await Supabase.instance.client.from('students').insert(studentData);
+
+          // Show success and email verification dialog
+          _showSuccessDialog();
+        }
+        
+      } on AuthException catch (e) {
+        print('Supabase Auth error: ${e.message}');
+        String errorMessage = 'Registration failed. Please try again.';
+        if (e.message.contains('email')) {
+          errorMessage = 'Invalid email address or email already in use.';
+        } else if (e.message.contains('password')) {
+          errorMessage = 'Password is too weak. Please use a stronger password.';
+        }
+        _showErrorDialog('Registration Failed', errorMessage);
+      } catch (e) {
+        print('Phase 2 signup error: $e');
+        _showErrorDialog('Registration Failed', 'Something went wrong. Please try again later.');
+      } finally {
+        if (context.mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    }
+  }
+
+  void _goBackToPhase1() {
+    setState(() {
+      _currentPhase = 1;
+    });
+  }
+
+  void _showErrorDialog(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          title,
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w600,
+            color: Colors.red.shade700,
+          ),
+        ),
+        content: Text(
+          message,
+          style: GoogleFonts.poppins(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'OK',
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF7C83FD),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSuccessDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Account Created Successfully!',
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w600,
+            color: const Color(0xFF4CAF50),
+          ),
+        ),
+        content: Text(
+          'A verification link has been sent to ${_emailController.text.trim()}.\n\nPlease check your inbox and click the link to verify your email before logging in.',
+          style: GoogleFonts.poppins(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pushReplacementNamed(context, '/login');
+            },
+            child: Text(
+              'Go to Login',
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF7C83FD),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    // List of courses (modify as needed)
-    final List<String> courses = [
-      'Computer Science',
-      'Information Technology',
-      'Software Engineering',
-      'Data Science',
-    ];
-
     return Scaffold(
-      body: ResponsiveWrapper(
-        scrollable: true,
+      backgroundColor: Colors.grey.shade50,
+      body: SafeArea(
         child: Center(
-          child: Column(
-            children: [
-              SizedBox(height: ResponsiveUtils.getResponsiveSpacing(context)),
-              Icon(Icons.spa,
-                  size: ResponsiveUtils.getResponsiveIconSize(
-                    context,
-                    small: 60.0,
-                    medium: 70.0,
-                    large: 80.0,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              children: [
+                const SizedBox(height: 40),
+                // Logo
+                const Icon(Icons.spa, size: 80, color: Color(0xFF81C784)),
+                const SizedBox(height: 20),
+                // Title
+                Text(
+                  "BreatheBetter",
+                  style: GoogleFonts.poppins(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF4F646F),
                   ),
-                  color: const Color(0xFF81C784)),
-              SizedBox(height: ResponsiveUtils.getResponsiveSpacing(context)),
-              ResponsiveText(
-                "BreatheBetter",
-                style: TextStyle(
-                  fontSize: ResponsiveUtils.getResponsiveFontSize(
-                    context,
-                    small: 24.0,
-                    medium: 26.0,
-                    large: 28.0,
+                ),
+                const SizedBox(height: 8),
+                // Subtitle
+                Text(
+                  _currentPhase == 1 
+                      ? "Create your account to get started"
+                      : "Complete your profile information",
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    color: Colors.grey.shade600,
                   ),
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xFF4F646F),
                 ),
-              ),
-              SizedBox(height: ResponsiveUtils.getResponsiveSpacing(context)),
-              ResponsiveText(
-                "Create an account to get started",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontSize: ResponsiveUtils.getResponsiveFontSize(
-                      context,
-                      small: 12.0,
-                      medium: 13.0,
-                      large: 14.0,
-                    ),
-                    color: Colors.grey.shade600),
-              ),
-              SizedBox(
-                  height: ResponsiveUtils.getResponsiveSpacing(context) * 2),
-              ResponsiveContainer(
-                padding: ResponsiveUtils.getResponsivePadding(context),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Colors.black12,
-                      blurRadius: 12,
-                      offset: Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    children: [
-                      TextFormField(
-                        controller: _usernameController,
-                        decoration: const InputDecoration(
-                          hintText: 'Username',
-                          prefixIcon: Icon(Icons.person_outline),
-                        ),
-                        validator: (value) => value?.isEmpty ?? true
-                            ? 'Please enter your username'
-                            : null,
-                      ),
-                      SizedBox(
-                          height:
-                              ResponsiveUtils.getResponsiveSpacing(context)),
-                      TextFormField(
-                        controller: _studentIdController,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          hintText: 'Student ID',
-                          prefixIcon: Icon(Icons.card_membership),
-                        ),
-                        validator: (value) => value?.isEmpty ?? true
-                            ? 'Please enter your student ID'
-                            : null,
-                      ),
-                      SizedBox(
-                          height:
-                              ResponsiveUtils.getResponsiveSpacing(context)),
-                      TextFormField(
-                        controller: _emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        decoration: const InputDecoration(
-                          hintText: 'Email Address',
-                          prefixIcon: Icon(Icons.email_outlined),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter your email';
-                          }
-                          final emailRegex = RegExp(
-                            r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$',
-                          );
-                          return emailRegex.hasMatch(value)
-                              ? null
-                              : 'Enter a valid email';
-                        },
-                      ),
-                      SizedBox(
-                          height:
-                              ResponsiveUtils.getResponsiveSpacing(context)),
-                      TextFormField(
-                        controller: _passwordController,
-                        obscureText: _obscurePassword,
-                        decoration: InputDecoration(
-                          hintText: 'Password',
-                          prefixIcon: const Icon(Icons.lock_outline),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscurePassword
-                                  ? Icons.visibility
-                                  : Icons.visibility_off,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                _obscurePassword = !_obscurePassword;
-                              });
-                            },
-                          ),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter your password';
-                          }
-                          return value.length < 6
-                              ? 'Password must be at least 6 characters'
-                              : null;
-                        },
-                      ),
-                      SizedBox(
-                          height:
-                              ResponsiveUtils.getResponsiveSpacing(context)),
-                      // Dropdown for Courses
-                      DropdownButtonFormField<String>(
-                        value: _selectedCourse,
-                        decoration: const InputDecoration(
-                          hintText: 'Select Course',
-                          prefixIcon: Icon(Icons.school),
-                        ),
-                        items: courses.map((course) {
-                          return DropdownMenuItem<String>(
-                            value: course,
-                            child: ResponsiveText(
-                              course,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedCourse = value;
-                          });
-                        },
-                        validator: (value) =>
-                            value == null ? 'Please select a course' : null,
-                        isExpanded: true,
-                      ),
-
-                      SizedBox(
-                          height:
-                              ResponsiveUtils.getResponsiveSpacing(context)),
-                      // Year Level Input (1 to 6)
-                      TextFormField(
-                        controller: _yearLevelController,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          hintText: 'Year Level (1-6)',
-                          prefixIcon: Icon(Icons.calendar_today),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter your year level';
-                          }
-                          final yearLevel = int.tryParse(value);
-                          if (yearLevel == null ||
-                              yearLevel < 1 ||
-                              yearLevel > 6) {
-                            return 'Please enter a valid year level (1-6)';
-                          }
-                          return null;
-                        },
-                      ),
-                      SizedBox(
-                          height:
-                              ResponsiveUtils.getResponsiveSpacing(context) *
-                                  2),
-                      SizedBox(
-                        width: double.infinity,
-                        height:
-                            ResponsiveUtils.getResponsiveButtonHeight(context),
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF81C784),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          onPressed: _isLoading ? null : () => _signup(),
-                          child: _isLoading
-                              ? const CircularProgressIndicator(
-                                  color: Colors.white,
-                                )
-                              : ResponsiveText(
-                                  'Sign Up',
-                                  style: TextStyle(
-                                    fontSize:
-                                        ResponsiveUtils.getResponsiveFontSize(
-                                      context,
-                                      small: 14.0,
-                                      medium: 16.0,
-                                      large: 18.0,
-                                    ),
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                        ),
+                const SizedBox(height: 40),
+                // Form Container
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 5),
                       ),
                     ],
                   ),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Step indicator text
+                        Text(
+                          _currentPhase == 1 
+                              ? 'Login Information'
+                              : 'Personal Information',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        
+                        // Phase content
+                        _currentPhase == 1 ? _buildPhase1() : _buildPhase2(),
+                        
+                        const SizedBox(height: 32),
+                        
+                        // Navigation Buttons
+                        _currentPhase == 1 ? _buildPhase1Buttons() : _buildPhase2Buttons(),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("Already have an account? Log in"),
-              ),
-              const SizedBox(height: 30),
-            ],
+                const SizedBox(height: 24),
+                // Login Link (only show in phase 1)
+                if (_currentPhase == 1)
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: RichText(
+                      text: TextSpan(
+                        text: "Already have an account? ",
+                        style: GoogleFonts.poppins(
+                          color: Colors.grey.shade600,
+                          fontSize: 14,
+                        ),
+                        children: [
+                          TextSpan(
+                            text: "Sign In",
+                            style: GoogleFonts.poppins(
+                              color: const Color(0xFF7C83FD),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 40),
+              ],
+            ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildPhase1() {
+    return Column(
+      children: [
+        // Email Field
+        TextFormField(
+          controller: _emailController,
+          keyboardType: TextInputType.emailAddress,
+          style: GoogleFonts.poppins(),
+          decoration: InputDecoration(
+            hintText: 'Email Address',
+            hintStyle: GoogleFonts.poppins(color: Colors.grey.shade500),
+            prefixIcon: const Icon(Icons.email_outlined, color: Color(0xFF7C83FD)),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF7C83FD), width: 2),
+            ),
+            filled: true,
+            fillColor: Colors.grey.shade50,
+          ),
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Please enter your email address';
+            }
+            final emailRegex = RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$');
+            return emailRegex.hasMatch(value) ? null : 'Please enter a valid email address';
+          },
+        ),
+        const SizedBox(height: 16),
+        
+        // Username Field
+        TextFormField(
+          controller: _usernameController,
+          style: GoogleFonts.poppins(),
+          decoration: InputDecoration(
+            hintText: 'Username',
+            hintStyle: GoogleFonts.poppins(color: Colors.grey.shade500),
+            prefixIcon: const Icon(Icons.person_outline, color: Color(0xFF7C83FD)),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF7C83FD), width: 2),
+            ),
+            filled: true,
+            fillColor: Colors.grey.shade50,
+          ),
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Please enter a username';
+            }
+            if (value.length < 3) {
+              return 'Username must be at least 3 characters';
+            }
+            return null;
+          },
+        ),
+        const SizedBox(height: 16),
+        
+        // Password Field
+        TextFormField(
+          controller: _passwordController,
+          obscureText: _obscurePassword,
+          style: GoogleFonts.poppins(),
+          decoration: InputDecoration(
+            hintText: 'Password',
+            hintStyle: GoogleFonts.poppins(color: Colors.grey.shade500),
+            prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFF7C83FD)),
+            suffixIcon: IconButton(
+              icon: Icon(
+                _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                color: Colors.grey.shade600,
+              ),
+              onPressed: () {
+                setState(() {
+                  _obscurePassword = !_obscurePassword;
+                });
+              },
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF7C83FD), width: 2),
+            ),
+            filled: true,
+            fillColor: Colors.grey.shade50,
+          ),
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Please enter a password';
+            }
+            if (value.length < 6) {
+              return 'Password must be at least 6 characters';
+            }
+            return null;
+          },
+        ),
+        const SizedBox(height: 16),
+        
+        // Confirm Password Field
+        TextFormField(
+          controller: _confirmPasswordController,
+          obscureText: _obscureConfirmPassword,
+          style: GoogleFonts.poppins(),
+          decoration: InputDecoration(
+            hintText: 'Confirm Password',
+            hintStyle: GoogleFonts.poppins(color: Colors.grey.shade500),
+            prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFF7C83FD)),
+            suffixIcon: IconButton(
+              icon: Icon(
+                _obscureConfirmPassword ? Icons.visibility : Icons.visibility_off,
+                color: Colors.grey.shade600,
+              ),
+              onPressed: () {
+                setState(() {
+                  _obscureConfirmPassword = !_obscureConfirmPassword;
+                });
+              },
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF7C83FD), width: 2),
+            ),
+            filled: true,
+            fillColor: Colors.grey.shade50,
+          ),
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Please confirm your password';
+            }
+            if (value != _passwordController.text) {
+              return 'Passwords do not match';
+            }
+            return null;
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPhase2() {
+    // Course options based on education level
+    final List<String> collegePrograms = [
+      'Bachelor of Science in Computer Science',
+      'Bachelor of Science in Information Technology',
+      'Bachelor of Science in Computer Engineering',
+      'Bachelor of Science in Software Engineering',
+      'Bachelor of Arts in Psychology',
+      'Bachelor of Science in Business Administration',
+      'Bachelor of Science in Nursing',
+      // Add more programs as needed
+    ];
+
+    final List<String> strands = [
+      'STEM (Science, Technology, Engineering, and Mathematics)',
+      'ABM (Accountancy, Business, and Management)',
+      'HUMSS (Humanities and Social Sciences)',
+      'GAS (General Academic Strand)',
+      'TVL (Technical-Vocational-Livelihood)',
+      'Not Applicable', // For non-senior high students
+    ];
+
+    return Column(
+      children: [
+
+        // Student ID Field
+        TextFormField(
+          controller: _studentIdController,
+          keyboardType: TextInputType.text,
+          style: GoogleFonts.poppins(),
+          decoration: InputDecoration(
+            hintText: 'Student ID Number',
+            hintStyle: GoogleFonts.poppins(color: Colors.grey.shade500),
+            prefixIcon: const Icon(Icons.card_membership, color: Color(0xFF7C83FD)),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF7C83FD), width: 2),
+            ),
+            filled: true,
+            fillColor: Colors.grey.shade50,
+          ),
+          validator: (value) => value?.isEmpty ?? true
+              ? 'Please enter your student ID number'
+              : null,
+        ),
+        const SizedBox(height: 16),
+        // First Name Field
+        TextFormField(
+          controller: _firstNameController,
+          style: GoogleFonts.poppins(),
+          decoration: InputDecoration(
+            hintText: 'First Name',
+            hintStyle: GoogleFonts.poppins(color: Colors.grey.shade500),
+            prefixIcon: const Icon(Icons.person, color: Color(0xFF7C83FD)),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF7C83FD), width: 2),
+            ),
+            filled: true,
+            fillColor: Colors.grey.shade50,
+          ),
+          validator: (value) => value?.isEmpty ?? true
+              ? 'Please enter your first name'
+              : null,
+        ),
+        const SizedBox(height: 16),
+
+        // Last Name Field
+        TextFormField(
+          controller: _lastNameController,
+          style: GoogleFonts.poppins(),
+          decoration: InputDecoration(
+            hintText: 'Last Name',
+            hintStyle: GoogleFonts.poppins(color: Colors.grey.shade500),
+            prefixIcon: const Icon(Icons.person, color: Color(0xFF7C83FD)),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF7C83FD), width: 2),
+            ),
+            filled: true,
+            fillColor: Colors.grey.shade50,
+          ),
+          validator: (value) => value?.isEmpty ?? true
+              ? 'Please enter your last name'
+              : null,
+        ),
+        const SizedBox(height: 16),
+
+        
+
+        // Education Level Dropdown
+        DropdownButtonFormField<String>(
+          value: _selectedEducationLevel,
+          style: GoogleFonts.poppins(color: Colors.black87),
+          decoration: InputDecoration(
+            hintText: 'Select Education Level',
+            hintStyle: GoogleFonts.poppins(color: Colors.grey.shade500),
+            prefixIcon: const Icon(Icons.school, color: Color(0xFF7C83FD)),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF7C83FD), width: 2),
+            ),
+            filled: true,
+            fillColor: Colors.grey.shade50,
+          ),
+          items: const [
+            DropdownMenuItem(
+              value: 'college',
+              child: Text('College'),
+            ),
+            DropdownMenuItem(
+              value: 'basic_education',
+              child: Text('Basic Education (K-12)'),
+            ),
+          ],
+          onChanged: (value) {
+            setState(() {
+              _selectedEducationLevel = value;
+              _selectedCourse = null;
+              _selectedStrand = null;
+            });
+          },
+          validator: (value) => value == null ? 'Please select your education level' : null,
+          isExpanded: true,
+        ),
+        const SizedBox(height: 16),
+
+        // Course/Strand Dropdown (conditional)
+        if (_selectedEducationLevel == 'college')
+          DropdownButtonFormField<String>(
+            value: _selectedCourse,
+            style: GoogleFonts.poppins(color: Colors.black87),
+            decoration: InputDecoration(
+              hintText: 'Select Course/Program',
+              hintStyle: GoogleFonts.poppins(color: Colors.grey.shade500),
+              prefixIcon: const Icon(Icons.library_books, color: Color(0xFF7C83FD)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFF7C83FD), width: 2),
+              ),
+              filled: true,
+              fillColor: Colors.grey.shade50,
+            ),
+            items: collegePrograms.map((course) {
+              return DropdownMenuItem<String>(
+                value: course,
+                child: Text(
+                  course,
+                  style: GoogleFonts.poppins(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              );
+            }).toList(),
+            onChanged: (value) {
+              setState(() {
+                _selectedCourse = value;
+              });
+            },
+            validator: (value) => value == null ? 'Please select your course' : null,
+            isExpanded: true,
+          ),
+
+        if (_selectedEducationLevel == 'basic_education')
+          DropdownButtonFormField<String>(
+            value: _selectedStrand,
+            style: GoogleFonts.poppins(color: Colors.black87),
+            decoration: InputDecoration(
+              hintText: 'Select Strand (if applicable)',
+              hintStyle: GoogleFonts.poppins(color: Colors.grey.shade500),
+              prefixIcon: const Icon(Icons.library_books, color: Color(0xFF7C83FD)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFF7C83FD), width: 2),
+              ),
+              filled: true,
+              fillColor: Colors.grey.shade50,
+            ),
+            items: strands.map((strand) {
+              return DropdownMenuItem<String>(
+                value: strand,
+                child: Text(
+                  strand,
+                  style: GoogleFonts.poppins(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              );
+            }).toList(),
+            onChanged: (value) {
+              setState(() {
+                _selectedStrand = value;
+              });
+            },
+            validator: (value) => null, // Strand is optional
+            isExpanded: true,
+          ),
+
+        const SizedBox(height: 16),
+
+        // Year Level Field
+        TextFormField(
+          controller: _yearLevelController,
+          keyboardType: TextInputType.number,
+          style: GoogleFonts.poppins(),
+          decoration: InputDecoration(
+            hintText: _selectedEducationLevel == 'college' 
+                ? 'Year Level (1-4)' 
+                : 'Grade/Year Level (1-12)',
+            hintStyle: GoogleFonts.poppins(color: Colors.grey.shade500),
+            prefixIcon: const Icon(Icons.calendar_today, color: Color(0xFF7C83FD)),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF7C83FD), width: 2),
+            ),
+            filled: true,
+            fillColor: Colors.grey.shade50,
+          ),
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Please enter your year/grade level';
+            }
+            final yearLevel = int.tryParse(value);
+            if (yearLevel == null) {
+              return 'Please enter a valid number';
+            }
+            if (_selectedEducationLevel == 'college') {
+              if (yearLevel < 1 || yearLevel > 4) {
+                return 'College year level must be between 1 and 4';
+              }
+            } else {
+              if (yearLevel < 1 || yearLevel > 12) {
+                return 'Grade level must be between 1 and 12';
+              }
+            }
+            return null;
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPhase1Buttons() {
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF7C83FD),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          elevation: 2,
+        ),
+        onPressed: _isLoading ? null : _handlePhase1,
+        child: _isLoading
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              )
+            : Text(
+                'Next',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildPhase2Buttons() {
+    return Column(
+      children: [
+        // Back Button (above)
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Color(0xFF7C83FD)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: _isLoading ? null : _goBackToPhase1,
+            child: Text(
+              'Back',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF7C83FD),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        // Create Button (centered below)
+        Center(
+          child: SizedBox(
+            width: 200, // Fixed width to center the button
+            height: 50,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF7C83FD),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 2,
+              ),
+              onPressed: _isLoading ? null : _handlePhase2,
+              child: _isLoading
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : Text(
+                      'Create',
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
