@@ -59,14 +59,14 @@ class _SignUpPageState extends State<SignUpPage> {
             usernameExists != null ||
             studentCodeExists != null) {
           String message = '';
-          if (emailExists != null) message += 'Email.\n';
-          if (usernameExists != null) message += 'Username is already taken.\n';
-          if (studentCodeExists != null) message += 'Student ID is already taken.\n';
+          if (emailExists != null) message += 'Email\n';
+          if (usernameExists != null) message += 'Username\n';
+          if (studentCodeExists != null) message += 'Student ID\n';
 
           await showDialog(
             context: context,
             builder: (context) => AlertDialog(
-              title: const Text('Signup Error'),
+              title: const Text('The following fields are already taken:'),
               content: Text(message.trim()),
               actions: [
                 TextButton(
@@ -97,7 +97,7 @@ class _SignUpPageState extends State<SignUpPage> {
             builder: (context) => AlertDialog(
               title: const Text('Verify your email'),
               content: const Text(
-                'A verification link has been sent to your email address. '
+                'A verification link has been sent to your email address.\n'
                 'Please check your inbox and click the link to verify your email before logging in.',
               ),
               actions: [
@@ -170,7 +170,7 @@ class _SignUpPageState extends State<SignUpPage> {
                   color: const Color(0xFF81C784)),
               SizedBox(height: ResponsiveUtils.getResponsiveSpacing(context)),
               ResponsiveText(
-                "Breathe Better",
+                "BreatheBetter",
                 style: TextStyle(
                   fontSize: ResponsiveUtils.getResponsiveFontSize(
                     context,

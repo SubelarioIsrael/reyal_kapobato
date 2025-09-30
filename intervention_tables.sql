@@ -35,6 +35,10 @@ CREATE POLICY "Users can view own chat messages" ON public.chat_messages
 CREATE POLICY "Users can insert own chat messages" ON public.chat_messages
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+CREATE POLICY IF NOT EXISTS "Users can update messages they received" 
+ON messages FOR UPDATE 
+USING (auth.uid()::text = receiver_id);
+
 CREATE POLICY "Users can delete own chat messages" ON public.chat_messages
     FOR DELETE USING (auth.uid() = user_id);
 

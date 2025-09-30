@@ -1,10 +1,10 @@
-import 'dart:io';
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:path/path.dart' as path;
 import '../../services/user_service.dart';
+import '../../services/profile_image_service.dart';
 import '../../components/student_drawer.dart';
 import '../../components/student_notification_button.dart';
 
@@ -63,11 +63,6 @@ class _StudentProfileState extends State<StudentProfile> {
   }
 
   Future<void> _uploadImage() async {
-    final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-
-    if (image == null) return;
-
     setState(() {
       isUploading = true;
     });
@@ -76,32 +71,41 @@ class _StudentProfileState extends State<StudentProfile> {
       final userId = Supabase.instance.client.auth.currentUser?.id;
       if (userId == null) return;
 
-      // Upload image to Supabase Storage
-      final String fileName =
-          '${userId}_${DateTime.now().millisecondsSinceEpoch}${path.extension(image.path)}';
-      final file = File(image.path);
+      // Show image source selection dialog
+      final String? selectedImageBase64 = await ProfileImageService.showImageSourceDialog(context);
+      if (selectedImageBase64 == null) {
+        setState(() {
+          isUploading = false;
+        });
+        return;
+      }
 
-      final response = await Supabase.instance.client.storage
-          .from('profile-pictures')
-          .upload(fileName, file);
+      // Update student profile image with base64 data
+      final success = await ProfileImageService.updateStudentProfileImage(
+        selectedImageBase64,
+        userId,
+      );
 
-      // Get the public URL
-      final String publicUrl = Supabase.instance.client.storage
-          .from('profile-pictures')
-          .getPublicUrl(fileName);
-
-      // Update the profile with the new image URL
-      await Supabase.instance.client
-          .from('users')
-          .update({'avatar_url': publicUrl}).eq('user_id', userId);
-
-      // Reload the profile
-      await _loadUserProfile();
+      if (success) {
+        // Reload the profile
+        await _loadUserProfile();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Profile picture updated successfully')),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to update profile picture')),
+          );
+        }
+      }
     } catch (e) {
       print('Error uploading image: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to upload image')),
+          SnackBar(content: Text('Error: ${e.toString()}')),
         );
       }
     } finally {
@@ -191,12 +195,20 @@ class _StudentProfileState extends State<StudentProfile> {
                           CircleAvatar(
                             radius: 60,
                             backgroundColor: Colors.grey[200],
-                            backgroundImage: userProfile?['avatar_url'] != null
-                                ? NetworkImage(userProfile!['avatar_url'])
+                            backgroundImage: userProfile?['profile_picture'] != null && userProfile!['profile_picture'].toString().isNotEmpty
+                                ? MemoryImage(base64Decode(userProfile!['profile_picture']))
                                 : null,
-                            child: userProfile?['avatar_url'] == null
-                                ? const Icon(Icons.person,
-                                    size: 60, color: Colors.grey)
+                            child: userProfile?['profile_picture'] == null || userProfile!['profile_picture'].toString().isEmpty
+                                ? Text(
+                                    userProfile?['username']?.toString().isNotEmpty == true
+                                        ? userProfile!['username'][0].toUpperCase()
+                                        : 'U',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.bold,
+                                      color: const Color(0xFF7C83FD),
+                                    ),
+                                  )
                                 : null,
                           ),
                           Positioned(

@@ -252,16 +252,23 @@ class _AdminAccountsState extends State<AdminAccounts> {
                                 DateTime.now().toIso8601String(),
                           });
                           if (_selectedRole == 'counselor') {
+                            // Split the full name into first and last name
+                            final nameParts = _nameController.text.trim().split(' ');
+                            final firstName = nameParts.first;
+                            final lastName = nameParts.length > 1 
+                                ? nameParts.sublist(1).join(' ') 
+                                : '';
+
                             await Supabase.instance.client
                                 .from('counselors')
                                 .insert({
-                              'first_name': _nameController.text
-                                  .trim(), // or split first/last
-                              'last_name': '',
+                              'first_name': firstName,
+                              'last_name': lastName,
                               'email': _emailController.text.trim(),
-                              'specialization': 'General', // sensible default
-                              'availability_status':
-                                  'available', // or your enum default
+                              'specialization': 'General Counseling',
+                              'availability_status': 'available',
+                              'bio': 'Professional counselor ready to help you.',
+                              'profile_picture': null, // Will be set later if needed
                               'user_id': authResponse.user!.id,
                             });
                           }
@@ -280,8 +287,9 @@ class _AdminAccountsState extends State<AdminAccounts> {
                         print('Error creating account: $e');
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Failed to create account'),
+                            SnackBar(
+                              content: Text('Failed to create account: ${e.toString()}'),
+                              duration: const Duration(seconds: 5),
                             ),
                           );
                         }

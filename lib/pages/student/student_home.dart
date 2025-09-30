@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../components/student_drawer.dart';
 import '../../components/student_notification_button.dart';
 import '../../services/activity_service.dart';
+import '../../services/chat_message_service.dart';
 import '../../utils/responsive_utils.dart';
 // Assuming it's styled to match now
 
@@ -42,6 +43,8 @@ class _StudentHomeState extends State<StudentHome> {
     'daily_checkin': false,
     'breathing_exercise': false,
   };
+
+  int _unreadMessagesCount = 0;
 
   // List of grid features for the home page
   final List<_FeatureCardData> _emotionalWellbeing = [
@@ -115,6 +118,14 @@ class _StudentHomeState extends State<StudentHome> {
     _fetchTodayCheckIn();
     _fetchWeeklyMood();
     _loadTodayProgress();
+    _loadUnreadMessagesCount();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh unread count when returning to this page
+    _loadUnreadMessagesCount();
   }
 
   @override
@@ -179,68 +190,11 @@ class _StudentHomeState extends State<StudentHome> {
     });
   }
 
-  Future<void> _saveCheckIn(Map<String, dynamic> data) async {
-    final userId = Supabase.instance.client.auth.currentUser?.id;
-    if (userId == null) return;
-    await Supabase.instance.client.from('mood_entries').insert({
-      'user_id': userId,
-      'mood_type': data['mood_type'],
-      'emoji_code': data['emoji_code'],
-      'reasons': data['reasons'],
-      'notes': data['notes'],
-    });
-    await ActivityService.recordActivityCompletion('daily_checkin');
-    await _fetchTodayCheckIn();
-    await _fetchWeeklyMood();
-    await _loadTodayProgress();
-  }
 
-  void _showCheckInDialog() async {
-    showDialog(
-      context: context,
-      builder: (context) => DailyCheckInDialog(onSubmit: _saveCheckIn),
-    );
-  }
 
-  Widget _buildCheckInCard() {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: Colors.green.shade50,
-      elevation: 0,
-      child: ListTile(
-        leading: Icon(Icons.emoji_emotions, color: Colors.green[700]),
-        title: Text("Daily Mood Check-in"),
-        trailing: Icon(Icons.add),
-        onTap: _showCheckInDialog,
-      ),
-    );
-  }
 
-  
 
-  Widget _buildTodayCheckInSummary() {
-    if (todayCheckIn == null) return SizedBox();
-    final emoji = todayCheckIn!['emoji_code'] ?? '';
-    final mood = todayCheckIn!['mood_type'] ?? '';
-    final reasons = (todayCheckIn!['reasons'] as List?)?.join(', ') ?? '';
-    final notes = todayCheckIn!['notes'] ?? '';
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: Colors.green.shade100,
-      elevation: 0,
-      child: ListTile(
-        leading: Text(emoji, style: TextStyle(fontSize: 32)),
-        title: Text('Today you feel $mood'),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (reasons.isNotEmpty) Text('Because: $reasons'),
-            if (notes.isNotEmpty) Text('Note: $notes'),
-          ],
-        ),
-      ),
-    );
-  }
+
 
   List<Map<String, dynamic>> getWeekDaysWithMood() {
     final today = DateTime.now();
@@ -368,6 +322,7 @@ class _StudentHomeState extends State<StudentHome> {
     await Future.wait([
       _fetchTodayCheckIn(),
       _fetchWeeklyMood(),
+      _loadUnreadMessagesCount(),
     ]);
 
     setState(() {
@@ -385,6 +340,15 @@ class _StudentHomeState extends State<StudentHome> {
         _todayCompletions = completions;
         _todayProgress = progress;
         _isProgressLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadUnreadMessagesCount() async {
+    final count = await ChatMessageService.getUnreadMessagesFromCounselors();
+    if (mounted) {
+      setState(() {
+        _unreadMessagesCount = count;
       });
     }
   }
@@ -509,6 +473,7 @@ class _StudentHomeState extends State<StudentHome> {
             await Future.wait([
               _refreshData(),
               _loadTodayProgress(),
+              _loadUnreadMessagesCount(),
             ]);
           },
           child: SingleChildScrollView(
@@ -664,6 +629,51 @@ class _StudentHomeState extends State<StudentHome> {
             BottomNavigationBarItem(
                 icon: Icon(Icons.emoji_emotions), label: 'Track Mood'),
           ],
+        ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () {
+            Navigator.pushNamed(context, 'student-chat-list').then((_) {
+              // Refresh unread messages count when returning from chat list
+              _loadUnreadMessagesCount();
+            });
+          },
+          backgroundColor: const Color(0xFF7C83FD),
+          child: Stack(
+            children: [
+              const Icon(
+                Icons.chat,
+                color: Colors.white,
+                size: 28,
+              ),
+              if (_unreadMessagesCount > 0)
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 16,
+                    ),
+                    child: Text(
+                      _unreadMessagesCount > 99
+                          ? '99+'
+                          : _unreadMessagesCount.toString(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );

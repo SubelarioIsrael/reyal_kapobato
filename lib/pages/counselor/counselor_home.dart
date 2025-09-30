@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/appointment.dart';
-import '../../services/counselor_service.dart';
 import '../chat/appointment_chat.dart';
 
 class CounselorHome extends StatefulWidget {
@@ -12,69 +12,18 @@ class CounselorHome extends StatefulWidget {
 }
 
 class _CounselorHomeState extends State<CounselorHome> {
-  final CounselorService _counselorService = CounselorService();
   List<Appointment> _appointments = [];
   bool _isLoading = true;
   String? _errorMessage;
-  Map<String, Map<String, String>> _studentInfo =
-      {}; // user_id -> {username, student_id}
+  String? _counselorName;
+  Map<String, Map<String, String>> _studentInfo = {};
+  
+  // Stats
+  int _totalStudents = 0;
+  int _completedSessions = 0;
+  int _upcomingSessions = 0;
 
-  // Filtering state
-  String _selectedDateRange = 'Today';
-  final Set<String> _selectedStatuses = {};
 
-  List<String> get _dateRangeOptions => [
-        'Today',
-        'Tomorrow',
-        'Next Week',
-        'Next Month',
-      ];
-
-  List<String> get _allStatusOptions => [
-        'pending',
-        'accepted',
-        'cancelled',
-        'rejected',
-        'completed',
-        'no_show',
-        'rescheduled',
-      ];
-
-  List<Appointment> get _filteredAppointments {
-    final now = DateTime.now();
-    DateTime start, end;
-    switch (_selectedDateRange) {
-      case 'Today':
-        start = DateTime(now.year, now.month, now.day);
-        end = start.add(const Duration(days: 1));
-        break;
-      case 'Tomorrow':
-        start =
-            DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
-        end = start.add(const Duration(days: 1));
-        break;
-      case 'Next Week':
-        start = DateTime(now.year, now.month, now.day);
-        end = start.add(const Duration(days: 7));
-        break;
-      case 'Next Month':
-        start = DateTime(now.year, now.month, now.day);
-        end = start.add(const Duration(days: 30));
-        break;
-      default:
-        start = DateTime(now.year, now.month, now.day);
-        end = start.add(const Duration(days: 1));
-    }
-    return _appointments.where((appt) {
-      final apptDate = appt.appointmentDate;
-      final inDateRange =
-          apptDate.isAfter(start.subtract(const Duration(seconds: 1))) &&
-              apptDate.isBefore(end);
-      final statusMatch = _selectedStatuses.isEmpty ||
-          _selectedStatuses.contains(appt.status.toLowerCase());
-      return inDateRange && statusMatch;
-    }).toList();
-  }
 
   @override
   void initState() {
@@ -90,6 +39,7 @@ class _CounselorHomeState extends State<CounselorHome> {
     try {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) throw Exception('Not logged in');
+      
       // Check user_type in users table
       final userRow = await Supabase.instance.client
           .from('users')
@@ -104,12 +54,48 @@ class _CounselorHomeState extends State<CounselorHome> {
         });
         return;
       }
-      final counselorId = await _getCounselorIdForUser(user.id);
+      
+      // Check if counselor profile exists and is complete
+      final counselorProfile = await Supabase.instance.client
+          .from('counselors')
+          .select('counselor_id, first_name, last_name, specialization, bio')
+          .eq('user_id', user.id)
+          .maybeSingle();
+      
+      if (counselorProfile == null) {
+        // No counselor profile exists, redirect to setup
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/counselor-profile-setup');
+        }
+        return;
+      }
+      
+      // Check if profile is incomplete
+      final firstName = counselorProfile['first_name'] as String?;
+      final lastName = counselorProfile['last_name'] as String?;
+      final specialization = counselorProfile['specialization'] as String?;
+      final bio = counselorProfile['bio'] as String?;
+      
+      final isProfileIncomplete = (firstName?.trim().isEmpty ?? true) ||
+          (lastName?.trim().isEmpty ?? true) ||
+          (specialization?.trim().isEmpty ?? true) ||
+          (bio?.trim().isEmpty ?? true);
+      
+      if (isProfileIncomplete) {
+        // Show welcome dialog for first-time counselor setup
+        setState(() => _isLoading = false);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _showCounselorWelcomeDialog();
+        });
+        return;
+      }
+      
+      final counselorId = counselorProfile['counselor_id'] as int?;
       if (counselorId == null) {
         setState(() {
           _appointments = [];
           _isLoading = false;
-          _errorMessage = 'Counselor profile not set up. Please contact admin.';
+          _errorMessage = 'Error with counselor profile. Please contact admin.';
         });
         return;
       }
@@ -150,9 +136,26 @@ class _CounselorHomeState extends State<CounselorHome> {
           }
         }
       }
+      // Calculate statistics
+      final uniqueStudents = appointments.map((a) => a.userId).toSet().length;
+      final completed = appointments.where((a) => a.status.toLowerCase() == 'completed').length;
+      final upcoming = appointments.where((a) => 
+        a.status.toLowerCase() == 'accepted' && 
+        a.appointmentDate.isAfter(DateTime.now())
+      ).length;
+
+      // Get counselor name from existing profile data
+      final nameFirst = counselorProfile['first_name'] as String? ?? '';
+      final nameLast = counselorProfile['last_name'] as String? ?? '';
+      final fullName = '$nameFirst $nameLast'.trim();
+
       setState(() {
         _appointments = appointments;
         _studentInfo = studentInfo;
+        _totalStudents = uniqueStudents;
+        _completedSessions = completed;
+        _upcomingSessions = upcoming;
+        _counselorName = fullName.isNotEmpty ? fullName : null;
         _isLoading = false;
       });
     } catch (e) {
@@ -341,554 +344,633 @@ class _CounselorHomeState extends State<CounselorHome> {
     }
   }
 
-  void _showRescheduleDialog(Appointment appt) {
-    TimeOfDay? newStart;
-    TimeOfDay? newEnd;
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: const Text('Reschedule Appointment'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ListTile(
-                    leading: const Icon(Icons.access_time),
-                    title: Text(newStart == null
-                        ? 'Select new start time'
-                        : newStart!.format(context)),
-                    onTap: () async {
-                      final picked = await showTimePicker(
-                        context: context,
-                        initialTime: TimeOfDay.fromDateTime(appt.startTime),
-                      );
-                      if (picked != null) setState(() => newStart = picked);
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.access_time),
-                    title: Text(newEnd == null
-                        ? 'Select new end time'
-                        : newEnd!.format(context)),
-                    onTap: () async {
-                      final picked = await showTimePicker(
-                        context: context,
-                        initialTime: TimeOfDay.fromDateTime(appt.endTime),
-                      );
-                      if (picked != null) setState(() => newEnd = picked);
-                    },
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    if (newStart == null || newEnd == null) return;
-                    final date = appt.appointmentDate;
-                    final startDateTime = DateTime(date.year, date.month,
-                        date.day, newStart!.hour, newStart!.minute);
-                    final endDateTime = DateTime(date.year, date.month,
-                        date.day, newEnd!.hour, newEnd!.minute);
-                    await Supabase.instance.client
-                        .from('counseling_appointments')
-                        .update({
-                      'start_time':
-                          '${newStart!.hour.toString().padLeft(2, '0')}:${newStart!.minute.toString().padLeft(2, '0')}:00',
-                      'end_time':
-                          '${newEnd!.hour.toString().padLeft(2, '0')}:${newEnd!.minute.toString().padLeft(2, '0')}:00',
-                      'status': 'rescheduled',
-                    }).eq('appointment_id', appt.id);
-                    Navigator.pop(context);
-                    await _loadAppointments();
-                  },
-                  child: const Text('Reschedule'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
 
-  final List<String> statusOptions = [
-    'accepted',
-    'cancelled',
-    'rejected',
-    'completed',
-    'no_show',
-    'rescheduled',
-  ];
-
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'pending':
-        return Colors.orange;
-      case 'accepted':
-        return Colors.green;
-      case 'completed':
-        return Colors.blue;
-      case 'cancelled':
-      case 'rejected':
-      case 'no_show':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color.fromARGB(255, 242, 241, 248),
       appBar: AppBar(
-        title: const Text('Counselor Home'),
+        backgroundColor: const Color.fromARGB(255, 242, 241, 248),
+        elevation: 0,
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu, color: Color(0xFF5D5D72)),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
+        title: Text(
+          "BreatheBetter",
+          style: GoogleFonts.poppins(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFF3A3A50),
+          ),
+        ),
         centerTitle: true,
       ),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
+      drawer: _buildDrawer(),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+              ? Center(child: Text(_errorMessage!))
+              : RefreshIndicator(
+                  onRefresh: _loadAppointments,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 20),
+                          _buildWelcomeSection(),
+                          const SizedBox(height: 32),
+                          _buildStatsCards(),
+                          const SizedBox(height: 32),
+                          _buildPendingRequestsSection(),
+                          const SizedBox(height: 32),
+                          _buildTodayAppointmentsSection(),
+                          const SizedBox(height: 32),
+                          _buildQuickActionsSection(),
+                          const SizedBox(height: 24),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+    );
+  }
+
+  Widget _buildDrawer() {
+    return Drawer(
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          DrawerHeader(
+            decoration: const BoxDecoration(color: Color(0xFF7C83FD)),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.psychology, size: 60, color: Colors.white),
+                const SizedBox(height: 8),
+                Text(
+                  'Counselor Portal',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.person, color: Color(0xFF7C83FD)),
+            title: Text('Profile', style: GoogleFonts.poppins()),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/counselor-profile-setup');
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.settings, color: Color(0xFF7C83FD)),
+            title: Text('Settings', style: GoogleFonts.poppins()),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, 'counselor-settings');
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.logout, color: Color(0xFF7C83FD)),
+            title: Text('Logout', style: GoogleFonts.poppins()),
+            onTap: () async {
+              await Supabase.instance.client.auth.signOut();
+              if (context.mounted) {
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/login',
+                  (route) => false,
+                );
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWelcomeSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          "Welcome Back",
+          style: GoogleFonts.poppins(
+            fontSize: 20,
+            fontWeight: FontWeight.w500,
+            color: const Color(0xFF5D5D72),
+          ),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          _counselorName != null ? "Dr. $_counselorName" : "Counselor",
+          style: GoogleFonts.poppins(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFF3A3A50),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          "Help students on their mental health journey",
+          style: GoogleFonts.poppins(
+            fontSize: 16,
+            color: const Color(0xFF5D5D72),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatsCards() {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildStatCard(
+            'Total Students',
+            _totalStudents.toString(),
+            Icons.people,
+            Colors.blue,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildStatCard(
+            'Completed Sessions',
+            _completedSessions.toString(),
+            Icons.check_circle,
+            Colors.green,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildStatCard(
+            'Upcoming',
+            _upcomingSessions.toString(),
+            Icons.schedule,
+            Colors.orange,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 2,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const DrawerHeader(
-              decoration: BoxDecoration(color: Color(0xFF7C83FD)),
+            Icon(icon, color: color, size: 32),
+            const SizedBox(height: 12),
+            Text(
+              value,
+              style: GoogleFonts.poppins(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFF3A3A50),
+              ),
+            ),
+            Text(
+              title,
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                color: const Color(0xFF5D5D72),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPendingRequestsSection() {
+    final pendingAppointments = _appointments
+        .where((a) => a.status.toLowerCase() == 'pending')
+        .toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              'Pending Requests',
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF3A3A50),
+              ),
+            ),
+            const SizedBox(width: 8),
+            if (pendingAppointments.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.orange,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${pendingAppointments.length}',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        if (pendingAppointments.isEmpty)
+          Card(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Center(
+                child: Column(
+                  children: [
+                    Icon(Icons.inbox, size: 48, color: Colors.grey[400]),
+                    const SizedBox(height: 12),
+                    Text(
+                      'No pending requests',
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          )
+        else
+          ...pendingAppointments.take(3).map((appt) => _buildPendingAppointmentCard(appt)),
+        if (pendingAppointments.length > 3)
+          TextButton(
+            onPressed: () {
+              // Navigate to full appointments view
+            },
+            child: Text(
+              'View all ${pendingAppointments.length} pending requests',
+              style: GoogleFonts.poppins(color: const Color(0xFF7C83FD)),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildPendingAppointmentCard(Appointment appt) {
+    final studentInfo = _studentInfo[appt.userId.toString().trim()] ?? {};
+    final username = studentInfo['username'] ?? 'Unknown Student';
+
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: const Color(0xFF7C83FD).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: const Icon(
+                Icons.person,
+                color: Color(0xFF7C83FD),
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.account_circle, size: 80, color: Colors.white),
-                  SizedBox(height: 8),
                   Text(
-                    'Counselor',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                    username,
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF3A3A50),
+                    ),
+                  ),
+                  Text(
+                    '${appt.appointmentDate.toString().split(' ')[0]} • ${TimeOfDay.fromDateTime(appt.startTime).format(context)}',
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      color: const Color(0xFF5D5D72),
                     ),
                   ),
                 ],
               ),
             ),
-            ListTile(
-              leading: const Icon(Icons.person),
-              title: const Text('Profile'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/counselor-profile');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.settings),
-              title: const Text('Settings'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, 'counselor-settings');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text('Logout'),
-              onTap: () async {
-                await Supabase.instance.client.auth.signOut();
-                if (context.mounted) {
-                  Navigator.pushNamedAndRemoveUntil(
-                    context,
-                    '/login',
-                    (route) => false,
-                  );
-                }
-              },
+            Row(
+              children: [
+                IconButton(
+                  onPressed: () => _updateAppointmentStatusWithMessage(appt, 'accepted'),
+                  icon: const Icon(Icons.check_circle, color: Colors.green, size: 28),
+                  tooltip: 'Accept',
+                ),
+                IconButton(
+                  onPressed: () => _updateAppointmentStatusWithMessage(appt, 'rejected'),
+                  icon: const Icon(Icons.cancel, color: Colors.red, size: 28),
+                  tooltip: 'Reject',
+                ),
+              ],
             ),
           ],
         ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _errorMessage != null
-                ? Center(child: Text(_errorMessage!))
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // FILTER UI
-                      Row(
-                        children: [
-                          // Date Range Dropdown
-                          DropdownButton<String>(
-                            value: _selectedDateRange,
-                            items: _dateRangeOptions
-                                .map((option) => DropdownMenuItem(
-                                      value: option,
-                                      child: Text(option),
-                                    ))
-                                .toList(),
-                            onChanged: (val) {
-                              if (val != null) {
-                                setState(() => _selectedDateRange = val);
-                              }
-                            },
-                          ),
-                          const SizedBox(width: 16),
-                          // Status Filter Chips
-                          Expanded(
-                            child: SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                children: _allStatusOptions.map((status) {
-                                  final selected =
-                                      _selectedStatuses.contains(status);
-                                  return Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 2.0),
-                                    child: FilterChip(
-                                      label: Text(status.toUpperCase()),
-                                      selected: selected,
-                                      onSelected: (val) {
-                                        setState(() {
-                                          if (val) {
-                                            _selectedStatuses.add(status);
-                                          } else {
-                                            _selectedStatuses.remove(status);
-                                          }
-                                        });
-                                      },
-                                    ),
-                                  );
-                                }).toList(),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      // Pending Requests Section
-                      const Text(
-                        'Pending Requests',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.orange,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Builder(
-                        builder: (context) {
-                          final pendingAppointments = _appointments
-                              .where((a) => a.status.toLowerCase() == 'pending')
-                              .toList();
-                          if (pendingAppointments.isEmpty) {
-                            return const Text(
-                              'No pending requests.',
-                              style: TextStyle(color: Colors.grey),
-                            );
-                          }
-                          return ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: pendingAppointments.length,
-                            itemBuilder: (context, index) {
-                              final appt = pendingAppointments[index];
-                              final studentInfo =
-                                  _studentInfo[appt.userId.toString().trim()] ??
-                                      {};
-                              final username =
-                                  studentInfo['username'] ?? 'Unknown';
-                              final studentId = studentInfo['student_id'] ?? '';
-                              return Card(
-                                margin: const EdgeInsets.symmetric(
-                                    vertical: 4, horizontal: 0),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(12),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  username.isNotEmpty
-                                                      ? username[0]
-                                                              .toUpperCase() +
-                                                          username.substring(1)
-                                                      : 'Unknown',
-                                                  style: const TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 16,
-                                                  ),
-                                                ),
-                                                if (studentId.isNotEmpty)
-                                                  Text(
-                                                    'Student ID: $studentId',
-                                                    style: TextStyle(
-                                                      color: Colors.grey[600],
-                                                      fontSize: 14,
-                                                    ),
-                                                  ),
-                                              ],
-                                            ),
-                                          ),
-                                          IconButton(
-                                            icon: const Icon(Icons.check_circle,
-                                                color: Colors.green),
-                                            tooltip: 'Accept',
-                                            onPressed: () =>
-                                                _updateAppointmentStatusWithMessage(
-                                                    appt, 'accepted'),
-                                          ),
-                                          IconButton(
-                                            icon: const Icon(Icons.cancel,
-                                                color: Colors.red),
-                                            tooltip: 'Reject',
-                                            onPressed: () =>
-                                                _updateAppointmentStatusWithMessage(
-                                                    appt, 'rejected'),
-                                          ),
-                                          IconButton(
-                                            icon: const Icon(Icons.visibility),
-                                            tooltip: 'View',
-                                            onPressed: () {
-                                              // Optionally show more details or history
-                                              Navigator.pushNamed(
-                                                context,
-                                                '/student-history',
-                                                arguments: {
-                                                  'userId': appt.userId,
-                                                  'username': username,
-                                                  'studentId': studentId,
-                                                },
-                                              );
-                                            },
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'Date: ${appt.appointmentDate.toString().split(' ')[0]}',
-                                        style: const TextStyle(fontSize: 14),
-                                      ),
-                                      Text(
-                                        'Time: ' +
-                                            TimeOfDay(
-                                                    hour: appt.startTime.hour,
-                                                    minute:
-                                                        appt.startTime.minute)
-                                                .format(context) +
-                                            ' - ' +
-                                            TimeOfDay(
-                                                    hour: appt.endTime.hour,
-                                                    minute: appt.endTime.minute)
-                                                .format(context),
-                                        style: const TextStyle(fontSize: 14),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          );
-                        },
-                      ),
-
-                      const SizedBox(height: 24),
-                      const Text(
-                        'Appointments',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Expanded(
-                        child: _filteredAppointments.isEmpty
-                            ? const Center(
-                                child: Text('No appointments found.'))
-                            : ListView.builder(
-                                itemCount: _filteredAppointments.length,
-                                itemBuilder: (context, index) {
-                                  final appt = _filteredAppointments[index];
-                                  print(
-                                      'appt.userId: \'${appt.userId.toString().trim()}\'');
-                                  return _buildAppointmentCard(appt);
-                                },
-                              ),
-                      ),
-                    ],
-                  ),
       ),
     );
   }
 
-  Widget _buildAppointmentCard(Appointment appt) {
-    final studentInfo = _studentInfo[appt.userId.toString().trim()] ?? {};
-    final username = studentInfo['username'] ?? 'Unknown';
-    final studentId = studentInfo['student_id'] ?? '';
+  Widget _buildTodayAppointmentsSection() {
+    final today = DateTime.now();
+    final todayAppointments = _appointments.where((appt) {
+      final apptDate = appt.appointmentDate;
+      return apptDate.year == today.year &&
+          apptDate.month == today.month &&
+          apptDate.day == today.day &&
+          appt.status.toLowerCase() == 'accepted';
+    }).toList();
 
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        username.isNotEmpty
-                            ? username[0].toUpperCase() + username.substring(1)
-                            : 'Unknown',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      if (studentId.isNotEmpty)
-                        Text(
-                          'Student ID: $studentId',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 14,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                if (appt.status.toLowerCase() == 'accepted')
-                  IconButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => AppointmentChat(
-                            appointment: appt,
-                            isCounselor: true,
-                          ),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.chat_bubble_outline),
-                    color: const Color(0xFF5D5D72),
-                    tooltip: 'Chat with student',
-                  ),
-                PopupMenuButton<String>(
-                  onSelected: (value) {
-                    switch (value) {
-                      case 'accept':
-                        _updateAppointmentStatusWithMessage(appt, 'accepted');
-                        break;
-                      case 'reject':
-                        _updateAppointmentStatusWithMessage(appt, 'rejected');
-                        break;
-                      case 'complete':
-                        _updateAppointmentStatusWithMessage(appt, 'completed');
-                        break;
-                      case 'no_show':
-                        _updateAppointmentStatusWithMessage(appt, 'no_show');
-                        break;
-                      case 'reschedule':
-                        _showRescheduleDialog(appt);
-                        break;
-                      case 'view_history':
-                        Navigator.pushNamed(
-                          context,
-                          '/student-history',
-                          arguments: {
-                            'userId': appt.userId,
-                            'username': username,
-                            'studentId': studentId,
-                          },
-                        );
-                        break;
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    if (appt.status.toLowerCase() == 'pending')
-                      const PopupMenuItem(
-                        value: 'accept',
-                        child: Text('Accept'),
-                      ),
-                    if (appt.status.toLowerCase() == 'pending')
-                      const PopupMenuItem(
-                        value: 'reject',
-                        child: Text('Reject'),
-                      ),
-                    if (appt.status.toLowerCase() == 'accepted')
-                      const PopupMenuItem(
-                        value: 'complete',
-                        child: Text('Mark as Completed'),
-                      ),
-                    if (appt.status.toLowerCase() == 'accepted')
-                      const PopupMenuItem(
-                        value: 'no_show',
-                        child: Text('Mark as No Show'),
-                      ),
-                    if (appt.status.toLowerCase() == 'accepted')
-                      const PopupMenuItem(
-                        value: 'reschedule',
-                        child: Text('Reschedule'),
-                      ),
-                    PopupMenuItem(
-                      value: 'view_history',
-                      child: Row(
-                        children: [
-                          const Icon(Icons.history),
-                          const SizedBox(width: 8),
-                          const Text('View History'),
-                        ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Today\'s Schedule',
+          style: GoogleFonts.poppins(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: const Color(0xFF3A3A50),
+          ),
+        ),
+        const SizedBox(height: 16),
+        if (todayAppointments.isEmpty)
+          Card(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Center(
+                child: Column(
+                  children: [
+                    Icon(Icons.event_available, size: 48, color: Colors.grey[400]),
+                    const SizedBox(height: 12),
+                    Text(
+                      'No appointments today',
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        color: Colors.grey[600],
                       ),
                     ),
                   ],
                 ),
-              ],
+              ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Date: ${appt.appointmentDate.toString().split(' ')[0]}',
-              style: const TextStyle(fontSize: 14),
-            ),
-            Text(
-              'Time: ' +
-                  TimeOfDay(
-                          hour: appt.startTime.hour,
-                          minute: appt.startTime.minute)
-                      .format(context) +
-                  ' - ' +
-                  TimeOfDay(
-                          hour: appt.endTime.hour, minute: appt.endTime.minute)
-                      .format(context),
-              style: const TextStyle(fontSize: 14),
-            ),
-            const SizedBox(height: 4),
+          )
+        else
+          ...todayAppointments.map((appt) => _buildTodayAppointmentCard(appt)),
+      ],
+    );
+  }
+
+  Widget _buildTodayAppointmentCard(Appointment appt) {
+    final studentInfo = _studentInfo[appt.userId.toString().trim()] ?? {};
+    final username = studentInfo['username'] ?? 'Unknown Student';
+
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              width: 48,
+              height: 48,
               decoration: BoxDecoration(
-                color: _getStatusColor(appt.status).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(4),
+                color: Colors.green.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(24),
               ),
-              child: Text(
-                appt.status.toUpperCase(),
-                style: TextStyle(
-                  color: _getStatusColor(appt.status),
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
+              child: const Icon(
+                Icons.person,
+                color: Colors.green,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    username,
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF3A3A50),
+                    ),
+                  ),
+                  Text(
+                    '${TimeOfDay.fromDateTime(appt.startTime).format(context)} - ${TimeOfDay.fromDateTime(appt.endTime).format(context)}',
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      color: const Color(0xFF5D5D72),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Row(
+              children: [
+                IconButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => AppointmentChat(
+                          appointment: appt,
+                          isCounselor: true,
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.chat_bubble_outline, color: Color(0xFF7C83FD)),
+                  tooltip: 'Chat',
                 ),
-              ),
+                IconButton(
+                  onPressed: () => _updateAppointmentStatusWithMessage(appt, 'completed'),
+                  icon: const Icon(Icons.check_circle_outline, color: Colors.green),
+                  tooltip: 'Mark Complete',
+                ),
+              ],
             ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildQuickActionsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Quick Actions',
+          style: GoogleFonts.poppins(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: const Color(0xFF3A3A50),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildQuickActionCard(
+                'View All Appointments',
+                Icons.calendar_today,
+                Colors.blue,
+                () {
+                  // Navigate to appointments page
+                },
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildQuickActionCard(
+                'Student History',
+                Icons.history,
+                Colors.purple,
+                () {
+                  // Navigate to student history
+                },
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickActionCard(String title, IconData icon, Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Card(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        elevation: 2,
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: LinearGradient(
+              colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: color, size: 32),
+              const SizedBox(height: 12),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF3A3A50),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Show welcome dialog for first-time counselor
+  void _showCounselorWelcomeDialog() {
+    if (mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              const Icon(Icons.psychology, color: Color(0xFF7C83FD), size: 28),
+              const SizedBox(width: 12),
+              Text(
+                'Welcome, Counselor!',
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF3A3A50),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            'Welcome to BreatheBetter! Let\'s set up your professional profile to help students connect with you effectively. This will only take a few minutes.',
+            style: GoogleFonts.poppins(
+              fontSize: 16,
+              height: 1.4,
+              color: const Color(0xFF5D5D72),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                Navigator.pushReplacementNamed(context, '/counselor-profile-setup');
+              },
+              style: TextButton.styleFrom(
+                backgroundColor: const Color(0xFF7C83FD),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: Text(
+                'Set Up Profile',
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
   }
 }

@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../models/appointment.dart';
 import '../../services/counselor_service.dart';
-import 'package:supabase_flutter/supabase_flutter.dart'; // Import Supabase for drawer logout
+
 import '../../components/student_drawer.dart';
 import '../../components/student_notification_button.dart';
-import '../chat/appointment_chat.dart';
-import 'student_chat_list.dart'; // New import for the chat list widget
+
 import '../call/call.dart'; // Add this import (adjust path if needed)
 
 class StudentAppointments extends StatefulWidget {
@@ -249,9 +248,7 @@ class _StudentAppointmentsState extends State<StudentAppointments> {
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 2, // Two tabs: Appointments and Chats
-      child: Scaffold(
+    return Scaffold(
         backgroundColor: const Color.fromARGB(255, 242, 241, 248),
         appBar: AppBar(
           backgroundColor: const Color.fromARGB(255, 242, 241, 248),
@@ -274,29 +271,15 @@ class _StudentAppointmentsState extends State<StudentAppointments> {
           actions: const [
             StudentNotificationButton(),
           ],
-          bottom: TabBar(
-            indicatorColor: const Color(0xFF5D5D72),
-            labelColor: const Color(0xFF3A3A50),
-            unselectedLabelColor: Colors.grey[600],
-            labelStyle: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-            unselectedLabelStyle:
-                GoogleFonts.poppins(fontWeight: FontWeight.w500),
-            tabs: const [
-              Tab(text: 'Appointments'),
-              Tab(text: 'Chats'),
-            ],
-          ),
+
         ),
         drawer: const StudentDrawer(),
-        body: TabBarView(
-          children: [
-            // Appointments Tab Content
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                     // FILTER UI
                     Row(
                       children: [
@@ -394,21 +377,16 @@ class _StudentAppointmentsState extends State<StudentAppointments> {
                           },
                         ),
                       ),
-                  ],
-                ),
+                ],
               ),
             ),
-            // Chats Tab Content
-            const StudentChatList(), // Our new widget will go here
-          ],
-        ),
+          ),
         floatingActionButton: FloatingActionButton(
           onPressed: _showCallDialog,
           backgroundColor: const Color(0xFF81C784),
           child: const Icon(Icons.call),
           tooltip: 'Join a call',
         ),
-      ),
     );
   }
 }
@@ -440,17 +418,7 @@ class _AppointmentCardState extends State<_AppointmentCard> {
     }
   }
 
-  void _openChat(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => AppointmentChat(
-          appointment: widget.appointment,
-          isCounselor: false,
-        ),
-      ),
-    );
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -493,13 +461,7 @@ class _AppointmentCardState extends State<_AppointmentCard> {
                   ),
                 ),
                 const Spacer(),
-                if (widget.appointment.status.toLowerCase() == 'accepted')
-                  IconButton(
-                    onPressed: () => _openChat(context),
-                    icon: const Icon(Icons.chat_bubble_outline),
-                    color: const Color(0xFF5D5D72),
-                    tooltip: 'Chat with counselor',
-                  ),
+
                 if (widget.appointment.status.toLowerCase() == 'pending' ||
                     widget.appointment.status.toLowerCase() == 'accepted')
                   IconButton(
