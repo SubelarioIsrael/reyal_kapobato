@@ -17,13 +17,11 @@ class _CounselorHomeState extends State<CounselorHome> {
   String? _errorMessage;
   String? _counselorName;
   Map<String, Map<String, String>> _studentInfo = {};
-  
+
   // Stats
   int _totalStudents = 0;
   int _completedSessions = 0;
   int _upcomingSessions = 0;
-
-
 
   @override
   void initState() {
@@ -39,7 +37,7 @@ class _CounselorHomeState extends State<CounselorHome> {
     try {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) throw Exception('Not logged in');
-      
+
       // Check user_type in users table
       final userRow = await Supabase.instance.client
           .from('users')
@@ -54,14 +52,14 @@ class _CounselorHomeState extends State<CounselorHome> {
         });
         return;
       }
-      
+
       // Check if counselor profile exists and is complete
       final counselorProfile = await Supabase.instance.client
           .from('counselors')
           .select('counselor_id, first_name, last_name, specialization, bio')
           .eq('user_id', user.id)
           .maybeSingle();
-      
+
       if (counselorProfile == null) {
         // No counselor profile exists, redirect to setup
         if (mounted) {
@@ -69,18 +67,18 @@ class _CounselorHomeState extends State<CounselorHome> {
         }
         return;
       }
-      
+
       // Check if profile is incomplete
       final firstName = counselorProfile['first_name'] as String?;
       final lastName = counselorProfile['last_name'] as String?;
       final specialization = counselorProfile['specialization'] as String?;
       final bio = counselorProfile['bio'] as String?;
-      
+
       final isProfileIncomplete = (firstName?.trim().isEmpty ?? true) ||
           (lastName?.trim().isEmpty ?? true) ||
           (specialization?.trim().isEmpty ?? true) ||
           (bio?.trim().isEmpty ?? true);
-      
+
       if (isProfileIncomplete) {
         // Show welcome dialog for first-time counselor setup
         setState(() => _isLoading = false);
@@ -89,7 +87,7 @@ class _CounselorHomeState extends State<CounselorHome> {
         });
         return;
       }
-      
+
       final counselorId = counselorProfile['counselor_id'] as int?;
       if (counselorId == null) {
         setState(() {
@@ -138,11 +136,14 @@ class _CounselorHomeState extends State<CounselorHome> {
       }
       // Calculate statistics
       final uniqueStudents = appointments.map((a) => a.userId).toSet().length;
-      final completed = appointments.where((a) => a.status.toLowerCase() == 'completed').length;
-      final upcoming = appointments.where((a) => 
-        a.status.toLowerCase() == 'accepted' && 
-        a.appointmentDate.isAfter(DateTime.now())
-      ).length;
+      final completed = appointments
+          .where((a) => a.status.toLowerCase() == 'completed')
+          .length;
+      final upcoming = appointments
+          .where((a) =>
+              a.status.toLowerCase() == 'accepted' &&
+              a.appointmentDate.isAfter(DateTime.now()))
+          .length;
 
       // Get counselor name from existing profile data
       final nameFirst = counselorProfile['first_name'] as String? ?? '';
@@ -226,6 +227,24 @@ class _CounselorHomeState extends State<CounselorHome> {
             'Your appointment on ${appt.appointmentDate.toString().split(' ')[0]} from ${appt.startTime.toString().split(' ')[1].substring(0, 5)} to ${appt.endTime.toString().split(' ')[1].substring(0, 5)} has been changed to ${newStatus.toUpperCase()}. ${message?.isNotEmpty == true ? "Message: $message" : ""}',
         'action_url': '/appointments'
       });
+
+      // Trigger Edge Function to send push via OneSignal (Android)
+      try {
+        await Supabase.instance.client.functions.invoke(
+          'send-notification',
+          body: {
+            'user_id': appt.userId,
+            'title': 'Appointment Status Update',
+            'body':
+                'Your appointment on ${appt.appointmentDate.toString().split(' ')[0]} from ${appt.startTime.toString().split(' ')[1].substring(0, 5)} to ${appt.endTime.toString().split(' ')[1].substring(0, 5)} has been changed to ${newStatus.toUpperCase()}.',
+            'data': {
+              'action': 'appointment_status_changed',
+              'appointment_id': appt.id,
+              'route': '/appointments'
+            }
+          },
+        );
+      } catch (_) {}
 
       // If status is completed, show session notes dialog
       if (newStatus.toLowerCase() == 'completed') {
@@ -343,8 +362,6 @@ class _CounselorHomeState extends State<CounselorHome> {
       }
     }
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -526,7 +543,8 @@ class _CounselorHomeState extends State<CounselorHome> {
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+      String title, String value, IconData icon, Color color) {
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       elevation: 2,
@@ -606,7 +624,8 @@ class _CounselorHomeState extends State<CounselorHome> {
         const SizedBox(height: 16),
         if (pendingAppointments.isEmpty)
           Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: Center(
@@ -627,7 +646,9 @@ class _CounselorHomeState extends State<CounselorHome> {
             ),
           )
         else
-          ...pendingAppointments.take(3).map((appt) => _buildPendingAppointmentCard(appt)),
+          ...pendingAppointments
+              .take(3)
+              .map((appt) => _buildPendingAppointmentCard(appt)),
         if (pendingAppointments.length > 3)
           TextButton(
             onPressed: () {
@@ -692,12 +713,15 @@ class _CounselorHomeState extends State<CounselorHome> {
             Row(
               children: [
                 IconButton(
-                  onPressed: () => _updateAppointmentStatusWithMessage(appt, 'accepted'),
-                  icon: const Icon(Icons.check_circle, color: Colors.green, size: 28),
+                  onPressed: () =>
+                      _updateAppointmentStatusWithMessage(appt, 'accepted'),
+                  icon: const Icon(Icons.check_circle,
+                      color: Colors.green, size: 28),
                   tooltip: 'Accept',
                 ),
                 IconButton(
-                  onPressed: () => _updateAppointmentStatusWithMessage(appt, 'rejected'),
+                  onPressed: () =>
+                      _updateAppointmentStatusWithMessage(appt, 'rejected'),
                   icon: const Icon(Icons.cancel, color: Colors.red, size: 28),
                   tooltip: 'Reject',
                 ),
@@ -733,13 +757,15 @@ class _CounselorHomeState extends State<CounselorHome> {
         const SizedBox(height: 16),
         if (todayAppointments.isEmpty)
           Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: Center(
                 child: Column(
                   children: [
-                    Icon(Icons.event_available, size: 48, color: Colors.grey[400]),
+                    Icon(Icons.event_available,
+                        size: 48, color: Colors.grey[400]),
                     const SizedBox(height: 12),
                     Text(
                       'No appointments today',
@@ -820,12 +846,15 @@ class _CounselorHomeState extends State<CounselorHome> {
                       ),
                     );
                   },
-                  icon: const Icon(Icons.chat_bubble_outline, color: Color(0xFF7C83FD)),
+                  icon: const Icon(Icons.chat_bubble_outline,
+                      color: Color(0xFF7C83FD)),
                   tooltip: 'Chat',
                 ),
                 IconButton(
-                  onPressed: () => _updateAppointmentStatusWithMessage(appt, 'completed'),
-                  icon: const Icon(Icons.check_circle_outline, color: Colors.green),
+                  onPressed: () =>
+                      _updateAppointmentStatusWithMessage(appt, 'completed'),
+                  icon: const Icon(Icons.check_circle_outline,
+                      color: Colors.green),
                   tooltip: 'Mark Complete',
                 ),
               ],
@@ -878,7 +907,8 @@ class _CounselorHomeState extends State<CounselorHome> {
     );
   }
 
-  Widget _buildQuickActionCard(String title, IconData icon, Color color, VoidCallback onTap) {
+  Widget _buildQuickActionCard(
+      String title, IconData icon, Color color, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Card(
@@ -950,12 +980,14 @@ class _CounselorHomeState extends State<CounselorHome> {
             TextButton(
               onPressed: () {
                 Navigator.pop(ctx);
-                Navigator.pushReplacementNamed(context, '/counselor-profile-setup');
+                Navigator.pushReplacementNamed(
+                    context, '/counselor-profile-setup');
               },
               style: TextButton.styleFrom(
                 backgroundColor: const Color(0xFF7C83FD),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),

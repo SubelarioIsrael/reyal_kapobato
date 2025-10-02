@@ -45,6 +45,8 @@ dependencies:
   path_provider: ^2.1.5
   floating: ^6.0.0
   flutter_dotenv: ^5.1.0
+  onesignal_flutter: ^5.1.2
+  firebase_core: ^4.1.1
   
 
 dev_dependencies:

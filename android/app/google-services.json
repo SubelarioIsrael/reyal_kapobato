@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "116825462379",
+    "project_id": "pushnotifs-7fc70",
+    "storage_bucket": "pushnotifs-7fc70.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:116825462379:android:076885d9f2f28aa7e6832e",
+        "android_client_info": {
+          "package_name": "com.example.breathe_better"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBeLJUOTN88r3G2JhPUZotXg_FFuSNTiOM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
