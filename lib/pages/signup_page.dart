@@ -15,7 +15,7 @@ class _SignUpPageState extends State<SignUpPage> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  
+
   // Phase 2 - Personal Info
   final _studentIdController = TextEditingController();
   final _firstNameController = TextEditingController();
@@ -24,12 +24,12 @@ class _SignUpPageState extends State<SignUpPage> {
   String? _selectedCourse;
   String? _selectedStrand;
   final _yearLevelController = TextEditingController();
-  
+
   final _formKey = GlobalKey<FormState>();
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
-  
+
   // Phase control
   int _currentPhase = 1;
 
@@ -78,10 +78,10 @@ class _SignUpPageState extends State<SignUpPage> {
           _currentPhase = 2;
           _isLoading = false;
         });
-        
       } catch (e) {
         print('Phase 1 validation error: $e');
-        _showErrorDialog('Validation Failed', 'Something went wrong. Please try again later.');
+        _showErrorDialog('Validation Failed',
+            'Something went wrong. Please try again later.');
       } finally {
         if (context.mounted) {
           setState(() {
@@ -168,19 +168,20 @@ class _SignUpPageState extends State<SignUpPage> {
           // Show success and email verification dialog
           _showSuccessDialog();
         }
-        
       } on AuthException catch (e) {
         print('Supabase Auth error: ${e.message}');
         String errorMessage = 'Registration failed. Please try again.';
         if (e.message.contains('email')) {
           errorMessage = 'Invalid email address or email already in use.';
         } else if (e.message.contains('password')) {
-          errorMessage = 'Password is too weak. Please use a stronger password.';
+          errorMessage =
+              'Password is too weak. Please use a stronger password.';
         }
         _showErrorDialog('Registration Failed', errorMessage);
       } catch (e) {
         print('Phase 2 signup error: $e');
-        _showErrorDialog('Registration Failed', 'Something went wrong. Please try again later.');
+        _showErrorDialog('Registration Failed',
+            'Something went wrong. Please try again later.');
       } finally {
         if (context.mounted) {
           setState(() {
@@ -289,7 +290,7 @@ class _SignUpPageState extends State<SignUpPage> {
                 const SizedBox(height: 8),
                 // Subtitle
                 Text(
-                  _currentPhase == 1 
+                  _currentPhase == 1
                       ? "Create your account to get started"
                       : "Complete your profile information",
                   textAlign: TextAlign.center,
@@ -320,7 +321,7 @@ class _SignUpPageState extends State<SignUpPage> {
                       children: [
                         // Step indicator text
                         Text(
-                          _currentPhase == 1 
+                          _currentPhase == 1
                               ? 'Login Information'
                               : 'Personal Information',
                           style: GoogleFonts.poppins(
@@ -330,14 +331,16 @@ class _SignUpPageState extends State<SignUpPage> {
                           ),
                         ),
                         const SizedBox(height: 20),
-                        
+
                         // Phase content
                         _currentPhase == 1 ? _buildPhase1() : _buildPhase2(),
-                        
+
                         const SizedBox(height: 32),
-                        
+
                         // Navigation Buttons
-                        _currentPhase == 1 ? _buildPhase1Buttons() : _buildPhase2Buttons(),
+                        _currentPhase == 1
+                            ? _buildPhase1Buttons()
+                            : _buildPhase2Buttons(),
                       ],
                     ),
                   ),
@@ -380,13 +383,15 @@ class _SignUpPageState extends State<SignUpPage> {
       children: [
         // Email Field
         TextFormField(
+          key: const Key('signup_email'),
           controller: _emailController,
           keyboardType: TextInputType.emailAddress,
           style: GoogleFonts.poppins(),
           decoration: InputDecoration(
             hintText: 'Email Address',
             hintStyle: GoogleFonts.poppins(color: Colors.grey.shade500),
-            prefixIcon: const Icon(Icons.email_outlined, color: Color(0xFF7C83FD)),
+            prefixIcon:
+                const Icon(Icons.email_outlined, color: Color(0xFF7C83FD)),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: Colors.grey.shade300),
@@ -403,19 +408,23 @@ class _SignUpPageState extends State<SignUpPage> {
               return 'Please enter your email address';
             }
             final emailRegex = RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$');
-            return emailRegex.hasMatch(value) ? null : 'Please enter a valid email address';
+            return emailRegex.hasMatch(value)
+                ? null
+                : 'Please enter a valid email address';
           },
         ),
         const SizedBox(height: 16),
-        
+
         // Username Field
         TextFormField(
+          key: const Key('signup_name'),
           controller: _usernameController,
           style: GoogleFonts.poppins(),
           decoration: InputDecoration(
             hintText: 'Username',
             hintStyle: GoogleFonts.poppins(color: Colors.grey.shade500),
-            prefixIcon: const Icon(Icons.person_outline, color: Color(0xFF7C83FD)),
+            prefixIcon:
+                const Icon(Icons.person_outline, color: Color(0xFF7C83FD)),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: Colors.grey.shade300),
@@ -438,16 +447,18 @@ class _SignUpPageState extends State<SignUpPage> {
           },
         ),
         const SizedBox(height: 16),
-        
+
         // Password Field
         TextFormField(
+          key: const Key('signup_password'),
           controller: _passwordController,
           obscureText: _obscurePassword,
           style: GoogleFonts.poppins(),
           decoration: InputDecoration(
             hintText: 'Password',
             hintStyle: GoogleFonts.poppins(color: Colors.grey.shade500),
-            prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFF7C83FD)),
+            prefixIcon:
+                const Icon(Icons.lock_outline, color: Color(0xFF7C83FD)),
             suffixIcon: IconButton(
               icon: Icon(
                 _obscurePassword ? Icons.visibility : Icons.visibility_off,
@@ -481,19 +492,23 @@ class _SignUpPageState extends State<SignUpPage> {
           },
         ),
         const SizedBox(height: 16),
-        
+
         // Confirm Password Field
         TextFormField(
+          key: const Key('signup_confirm_password'),
           controller: _confirmPasswordController,
           obscureText: _obscureConfirmPassword,
           style: GoogleFonts.poppins(),
           decoration: InputDecoration(
             hintText: 'Confirm Password',
             hintStyle: GoogleFonts.poppins(color: Colors.grey.shade500),
-            prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFF7C83FD)),
+            prefixIcon:
+                const Icon(Icons.lock_outline, color: Color(0xFF7C83FD)),
             suffixIcon: IconButton(
               icon: Icon(
-                _obscureConfirmPassword ? Icons.visibility : Icons.visibility_off,
+                _obscureConfirmPassword
+                    ? Icons.visibility
+                    : Icons.visibility_off,
                 color: Colors.grey.shade600,
               ),
               onPressed: () {
@@ -551,7 +566,6 @@ class _SignUpPageState extends State<SignUpPage> {
 
     return Column(
       children: [
-
         // Student ID Field
         TextFormField(
           controller: _studentIdController,
@@ -560,7 +574,8 @@ class _SignUpPageState extends State<SignUpPage> {
           decoration: InputDecoration(
             hintText: 'Student ID Number',
             hintStyle: GoogleFonts.poppins(color: Colors.grey.shade500),
-            prefixIcon: const Icon(Icons.card_membership, color: Color(0xFF7C83FD)),
+            prefixIcon:
+                const Icon(Icons.card_membership, color: Color(0xFF7C83FD)),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: Colors.grey.shade300),
@@ -596,9 +611,8 @@ class _SignUpPageState extends State<SignUpPage> {
             filled: true,
             fillColor: Colors.grey.shade50,
           ),
-          validator: (value) => value?.isEmpty ?? true
-              ? 'Please enter your first name'
-              : null,
+          validator: (value) =>
+              value?.isEmpty ?? true ? 'Please enter your first name' : null,
         ),
         const SizedBox(height: 16),
 
@@ -621,13 +635,10 @@ class _SignUpPageState extends State<SignUpPage> {
             filled: true,
             fillColor: Colors.grey.shade50,
           ),
-          validator: (value) => value?.isEmpty ?? true
-              ? 'Please enter your last name'
-              : null,
+          validator: (value) =>
+              value?.isEmpty ?? true ? 'Please enter your last name' : null,
         ),
         const SizedBox(height: 16),
-
-        
 
         // Education Level Dropdown
         DropdownButtonFormField<String>(
@@ -665,7 +676,8 @@ class _SignUpPageState extends State<SignUpPage> {
               _selectedStrand = null;
             });
           },
-          validator: (value) => value == null ? 'Please select your education level' : null,
+          validator: (value) =>
+              value == null ? 'Please select your education level' : null,
           isExpanded: true,
         ),
         const SizedBox(height: 16),
@@ -678,14 +690,16 @@ class _SignUpPageState extends State<SignUpPage> {
             decoration: InputDecoration(
               hintText: 'Select Course/Program',
               hintStyle: GoogleFonts.poppins(color: Colors.grey.shade500),
-              prefixIcon: const Icon(Icons.library_books, color: Color(0xFF7C83FD)),
+              prefixIcon:
+                  const Icon(Icons.library_books, color: Color(0xFF7C83FD)),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(color: Colors.grey.shade300),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF7C83FD), width: 2),
+                borderSide:
+                    const BorderSide(color: Color(0xFF7C83FD), width: 2),
               ),
               filled: true,
               fillColor: Colors.grey.shade50,
@@ -706,7 +720,8 @@ class _SignUpPageState extends State<SignUpPage> {
                 _selectedCourse = value;
               });
             },
-            validator: (value) => value == null ? 'Please select your course' : null,
+            validator: (value) =>
+                value == null ? 'Please select your course' : null,
             isExpanded: true,
           ),
 
@@ -717,14 +732,16 @@ class _SignUpPageState extends State<SignUpPage> {
             decoration: InputDecoration(
               hintText: 'Select Strand (if applicable)',
               hintStyle: GoogleFonts.poppins(color: Colors.grey.shade500),
-              prefixIcon: const Icon(Icons.library_books, color: Color(0xFF7C83FD)),
+              prefixIcon:
+                  const Icon(Icons.library_books, color: Color(0xFF7C83FD)),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(color: Colors.grey.shade300),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF7C83FD), width: 2),
+                borderSide:
+                    const BorderSide(color: Color(0xFF7C83FD), width: 2),
               ),
               filled: true,
               fillColor: Colors.grey.shade50,
@@ -757,11 +774,12 @@ class _SignUpPageState extends State<SignUpPage> {
           keyboardType: TextInputType.number,
           style: GoogleFonts.poppins(),
           decoration: InputDecoration(
-            hintText: _selectedEducationLevel == 'college' 
-                ? 'Year Level (1-4)' 
+            hintText: _selectedEducationLevel == 'college'
+                ? 'Year Level (1-4)'
                 : 'Grade/Year Level (1-12)',
             hintStyle: GoogleFonts.poppins(color: Colors.grey.shade500),
-            prefixIcon: const Icon(Icons.calendar_today, color: Color(0xFF7C83FD)),
+            prefixIcon:
+                const Icon(Icons.calendar_today, color: Color(0xFF7C83FD)),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: Colors.grey.shade300),

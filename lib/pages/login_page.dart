@@ -81,8 +81,6 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-
-
   // Helper method to show error dialog
   void _showErrorDialog(String message) {
     if (mounted) {
@@ -232,6 +230,7 @@ class _LoginPageState extends State<LoginPage> {
                     child: Column(
                       children: [
                         TextFormField(
+                          key: const Key('login_email'),
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
                           decoration: const InputDecoration(
@@ -253,6 +252,7 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                         const SizedBox(height: 20),
                         TextFormField(
+                          key: const Key('login_password'),
                           controller: _passwordController,
                           obscureText: _obscurePassword,
                           decoration: InputDecoration(
@@ -266,8 +266,7 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                               onPressed: () {
                                 setState(
-                                  () => _obscurePassword = !_obscurePassword,
-                                );
+                                    () => _obscurePassword = !_obscurePassword);
                               },
                             ),
                           ),
@@ -286,6 +285,7 @@ class _LoginPageState extends State<LoginPage> {
                           width: double.infinity,
                           height: 50,
                           child: ElevatedButton(
+                            key: const Key('login_button'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF81C784),
                               shape: RoundedRectangleBorder(
@@ -295,14 +295,12 @@ class _LoginPageState extends State<LoginPage> {
                             onPressed: _isLoading ? null : _login,
                             child: _isLoading
                                 ? const CircularProgressIndicator(
-                                    color: Colors.white,
-                                  )
+                                    color: Colors.white)
                                 : const Text(
                                     'Log In',
                                     style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600),
                                   ),
                           ),
                         ),
@@ -312,6 +310,7 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 const SizedBox(height: 20),
                 TextButton(
+                  key: const Key('go_to_signup'),
                   onPressed: () {
                     Navigator.pushNamed(context, '/signup');
                   },
