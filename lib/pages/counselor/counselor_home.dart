@@ -455,14 +455,7 @@ class _CounselorHomeState extends State<CounselorHome> {
               Navigator.pushNamed(context, '/counselor-profile-setup');
             },
           ),
-          ListTile(
-            leading: const Icon(Icons.settings, color: Color(0xFF7C83FD)),
-            title: Text('Settings', style: GoogleFonts.poppins()),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushNamed(context, 'counselor-settings');
-            },
-          ),
+          const Divider(),
           ListTile(
             leading: const Icon(Icons.logout, color: Color(0xFF7C83FD)),
             title: Text('Logout', style: GoogleFonts.poppins()),

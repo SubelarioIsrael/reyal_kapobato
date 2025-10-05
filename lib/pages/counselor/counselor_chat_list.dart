@@ -24,7 +24,7 @@ class _CounselorChatListState extends State<CounselorChatList> {
     _setupRealtimeSubscription();
   }
 
-  @override 
+  @override
   void dispose() {
     _supabase.removeAllChannels();
     super.dispose();
@@ -104,11 +104,11 @@ class _CounselorChatListState extends State<CounselorChatList> {
       // Group messages by appointment_id first
       Map<int, Map<String, dynamic>> appointmentGroups = {};
       Set<String> uniqueUserIds = {};
-      
+
       for (var message in appointmentsWithMessages) {
         final appointmentId = message['appointment_id'];
         final appointment = message['counseling_appointments'];
-        
+
         if (!appointmentGroups.containsKey(appointmentId)) {
           appointmentGroups[appointmentId] = {
             'appointment': appointment,
@@ -124,12 +124,14 @@ class _CounselorChatListState extends State<CounselorChatList> {
 
         // Add message to group
         appointmentGroups[appointmentId]!['messages'].add(message);
-        
+
         // Update last message if this is more recent
         final messageTime = DateTime.parse(message['created_at']);
         if (appointmentGroups[appointmentId]!['last_message_time'] == null ||
-            messageTime.isAfter(appointmentGroups[appointmentId]!['last_message_time'])) {
-          appointmentGroups[appointmentId]!['last_message'] = message['message'];
+            messageTime.isAfter(
+                appointmentGroups[appointmentId]!['last_message_time'])) {
+          appointmentGroups[appointmentId]!['last_message'] =
+              message['message'];
           appointmentGroups[appointmentId]!['last_message_time'] = messageTime;
         }
 
@@ -142,7 +144,7 @@ class _CounselorChatListState extends State<CounselorChatList> {
       // Fetch student information for each unique user ID
       for (var appointmentGroup in appointmentGroups.values) {
         final userId = appointmentGroup['appointment']['user_id'];
-        
+
         try {
           // First try to get student info
           final studentInfo = await _supabase
@@ -150,12 +152,16 @@ class _CounselorChatListState extends State<CounselorChatList> {
               .select('user_id, first_name, last_name, student_code')
               .eq('user_id', userId)
               .maybeSingle();
-              
-          if (studentInfo != null && 
-              studentInfo['first_name'] != null && 
+
+          if (studentInfo != null &&
+              studentInfo['first_name'] != null &&
               studentInfo['last_name'] != null) {
-            appointmentGroup['user_name'] = '${studentInfo['first_name']} ${studentInfo['last_name']}';
-            appointmentGroup['user_initials'] = '${studentInfo['first_name'][0]}${studentInfo['last_name'][0]}';
+            final firstName = studentInfo['first_name'];
+            final lastName = studentInfo['last_name'];
+            appointmentGroup['user_name'] =
+                '${firstName[0].toUpperCase()}${firstName.substring(1).toLowerCase()} ${lastName[0].toUpperCase()}${lastName.substring(1).toLowerCase()}';
+            appointmentGroup['user_initials'] =
+                '${firstName[0].toUpperCase()}${lastName[0].toUpperCase()}';
           } else {
             // Fallback to username if student info not found
             try {
@@ -164,12 +170,14 @@ class _CounselorChatListState extends State<CounselorChatList> {
                   .select('username')
                   .eq('user_id', userId)
                   .maybeSingle();
-              
+
               if (userInfo != null && userInfo['username'] != null) {
-                appointmentGroup['user_name'] = userInfo['username'];
-                appointmentGroup['user_initials'] = userInfo['username'].length >= 2 
-                    ? userInfo['username'].substring(0, 2).toUpperCase()
-                    : userInfo['username'][0].toUpperCase();
+                final username = userInfo['username'];
+                appointmentGroup['user_name'] = username[0].toUpperCase() +
+                    username.substring(1).toLowerCase();
+                appointmentGroup['user_initials'] = username.length >= 2
+                    ? username.substring(0, 2).toUpperCase()
+                    : username[0].toUpperCase();
               }
             } catch (e) {
               print('Error fetching username for user_id $userId: $e');
@@ -206,7 +214,8 @@ class _CounselorChatListState extends State<CounselorChatList> {
 
   void _openChat(Map<String, dynamic> appointmentData) {
     final appointmentInfo = appointmentData['appointment'];
-    
+    final userName = appointmentData['user_name'];
+
     final appointment = Appointment.fromJson({
       ...appointmentInfo,
       'user_id': appointmentInfo['user_id'],
@@ -225,8 +234,6 @@ class _CounselorChatListState extends State<CounselorChatList> {
       _loadAppointmentsWithMessages();
     });
   }
-
-
 
   Widget _buildChatCard(Map<String, dynamic> appointmentData) {
     final unreadCount = appointmentData['unread_count'] as int;
@@ -306,7 +313,7 @@ class _CounselorChatListState extends State<CounselorChatList> {
                 ],
               ),
               const SizedBox(width: 16),
-              
+
               // Chat Details
               Expanded(
                 child: Column(
@@ -349,7 +356,7 @@ class _CounselorChatListState extends State<CounselorChatList> {
                   ],
                 ),
               ),
-              
+
               // Arrow Icon with unread count
               const SizedBox(width: 12),
               Stack(
@@ -371,7 +378,8 @@ class _CounselorChatListState extends State<CounselorChatList> {
                       top: -2,
                       right: -2,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: const Color(0xFFFF6B6B),
                           borderRadius: BorderRadius.circular(10),
@@ -542,7 +550,10 @@ class _CounselorChatListState extends State<CounselorChatList> {
                       child: Padding(
                         padding: const EdgeInsets.all(20),
                         child: Column(
-                          children: _appointmentsWithMessages.map((appointmentData) => _buildChatCard(appointmentData)).toList(),
+                          children: _appointmentsWithMessages
+                              .map((appointmentData) =>
+                                  _buildChatCard(appointmentData))
+                              .toList(),
                         ),
                       ),
                     ),

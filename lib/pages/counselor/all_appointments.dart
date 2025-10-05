@@ -152,7 +152,8 @@ class _AllAppointmentsState extends State<AllAppointments> {
                                 padding: const EdgeInsets.all(16),
                                 itemCount: _filteredAppointments.length,
                                 itemBuilder: (context, index) {
-                                  final appointment = _filteredAppointments[index];
+                                  final appointment =
+                                      _filteredAppointments[index];
                                   return _buildAppointmentCard(appointment);
                                 },
                               ),
@@ -226,7 +227,7 @@ class _AllAppointmentsState extends State<AllAppointments> {
           ),
           const SizedBox(height: 8),
           Text(
-            _selectedFilter == 'all' 
+            _selectedFilter == 'all'
                 ? 'You don\'t have any appointments yet'
                 : 'No ${_selectedFilter} appointments',
             style: GoogleFonts.poppins(
@@ -240,12 +241,13 @@ class _AllAppointmentsState extends State<AllAppointments> {
   }
 
   Widget _buildAppointmentCard(Appointment appointment) {
-    final studentInfo = _studentInfo[appointment.userId.toString().trim()] ?? {};
+    final studentInfo =
+        _studentInfo[appointment.userId.toString().trim()] ?? {};
     final firstName = studentInfo['first_name'] ?? '';
     final lastName = studentInfo['last_name'] ?? '';
     final studentName = '$firstName $lastName'.trim();
-    final displayName = studentName.isNotEmpty 
-        ? studentName 
+    final displayName = studentName.isNotEmpty
+        ? studentName
         : studentInfo['username'] ?? 'Unknown Student';
     final studentCode = studentInfo['student_code'] ?? '';
 
@@ -305,7 +307,8 @@ class _AllAppointmentsState extends State<AllAppointments> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: _getStatusColor(appointment.status),
                     borderRadius: BorderRadius.circular(12),
@@ -340,7 +343,8 @@ class _AllAppointmentsState extends State<AllAppointments> {
                     onPressed: () {
                       // TODO: Navigate to student history
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Student history coming soon')),
+                        const SnackBar(
+                            content: Text('Student history coming soon')),
                       );
                     },
                     icon: const Icon(Icons.history, size: 16),

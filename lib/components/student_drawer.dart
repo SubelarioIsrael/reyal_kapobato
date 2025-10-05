@@ -140,19 +140,6 @@ class _StudentDrawerState extends State<StudentDrawer> {
           ),
           const Divider(),
           ListTile(
-            leading: const Icon(Icons.settings, color: Color(0xFF5D5D72)),
-            title: Text(
-              'Settings',
-              style: GoogleFonts.poppins(
-                color: const Color(0xFF5D5D72),
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            onTap: () {
-              Navigator.pushNamed(context, 'student-settings');
-            },
-          ),
-          ListTile(
             leading: const Icon(Icons.logout, color: Color(0xFF5D5D72)),
             title: Text(
               'Logout',

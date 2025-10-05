@@ -46,13 +46,12 @@ class _AppointmentChatState extends State<AppointmentChat> {
     try {
       if (widget.isCounselor) {
         // If we're a counselor, get the student's info
-        print('Target user ID (student): ${widget.appointment.userId}'); // Debug log
-        
+        print(
+            'Target user ID (student): ${widget.appointment.userId}'); // Debug log
+
         try {
           // Get student info using JOIN query
-          final studentResponse = await _supabase
-              .from('users')
-              .select('''
+          final studentResponse = await _supabase.from('users').select('''
                 username,
                 user_type,
                 students(
@@ -60,17 +59,16 @@ class _AppointmentChatState extends State<AppointmentChat> {
                   last_name,
                   student_code
                 )
-              ''')
-              .eq('user_id', widget.appointment.userId)
-              .maybeSingle();
-          
+              ''').eq('user_id', widget.appointment.userId).maybeSingle();
+
           if (studentResponse != null) {
             final studentData = studentResponse['students'];
-            if (studentData != null && 
-                studentData['first_name'] != null && 
+            if (studentData != null &&
+                studentData['first_name'] != null &&
                 studentData['last_name'] != null) {
               setState(() {
-                _otherUserName = '${studentData['first_name']} ${studentData['last_name']}';
+                _otherUserName =
+                    '${studentData['first_name']} ${studentData['last_name']}';
                 _otherUserRole = 'student';
               });
             } else {
@@ -84,7 +82,7 @@ class _AppointmentChatState extends State<AppointmentChat> {
         } catch (e) {
           print('Error fetching student info: $e');
         }
-        
+
         // Final fallback
         setState(() {
           _otherUserName = 'Unknown Student';
@@ -92,27 +90,30 @@ class _AppointmentChatState extends State<AppointmentChat> {
         });
       } else {
         // If we're a student, get the counselor's info
-        print('Looking for counselor with counselor_id: ${widget.appointment.counselorId}'); // Debug log
-        
+        print(
+            'Looking for counselor with counselor_id: ${widget.appointment.counselorId}'); // Debug log
+
         try {
           final counselorResponse = await _supabase
               .from('counselors')
               .select('user_id, first_name, last_name')
               .eq('counselor_id', widget.appointment.counselorId)
               .single();
-              
+
           print('Counselor response: $counselorResponse'); // Debug log
-          
+
           setState(() {
-            _otherUserName = '${counselorResponse['first_name']} ${counselorResponse['last_name']}';
+            _otherUserName =
+                '${counselorResponse['first_name']} ${counselorResponse['last_name']}';
             _otherUserRole = 'counselor';
           });
         } catch (e) {
           print('Error loading counselor info: $e');
-          
+
           // Fallback: use the counselor name from the appointment if available
           if (widget.appointment.counselorName != null) {
-            print('Using fallback counselor name: ${widget.appointment.counselorName}');
+            print(
+                'Using fallback counselor name: ${widget.appointment.counselorName}');
             setState(() {
               _otherUserName = widget.appointment.counselorName!;
               _otherUserRole = 'counselor';
@@ -204,21 +205,19 @@ class _AppointmentChatState extends State<AppointmentChat> {
       if (currentUserId == null) return;
 
       // Use the RPC function for reliable marking as read
-      final rpcResult = await _supabase
-          .rpc('mark_messages_read', params: {
-            'p_appointment_id': widget.appointment.id,
-            'p_user_id': currentUserId,
-          });
-      
+      final rpcResult = await _supabase.rpc('mark_messages_read', params: {
+        'p_appointment_id': widget.appointment.id,
+        'p_user_id': currentUserId,
+      });
+
       if (rpcResult != null && rpcResult > 0) {
-        print('Marked $rpcResult messages as read for ${widget.isCounselor ? "counselor" : "student"}');
+        print(
+            'Marked $rpcResult messages as read for ${widget.isCounselor ? "counselor" : "student"}');
       }
     } catch (e) {
       print('Error marking messages as read: $e');
     }
   }
-
-
 
   Future<void> _sendMessage() async {
     if (_messageController.text.trim().isEmpty) return;
@@ -236,7 +235,7 @@ class _AppointmentChatState extends State<AppointmentChat> {
 
     try {
       String targetUserId;
-      
+
       if (widget.isCounselor) {
         // If we're a counselor, use the student's user_id directly
         targetUserId = widget.appointment.userId;
@@ -245,63 +244,74 @@ class _AppointmentChatState extends State<AppointmentChat> {
         // This is more reliable than querying the counselors table
         if (_messages.isNotEmpty) {
           // Find a message where the current user is NOT the sender
-          final otherUserMessages = _messages.where(
-            (msg) => msg['sender_id'] != currentUser.id,
-          ).toList();
-          
+          final otherUserMessages = _messages
+              .where(
+                (msg) => msg['sender_id'] != currentUser.id,
+              )
+              .toList();
+
           if (otherUserMessages.isNotEmpty) {
             targetUserId = otherUserMessages.first['sender_id'];
           } else {
             // All messages are from current user, find receiver_id from our own messages
-            final ownMessages = _messages.where(
-              (msg) => msg['sender_id'] == currentUser.id,
-            ).toList();
-            
+            final ownMessages = _messages
+                .where(
+                  (msg) => msg['sender_id'] == currentUser.id,
+                )
+                .toList();
+
             if (ownMessages.isNotEmpty) {
               targetUserId = ownMessages.first['receiver_id'];
             } else {
-              throw Exception('Cannot determine target user from existing messages');
+              throw Exception(
+                  'Cannot determine target user from existing messages');
             }
           }
         } else {
           // No messages exist yet, try counselors table as fallback
           try {
-            print('Looking up counselor with ID: ${widget.appointment.counselorId}'); // Debug log
-            
+            print(
+                'Looking up counselor with ID: ${widget.appointment.counselorId}'); // Debug log
+
             // Try to get counselor's user_id from counselors table
             final counselorResponse = await _supabase
                 .from('counselors')
                 .select('user_id')
                 .eq('counselor_id', widget.appointment.counselorId);
-            
+
             print('Counselor query response: $counselorResponse'); // Debug log
-            
+
             if (counselorResponse.isNotEmpty) {
               targetUserId = counselorResponse.first['user_id'].toString();
               print('Found counselor user_id: $targetUserId'); // Debug log
             } else {
               // Alternative: try to get counselor info through appointment with join
-              print('No counselor found, trying alternative query...'); // Debug log
+              print(
+                  'No counselor found, trying alternative query...'); // Debug log
               final appointmentResponse = await _supabase
                   .from('counseling_appointments')
                   .select('counselor_id, counselors!inner(user_id)')
                   .eq('appointment_id', widget.appointment.id)
                   .single();
-              
+
               print('Appointment response: $appointmentResponse'); // Debug log
-              targetUserId = appointmentResponse['counselors']['user_id'].toString();
-              print('Found counselor user_id via appointment: $targetUserId'); // Debug log
+              targetUserId =
+                  appointmentResponse['counselors']['user_id'].toString();
+              print(
+                  'Found counselor user_id via appointment: $targetUserId'); // Debug log
             }
           } catch (e) {
             print('Error looking up counselor: $e'); // Debug log
             // If all lookups fail, we cannot send the message
-            throw Exception('Cannot determine counselor user ID. Please try again later. Error: $e');
+            throw Exception(
+                'Cannot determine counselor user ID. Please try again later. Error: $e');
           }
         }
       }
 
-      print('Sending message from ${currentUser.id} to $targetUserId for appointment ${widget.appointment.id}'); // Debug log
-      
+      print(
+          'Sending message from ${currentUser.id} to $targetUserId for appointment ${widget.appointment.id}'); // Debug log
+
       await _supabase.from('messages').insert({
         'appointment_id': widget.appointment.id,
         'sender_id': currentUser.id,
@@ -310,13 +320,13 @@ class _AppointmentChatState extends State<AppointmentChat> {
         'is_read': false,
         'message_type': 'text',
       });
-      
+
       print('Message sent successfully'); // Debug log
 
       _messageController.clear();
       // Explicitly reload messages to ensure the sent message appears immediately
       await _loadMessages();
-      
+
       // Mark messages as read after sending (in case it didn't work before)
       await _markMessagesAsRead();
     } catch (e) {
@@ -464,7 +474,6 @@ class _AppointmentChatState extends State<AppointmentChat> {
           ),
         ],
       ),
-
     );
   }
 }

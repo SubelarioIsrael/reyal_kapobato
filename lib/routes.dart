@@ -18,7 +18,6 @@ import 'pages/student/student_chatbot.dart';
 import 'pages/student/student_profile.dart';
 import 'pages/student/student_counselors.dart';
 import 'pages/student/student_appointments.dart';
-import 'pages/student/student_settings.dart';
 import 'pages/student/questionnaire_summary.dart';
 import 'pages/student/questionnaire_history.dart';
 import 'pages/student/student_daily_checkin.dart';
@@ -43,7 +42,6 @@ import 'pages/admin/admin_hotlines.dart';
 import 'pages/counselor/counselor_home.dart';
 import 'pages/counselor/counselor_settings.dart';
 import 'pages/counselor/student_history.dart';
-
 
 // page routes
 final Map<String, WidgetBuilder> appRoutes = {
@@ -87,10 +85,10 @@ final Map<String, WidgetBuilder> appRoutes = {
   'student-chatbot': (context) => const AuthGuard(child: StudentChatbot()),
   'student-counselors': (context) =>
       const AuthGuard(child: StudentCounselors()),
-  'student-contacts': (context) => const AuthGuard(child: StudentContactsPage()),
+  'student-contacts': (context) =>
+      const AuthGuard(child: StudentContactsPage()),
   'student-appointments': (context) =>
       const AuthGuard(child: StudentAppointments()),
-  'student-settings': (context) => const AuthGuard(child: StudentSettings()),
   '/student-daily-checkin': (context) =>
       const AuthGuard(child: StudentDailyCheckInPage()),
   'student-journal-entries': (context) =>
@@ -103,16 +101,19 @@ final Map<String, WidgetBuilder> appRoutes = {
         body: Center(child: Text('Error: Missing chat arguments')),
       );
     }
-    
+
     final appointmentId = args['appointmentId'] as int?;
     final counselorName = args['counselorName'] as String?;
-    
-    if (appointmentId == null || counselorName == null) {
+
+    if (appointmentId == null ||
+        counselorName == null ||
+        counselorName == null ||
+        counselorName.isEmpty) {
       return const Scaffold(
-        body: Center(child: Text('Error: Invalid chat arguments')),
+        body: Center(child: Text('Error: Invalid or missing chat arguments')),
       );
     }
-    
+
     // Create a dummy appointment object for the chat
     final appointment = Appointment(
       id: appointmentId,
@@ -124,7 +125,7 @@ final Map<String, WidgetBuilder> appRoutes = {
       status: 'accepted',
       counselorName: counselorName,
     );
-    
+
     return AuthGuard(
       child: AppointmentChat(
         appointment: appointment,
@@ -177,8 +178,10 @@ final Map<String, WidgetBuilder> appRoutes = {
   'admin-hotlines': (context) => const AuthGuard(child: AdminHotlines()),
 
   // counselor page routes
-  '/counselor-profile': (context) => const AuthGuard(child: CounselorProfileSetup()),
-  '/counselor-profile-setup': (context) => const AuthGuard(child: CounselorProfileSetup()),
+  '/counselor-profile': (context) =>
+      const AuthGuard(child: CounselorProfileSetup()),
+  '/counselor-profile-setup': (context) =>
+      const AuthGuard(child: CounselorProfileSetup()),
   'counselor-settings': (context) =>
       const AuthGuard(child: CounselorSettings()),
   '/student-history': (context) => AuthGuard(

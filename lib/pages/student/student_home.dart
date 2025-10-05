@@ -12,11 +12,8 @@ import '../../utils/responsive_utils.dart';
 // Assuming it's styled to match now
 
 class StudentHome extends StatefulWidget {
-  
   const StudentHome({super.key});
 
-
-  
   @override
   State<StudentHome> createState() => _StudentHomeState();
 }
@@ -90,7 +87,7 @@ class _StudentHomeState extends State<StudentHome> {
       icon: Icons.contact_emergency,
       image:
           'https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&w=400&q=80',
-      route: 'student-contacts', 
+      route: 'student-contacts',
     )
   ];
   final List<_FeatureCardData> _connectManage = [
@@ -189,12 +186,6 @@ class _StudentHomeState extends State<StudentHome> {
       isWeeklyMoodLoading = false;
     });
   }
-
-
-
-
-
-
 
   List<Map<String, dynamic>> getWeekDaysWithMood() {
     final today = DateTime.now();
@@ -701,16 +692,19 @@ class _FeatureCard extends StatelessWidget {
     // Special handling for Crisis Support card
     if (feature.title == 'Crisis Support') {
       return GestureDetector(
-        onTap: () => Navigator.pushNamed(context, 'student-contacts'), // Make sure this matches your routes.dart
+        onTap: () => Navigator.pushNamed(context,
+            'student-contacts'), // Make sure this matches your routes.dart
         child: Card(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           elevation: 2,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
                 child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(16)),
                   child: Image.network(
                     feature.image,
                     fit: BoxFit.cover,
@@ -741,7 +735,8 @@ class _FeatureCard extends StatelessWidget {
                         large: 20.0,
                       ),
                     ),
-                    SizedBox(width: ResponsiveUtils.getResponsiveSpacing(context)),
+                    SizedBox(
+                        width: ResponsiveUtils.getResponsiveSpacing(context)),
                     Expanded(
                       child: ResponsiveUtils.responsiveText(
                         context,
@@ -771,7 +766,8 @@ class _FeatureCard extends StatelessWidget {
 
     // Default for other cards
     return GestureDetector(
-      onTap: () => Navigator.pushNamed(context, feature.route), // This will use the route as defined in the card data
+      onTap: () => Navigator.pushNamed(context,
+          feature.route), // This will use the route as defined in the card data
       child: Card(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         elevation: 2,
@@ -780,7 +776,8 @@ class _FeatureCard extends StatelessWidget {
           children: [
             Expanded(
               child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(16)),
                 child: Image.network(
                   feature.image,
                   fit: BoxFit.cover,
@@ -811,7 +808,8 @@ class _FeatureCard extends StatelessWidget {
                       large: 20.0,
                     ),
                   ),
-                  SizedBox(width: ResponsiveUtils.getResponsiveSpacing(context)),
+                  SizedBox(
+                      width: ResponsiveUtils.getResponsiveSpacing(context)),
                   Expanded(
                     child: ResponsiveUtils.responsiveText(
                       context,
