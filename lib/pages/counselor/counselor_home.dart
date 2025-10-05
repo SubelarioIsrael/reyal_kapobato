@@ -3,6 +3,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/appointment.dart';
 import '../chat/appointment_chat.dart';
+import 'all_appointments.dart';
+import 'student_history_list.dart';
+import 'counselor_chat_list.dart';
+import 'video_call_dialog.dart';
+import '../debug/chat_debug_page.dart';
 
 class CounselorHome extends StatefulWidget {
   const CounselorHome({super.key});
@@ -886,7 +891,12 @@ class _CounselorHomeState extends State<CounselorHome> {
                 Icons.calendar_today,
                 Colors.blue,
                 () {
-                  // Navigate to appointments page
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AllAppointments(),
+                    ),
+                  );
                 },
               ),
             ),
@@ -897,7 +907,46 @@ class _CounselorHomeState extends State<CounselorHome> {
                 Icons.history,
                 Colors.purple,
                 () {
-                  // Navigate to student history
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const StudentHistoryList(),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildQuickActionCard(
+                'Student Chats',
+                Icons.chat_bubble_outline,
+                Colors.green,
+                () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const CounselorChatList(),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildQuickActionCard(
+                'Video Calls',
+                Icons.video_call,
+                Colors.orange,
+                () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => const VideoCallDialog(),
+                  );
                 },
               ),
             ),

@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/appointment.dart';
 import '../../services/counselor_service.dart';
 
 import '../../components/student_drawer.dart';
 import '../../components/student_notification_button.dart';
 
-import '../call/call.dart'; // Add this import (adjust path if needed)
+import '../call/call.dart';
 
 class StudentAppointments extends StatefulWidget {
   const StudentAppointments({super.key});
@@ -230,14 +231,95 @@ class _StudentAppointmentsState extends State<StudentAppointments> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => CallPage(callID: callIdController.text),
-                ),
-              );
+            onPressed: () async {
+              final callCode = callIdController.text.trim();
+              if (callCode.isEmpty) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please enter a call code'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+                return;
+              }
+              
+              // Get current user information
+              final user = Supabase.instance.client.auth.currentUser;
+              if (user != null) {
+                try {
+                  // Check if call code exists and is active
+                  final existingCall = await Supabase.instance.client
+                      .from('video_calls')
+                      .select()
+                      .eq('call_code', callCode)
+                      .eq('status', 'active')
+                      .maybeSingle();
+
+                  if (existingCall == null) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Call code does not exist or has expired'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                    return;
+                  }
+
+                  // Update the call to include student information
+                  await Supabase.instance.client
+                      .from('video_calls')
+                      .update({
+                        'student_user_id': user.id,
+                        'student_joined_at': DateTime.now().toIso8601String(),
+                      })
+                      .eq('call_code', callCode);
+
+                  // Try to get student info for display name
+                  String userName = user.email ?? 'Student';
+                  final studentData = await Supabase.instance.client
+                      .from('students')
+                      .select('first_name, last_name')
+                      .eq('user_id', user.id)
+                      .maybeSingle();
+                  
+                  if (studentData != null && 
+                      studentData['first_name'] != null && 
+                      studentData['last_name'] != null) {
+                    userName = '${studentData['first_name']} ${studentData['last_name']}';
+                  }
+                  
+                  // Close dialog first, then navigate
+                  Navigator.pop(context);
+                  
+                  // Join the video call
+                  if (mounted) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => CallPage(
+                          callID: callCode,
+                          userID: user.id,
+                          userName: userName,
+                        ),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  // Check if widget is still mounted before showing SnackBar
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error joining call: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              }
             },
             child: const Text('Join Call'),
           ),
