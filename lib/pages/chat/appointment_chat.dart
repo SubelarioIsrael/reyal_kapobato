@@ -44,89 +44,93 @@ class _AppointmentChatState extends State<AppointmentChat> {
 
   Future<void> _loadOtherUserInfo() async {
     try {
-      String targetUserId;
-      
       if (widget.isCounselor) {
-        // If we're a counselor, use the student's user_id directly
-        targetUserId = widget.appointment.userId;
-        print('Target user ID (student): $targetUserId'); // Debug log
+        // If we're a counselor, get the student's info
+        print('Target user ID (student): ${widget.appointment.userId}'); // Debug log
+        
+        try {
+          // Get student info using JOIN query
+          final studentResponse = await _supabase
+              .from('users')
+              .select('''
+                username,
+                user_type,
+                students(
+                  first_name,
+                  last_name,
+                  student_code
+                )
+              ''')
+              .eq('user_id', widget.appointment.userId)
+              .maybeSingle();
+          
+          if (studentResponse != null) {
+            final studentData = studentResponse['students'];
+            if (studentData != null && 
+                studentData['first_name'] != null && 
+                studentData['last_name'] != null) {
+              setState(() {
+                _otherUserName = '${studentData['first_name']} ${studentData['last_name']}';
+                _otherUserRole = 'student';
+              });
+            } else {
+              setState(() {
+                _otherUserName = studentResponse['username'] ?? 'Unknown User';
+                _otherUserRole = studentResponse['user_type'] ?? 'student';
+              });
+            }
+            return;
+          }
+        } catch (e) {
+          print('Error fetching student info: $e');
+        }
+        
+        // Final fallback
+        setState(() {
+          _otherUserName = 'Unknown Student';
+          _otherUserRole = 'student';
+        });
       } else {
-        // If we're a student, get the counselor's user_id from the counselors table
+        // If we're a student, get the counselor's info
         print('Looking for counselor with counselor_id: ${widget.appointment.counselorId}'); // Debug log
         
-        final counselorResponse = await _supabase
-            .from('counselors')
-            .select('user_id, first_name, last_name')
-            .eq('counselor_id', widget.appointment.counselorId)
-            .single();
-            
-        print('Counselor response: $counselorResponse'); // Debug log
-        targetUserId = counselorResponse['user_id'].toString();
-        
-        // Use counselor name directly from counselors table if available
-        if (counselorResponse['first_name'] != null && counselorResponse['last_name'] != null) {
+        try {
+          final counselorResponse = await _supabase
+              .from('counselors')
+              .select('user_id, first_name, last_name')
+              .eq('counselor_id', widget.appointment.counselorId)
+              .single();
+              
+          print('Counselor response: $counselorResponse'); // Debug log
+          
           setState(() {
             _otherUserName = '${counselorResponse['first_name']} ${counselorResponse['last_name']}';
             _otherUserRole = 'counselor';
           });
-          return; // Skip the users table query since we have the info we need
+        } catch (e) {
+          print('Error loading counselor info: $e');
+          
+          // Fallback: use the counselor name from the appointment if available
+          if (widget.appointment.counselorName != null) {
+            print('Using fallback counselor name: ${widget.appointment.counselorName}');
+            setState(() {
+              _otherUserName = widget.appointment.counselorName!;
+              _otherUserRole = 'counselor';
+            });
+          } else {
+            setState(() {
+              _otherUserName = 'Unknown Counselor';
+              _otherUserRole = 'counselor';
+            });
+          }
         }
       }
-
-      print('Attempting to load user info from users table for ID: $targetUserId'); // Debug log
-
-      // Try different possible column names for the users table
-      var userResponse;
-      try {
-        // First try with 'id' column
-        userResponse = await _supabase
-            .from('users')
-            .select('username, user_type, first_name, last_name')
-            .eq('id', targetUserId)
-            .single();
-      } catch (e1) {
-        print('Failed with id column: $e1'); // Debug log
-        try {
-          // Try with 'user_id' column
-          userResponse = await _supabase
-              .from('users')
-              .select('username, user_type, first_name, last_name')
-              .eq('user_id', targetUserId)
-              .single();
-        } catch (e2) {
-          print('Failed with user_id column: $e2'); // Debug log
-          throw Exception('Could not find user with either id or user_id: $targetUserId');
-        }
-      }
-
-      print('User response: $userResponse'); // Debug log
-
-      setState(() {
-        if (userResponse['first_name'] != null && userResponse['last_name'] != null) {
-          _otherUserName = '${userResponse['first_name']} ${userResponse['last_name']}';
-        } else {
-          _otherUserName = userResponse['username'] ?? 'Unknown User';
-        }
-        _otherUserRole = userResponse['user_type'] ?? 'user';
-      });
     } catch (e) {
       print('Error loading other user info: $e');
-      
-      // Fallback: use the counselor name from the appointment if available
-      if (!widget.isCounselor && widget.appointment.counselorName != null) {
-        print('Using fallback counselor name: ${widget.appointment.counselorName}');
-        setState(() {
-          _otherUserName = widget.appointment.counselorName!;
-          _otherUserRole = 'counselor';
-        });
-      } else {
-        setState(() {
-          _otherUserName = 'Unknown User';
-          _otherUserRole = 'user';
-        });
-      }
-      
-      // Fallback is working correctly, no need to show user a confusing message
+      setState(() {
+        _otherUserName = 'Unknown User';
+        _otherUserRole = 'user';
+      });
     }
   }
 
@@ -172,10 +176,8 @@ class _AppointmentChatState extends State<AppointmentChat> {
         _isLoading = false;
       });
 
-      // Mark messages as read for students when they open the chat
-      if (!widget.isCounselor) {
-        await _markMessagesAsReadForStudent();
-      }
+      // Mark messages as read when they open the chat
+      await _markMessagesAsRead();
 
       // Scroll to bottom after messages load
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -196,7 +198,7 @@ class _AppointmentChatState extends State<AppointmentChat> {
     }
   }
 
-  Future<void> _markMessagesAsReadForStudent() async {
+  Future<void> _markMessagesAsRead() async {
     try {
       final currentUserId = _supabase.auth.currentUser?.id;
       if (currentUserId == null) return;
@@ -209,7 +211,7 @@ class _AppointmentChatState extends State<AppointmentChat> {
           });
       
       if (rpcResult != null && rpcResult > 0) {
-        print('Marked $rpcResult messages as read');
+        print('Marked $rpcResult messages as read for ${widget.isCounselor ? "counselor" : "student"}');
       }
     } catch (e) {
       print('Error marking messages as read: $e');
@@ -316,9 +318,7 @@ class _AppointmentChatState extends State<AppointmentChat> {
       await _loadMessages();
       
       // Mark messages as read after sending (in case it didn't work before)
-      if (!widget.isCounselor) {
-        await _markMessagesAsReadForStudent();
-      }
+      await _markMessagesAsRead();
     } catch (e) {
       print('Error sending message: $e'); // Debug log
       if (mounted) {

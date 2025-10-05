@@ -20,7 +20,7 @@ class _SignUpPageState extends State<SignUpPage> {
   final _studentIdController = TextEditingController();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
-  String? _selectedEducationLevel; // 'college' or 'basic_education'
+  String? _selectedEducationLevel; // 'basic_education', 'junior_high', 'senior_high', or 'college'
   String? _selectedCourse;
   String? _selectedStrand;
   final _yearLevelController = TextEditingController();
@@ -129,54 +129,94 @@ class _SignUpPageState extends State<SignUpPage> {
 
         final user = authResponse.user;
 
-        if (user != null) {
-          // Insert into the 'users' table
-          await Supabase.instance.client.from('users').insert({
-            'user_id': user.id,
-            'username': username,
-            'email': email,
-            'registration_date': DateTime.now().toIso8601String(),
-            'user_type': 'student',
-            'status': 'active',
-          });
+        // Check if auth was successful but user is null (shouldn't happen but better to be safe)
+        if (user == null) {
+          _showErrorDialog(
+            'Registration Failed', 
+            'Account creation failed. Please try again.'
+          );
+          return;
+        }
 
-          // Prepare student data
-          Map<String, dynamic> studentData = {
-            'user_id': user.id,
-            'student_code': studentCode,
-            'first_name': _firstNameController.text.trim(),
-            'last_name': _lastNameController.text.trim(),
-            'year_level': int.tryParse(_yearLevelController.text.trim()),
-          };
+        // Check if user already exists in our users table (to prevent duplicates)
+          final existingUser = await Supabase.instance.client
+              .from('users')
+              .select('user_id')
+              .eq('user_id', user.id)
+              .maybeSingle();
 
-          // Add education-specific fields
-          if (_selectedEducationLevel == 'college') {
-            studentData['course'] = _selectedCourse;
-            studentData['strand'] = null;
-          } else if (_selectedEducationLevel == 'basic_education') {
-            studentData['course'] = null;
-            if (_selectedStrand == 'Not Applicable') {
-              studentData['strand'] = null;
-            } else {
-              studentData['strand'] = _selectedStrand;
-            }
+          if (existingUser == null) {
+            // Insert into the 'users' table only if not exists
+            await Supabase.instance.client.from('users').insert({
+              'user_id': user.id,
+              'username': username,
+              'email': email,
+              'registration_date': DateTime.now().toIso8601String(),
+              'user_type': 'student',
+              'status': 'active',
+            });
           }
 
-          // Insert into the 'students' table
-          await Supabase.instance.client.from('students').insert(studentData);
+          // Check if student record already exists (to prevent duplicates)
+          final existingStudent = await Supabase.instance.client
+              .from('students')
+              .select('user_id')
+              .eq('user_id', user.id)
+              .maybeSingle();
+
+          if (existingStudent == null) {
+            // Prepare student data
+            Map<String, dynamic> studentData = {
+              'user_id': user.id,
+              'student_code': studentCode,
+              'first_name': _firstNameController.text.trim(),
+              'last_name': _lastNameController.text.trim(),
+              'year_level': int.tryParse(_yearLevelController.text.trim()),
+            };
+
+            // Add education-specific fields based on education level
+            if (_selectedEducationLevel == 'college') {
+              studentData['education_level'] = 'college';
+              studentData['course'] = _selectedCourse;
+              studentData['strand'] = null;
+            } else if (_selectedEducationLevel == 'senior_high') {
+              studentData['education_level'] = 'senior_high';
+              studentData['course'] = null;
+              studentData['strand'] = _selectedStrand;
+            } else if (_selectedEducationLevel == 'junior_high') {
+              studentData['education_level'] = 'junior_high';
+              studentData['course'] = null;
+              studentData['strand'] = null;
+            } else if (_selectedEducationLevel == 'basic_education') {
+              studentData['education_level'] = 'basic_education';
+              studentData['course'] = null;
+              studentData['strand'] = null;
+            }
+
+            // Insert into the 'students' table
+            await Supabase.instance.client.from('students').insert(studentData);
+          }
 
           // Show success and email verification dialog
           _showSuccessDialog();
-        }
+        
       } on AuthException catch (e) {
         print('Supabase Auth error: ${e.message}');
         String errorMessage = 'Registration failed. Please try again.';
-        if (e.message.contains('email')) {
+        
+        if (e.message.contains('For security purposes, you can only request this after')) {
+          // Rate limiting error
+          final match = RegExp(r'after (\d+) seconds?').firstMatch(e.message);
+          final seconds = match?.group(1) ?? '13';
+          errorMessage = 'Please wait $seconds seconds before trying to register again.';
+        } else if (e.message.contains('email')) {
           errorMessage = 'Invalid email address or email already in use.';
         } else if (e.message.contains('password')) {
-          errorMessage =
-              'Password is too weak. Please use a stronger password.';
+          errorMessage = 'Password is too weak. Please use a stronger password.';
+        } else if (e.message.contains('User already registered')) {
+          errorMessage = 'An account with this email already exists. Please use a different email or try signing in.';
         }
+        
         _showErrorDialog('Registration Failed', errorMessage);
       } catch (e) {
         print('Phase 2 signup error: $e');
@@ -196,6 +236,21 @@ class _SignUpPageState extends State<SignUpPage> {
     setState(() {
       _currentPhase = 1;
     });
+  }
+
+  String _getYearLevelHint() {
+    switch (_selectedEducationLevel) {
+      case 'basic_education':
+        return 'Grade Level (1-6)';
+      case 'junior_high':
+        return 'Grade Level (7-10)';
+      case 'senior_high':
+        return 'Grade Level (11-12)';
+      case 'college':
+        return 'Year Level (1-4)';
+      default:
+        return 'Select Education Level First';
+    }
   }
 
   void _showErrorDialog(String title, String message) {
@@ -561,7 +616,6 @@ class _SignUpPageState extends State<SignUpPage> {
       'HUMSS (Humanities and Social Sciences)',
       'GAS (General Academic Strand)',
       'TVL (Technical-Vocational-Livelihood)',
-      'Not Applicable', // For non-senior high students
     ];
 
     return Column(
@@ -661,12 +715,20 @@ class _SignUpPageState extends State<SignUpPage> {
           ),
           items: const [
             DropdownMenuItem(
-              value: 'college',
-              child: Text('College'),
+              value: 'basic_education',
+              child: Text('Basic Education (Grades 1-6)'),
             ),
             DropdownMenuItem(
-              value: 'basic_education',
-              child: Text('Basic Education (K-12)'),
+              value: 'junior_high',
+              child: Text('Junior High School (Grades 7-10)'),
+            ),
+            DropdownMenuItem(
+              value: 'senior_high',
+              child: Text('Senior High School (Grades 11-12)'),
+            ),
+            DropdownMenuItem(
+              value: 'college',
+              child: Text('College'),
             ),
           ],
           onChanged: (value) {
@@ -725,7 +787,7 @@ class _SignUpPageState extends State<SignUpPage> {
             isExpanded: true,
           ),
 
-        if (_selectedEducationLevel == 'basic_education')
+        if (_selectedEducationLevel == 'senior_high')
           DropdownButtonFormField<String>(
             value: _selectedStrand,
             style: GoogleFonts.poppins(color: Colors.black87),
@@ -762,7 +824,9 @@ class _SignUpPageState extends State<SignUpPage> {
                 _selectedStrand = value;
               });
             },
-            validator: (value) => null, // Strand is optional
+            validator: (value) => _selectedEducationLevel == 'senior_high' && (value == null || value.isEmpty) 
+                ? 'Please select a strand for Senior High School' 
+                : null,
             isExpanded: true,
           ),
 
@@ -774,9 +838,7 @@ class _SignUpPageState extends State<SignUpPage> {
           keyboardType: TextInputType.number,
           style: GoogleFonts.poppins(),
           decoration: InputDecoration(
-            hintText: _selectedEducationLevel == 'college'
-                ? 'Year Level (1-4)'
-                : 'Grade/Year Level (1-12)',
+            hintText: _getYearLevelHint(),
             hintStyle: GoogleFonts.poppins(color: Colors.grey.shade500),
             prefixIcon:
                 const Icon(Icons.calendar_today, color: Color(0xFF7C83FD)),
@@ -799,14 +861,31 @@ class _SignUpPageState extends State<SignUpPage> {
             if (yearLevel == null) {
               return 'Please enter a valid number';
             }
-            if (_selectedEducationLevel == 'college') {
-              if (yearLevel < 1 || yearLevel > 4) {
-                return 'College year level must be between 1 and 4';
-              }
-            } else {
-              if (yearLevel < 1 || yearLevel > 12) {
-                return 'Grade level must be between 1 and 12';
-              }
+            
+            // Validate based on selected education level
+            switch (_selectedEducationLevel) {
+              case 'basic_education':
+                if (yearLevel < 1 || yearLevel > 6) {
+                  return 'Basic Education grade level must be between 1 and 6';
+                }
+                break;
+              case 'junior_high':
+                if (yearLevel < 7 || yearLevel > 10) {
+                  return 'Junior High grade level must be between 7 and 10';
+                }
+                break;
+              case 'senior_high':
+                if (yearLevel < 11 || yearLevel > 12) {
+                  return 'Senior High grade level must be between 11 and 12';
+                }
+                break;
+              case 'college':
+                if (yearLevel < 1 || yearLevel > 4) {
+                  return 'College year level must be between 1 and 4';
+                }
+                break;
+              default:
+                return 'Please select an education level first';
             }
             return null;
           },
