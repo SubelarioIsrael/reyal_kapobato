@@ -20,9 +20,9 @@ class StudentHome extends StatefulWidget {
 
 class _StudentHomeState extends State<StudentHome> {
   final textEditingController = TextEditingController();
-  String? username;
+  String? studentName;
   bool isLoading = true;
-  StreamSubscription? _usernameSubscription;
+  StreamSubscription? _studentNameSubscription;
   int _selectedIndex = 1;
   final _refreshKey = GlobalKey<RefreshIndicatorState>();
 
@@ -110,8 +110,8 @@ class _StudentHomeState extends State<StudentHome> {
   @override
   void initState() {
     super.initState();
-    _loadUsername();
-    _listenToUsernameChanges();
+    _loadStudentName();
+    _listenToStudentNameChanges();
     _fetchTodayCheckIn();
     _fetchWeeklyMood();
     _loadTodayProgress();
@@ -127,26 +127,26 @@ class _StudentHomeState extends State<StudentHome> {
 
   @override
   void dispose() {
-    _usernameSubscription?.cancel();
+    _studentNameSubscription?.cancel();
     super.dispose();
   }
 
-  void _listenToUsernameChanges() {
-    _usernameSubscription = UserService.usernameStream.listen((newUsername) {
+  void _listenToStudentNameChanges() {
+    _studentNameSubscription = UserService.studentNameStream.listen((newStudentName) {
       if (mounted) {
         setState(() {
-          username = newUsername;
+          studentName = newStudentName;
           isLoading = false;
         });
       }
     });
   }
 
-  Future<void> _loadUsername() async {
-    final name = await UserService.getUsername();
+  Future<void> _loadStudentName() async {
+    final name = await UserService.getStudentName();
     if (mounted) {
       setState(() {
-        username = name;
+        studentName = name;
         isLoading = false;
       });
     }
@@ -487,7 +487,7 @@ class _StudentHomeState extends State<StudentHome> {
                   Text(
                     isLoading
                         ? "Loading..."
-                        : "Hi, ${(username ?? '').isNotEmpty ? username![0].toUpperCase() + username!.substring(1) : ''}!",
+                        : "Hi, ${studentName ?? ''}!",
                     style: GoogleFonts.poppins(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,

@@ -283,7 +283,7 @@ class _StudentJournalEntriesState extends State<StudentJournalEntries> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          "Journal Entries",
+          "Mood Journal",
           style: GoogleFonts.poppins(
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -405,7 +405,7 @@ class _StudentJournalEntriesState extends State<StudentJournalEntries> {
                                   _searchQuery.isNotEmpty ||
                                           _selectedFilter != 'all'
                                       ? 'No entries match your search'
-                                      : 'No journal entries yet',
+                                      : 'No mood journal entries yet',
                                   style: GoogleFonts.poppins(
                                     fontSize: 16,
                                     color: Colors.grey[600],
@@ -415,7 +415,7 @@ class _StudentJournalEntriesState extends State<StudentJournalEntries> {
                                     _selectedFilter == 'all') ...[
                                   const SizedBox(height: 8),
                                   Text(
-                                    'Start writing in your mood journal!',
+                                    'Tap the "Write Entry" button to get started!',
                                     style: GoogleFonts.poppins(
                                       fontSize: 14,
                                       color: Colors.grey[500],
@@ -436,6 +436,23 @@ class _StudentJournalEntriesState extends State<StudentJournalEntries> {
                   ),
                 ],
               ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.pushNamed(context, 'student-mood-journal-write').then((_) {
+            // Refresh the journal entries when returning from writing
+            _loadJournalEntries();
+          });
+        },
+        backgroundColor: const Color(0xFF7C83FD),
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.add),
+        label: Text(
+          'Write Entry',
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
     );
   }

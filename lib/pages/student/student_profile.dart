@@ -39,16 +39,30 @@ class _StudentProfileState extends State<StudentProfile> {
     if (userId == null) return;
 
     try {
-      final response = await Supabase.instance.client
+      // Get user profile data
+      final userResponse = await Supabase.instance.client
           .from('users')
           .select()
           .eq('user_id', userId)
           .single();
 
+      // Get student data
+      final studentResponse = await Supabase.instance.client
+          .from('students')
+          .select('first_name, last_name')
+          .eq('user_id', userId)
+          .maybeSingle();
+
       if (mounted) {
         setState(() {
-          userProfile = response;
-          _nameController.text = response['username'] ?? '';
+          userProfile = userResponse;
+          if (studentResponse != null && 
+              studentResponse['first_name'] != null && 
+              studentResponse['last_name'] != null) {
+            _nameController.text = '${studentResponse['first_name']} ${studentResponse['last_name']}';
+          } else {
+            _nameController.text = userResponse['email'] ?? '';
+          }
           isLoading = false;
         });
       }
@@ -128,7 +142,13 @@ class _StudentProfileState extends State<StudentProfile> {
       final userId = Supabase.instance.client.auth.currentUser?.id;
       if (userId == null) return;
 
-      await UserService.updateUsername(_nameController.text.trim());
+      // Parse first name and last name from the input
+      final fullName = _nameController.text.trim();
+      final nameParts = fullName.split(' ');
+      final firstName = nameParts.isNotEmpty ? nameParts.first : '';
+      final lastName = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
+      
+      await UserService.updateStudentName(firstName, lastName);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -200,9 +220,9 @@ class _StudentProfileState extends State<StudentProfile> {
                                 : null,
                             child: userProfile?['profile_picture'] == null || userProfile!['profile_picture'].toString().isEmpty
                                 ? Text(
-                                    userProfile?['username']?.toString().isNotEmpty == true
-                                        ? userProfile!['username'][0].toUpperCase()
-                                        : 'U',
+                                    _nameController.text.isNotEmpty
+                                        ? _nameController.text[0].toUpperCase()
+                                        : 'S',
                                     style: GoogleFonts.poppins(
                                       fontSize: 32,
                                       fontWeight: FontWeight.bold,

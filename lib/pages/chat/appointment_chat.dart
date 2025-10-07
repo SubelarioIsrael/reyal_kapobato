@@ -50,33 +50,42 @@ class _AppointmentChatState extends State<AppointmentChat> {
             'Target user ID (student): ${widget.appointment.userId}'); // Debug log
 
         try {
-          // Get student info using JOIN query
-          final studentResponse = await _supabase.from('users').select('''
-                username,
-                user_type,
-                students(
-                  first_name,
-                  last_name,
-                  student_code
-                )
-              ''').eq('user_id', widget.appointment.userId).maybeSingle();
+          // First try to get student info directly from students table
+          final studentResponse = await _supabase
+              .from('students')
+              .select('first_name, last_name, student_code')
+              .eq('user_id', widget.appointment.userId)
+              .maybeSingle();
 
-          if (studentResponse != null) {
-            final studentData = studentResponse['students'];
-            if (studentData != null &&
-                studentData['first_name'] != null &&
-                studentData['last_name'] != null) {
-              setState(() {
-                _otherUserName =
-                    '${studentData['first_name']} ${studentData['last_name']}';
-                _otherUserRole = 'student';
-              });
-            } else {
-              setState(() {
-                _otherUserName = studentResponse['username'] ?? 'Unknown User';
-                _otherUserRole = studentResponse['user_type'] ?? 'student';
-              });
+          if (studentResponse != null &&
+              studentResponse['first_name'] != null &&
+              studentResponse['last_name'] != null) {
+            // Helper function to properly capitalize names (keeps internal capitals)
+            String formatName(String name) {
+              if (name.isEmpty) return name;
+              return name[0].toUpperCase() + name.substring(1);
             }
+            
+            setState(() {
+              _otherUserName =
+                  '${formatName(studentResponse['first_name'])} ${formatName(studentResponse['last_name'])}';
+              _otherUserRole = 'student';
+            });
+            return;
+          }
+
+          // Fallback to email if student info not found
+          final userResponse = await _supabase
+              .from('users')
+              .select('email, user_type')
+              .eq('user_id', widget.appointment.userId)
+              .maybeSingle();
+
+          if (userResponse != null) {
+            setState(() {
+              _otherUserName = userResponse['email'] ?? 'Unknown User';
+              _otherUserRole = userResponse['user_type'] ?? 'student';
+            });
             return;
           }
         } catch (e) {
@@ -166,14 +175,75 @@ class _AppointmentChatState extends State<AppointmentChat> {
 
       final response = await _supabase
           .from('messages')
-          .select('*, users!messages_sender_id_fkey(username)')
+          .select('*')
           .eq('appointment_id', widget.appointment.id)
           .order('created_at', ascending: true);
 
       print('Messages response: $response'); // Debug log
 
+      // Get all unique sender IDs
+      final senderIds = response.map((msg) => msg['sender_id']).toSet().toList();
+      
+      // Create a map to store sender names
+      Map<String, String> senderNames = {};
+      
+      if (senderIds.isNotEmpty) {
+        // Get student names in one query
+        try {
+          final studentsResponse = await _supabase
+              .from('students')
+              .select('user_id, first_name, last_name')
+              .inFilter('user_id', senderIds);
+              
+          for (var student in studentsResponse) {
+            final firstName = student['first_name'] ?? '';
+            final lastName = student['last_name'] ?? '';
+            final fullName = '$firstName $lastName'.trim();
+            senderNames[student['user_id']] = fullName.isNotEmpty ? fullName : 'Student';
+          }
+        } catch (e) {
+          print('Error fetching student names: $e');
+        }
+        
+        // Get counselor names in one query
+        try {
+          final counselorsResponse = await _supabase
+              .from('counselors')
+              .select('user_id, first_name, last_name')
+              .inFilter('user_id', senderIds);
+              
+          for (var counselor in counselorsResponse) {
+            final firstName = counselor['first_name'] ?? '';
+            final lastName = counselor['last_name'] ?? '';
+            final fullName = '$firstName $lastName'.trim();
+            senderNames[counselor['user_id']] = fullName.isNotEmpty ? 'Dr. $fullName' : 'Counselor';
+          }
+        } catch (e) {
+          print('Error fetching counselor names: $e');
+        }
+      }
+
+      // Enrich messages with sender names
+      List<Map<String, dynamic>> enrichedMessages = [];
+      for (var message in response) {
+        final senderId = message['sender_id'];
+        String senderName;
+        
+        // Check if sender is current user
+        if (senderId == _supabase.auth.currentUser?.id) {
+          senderName = 'You';
+        } else {
+          senderName = senderNames[senderId] ?? 'Unknown';
+        }
+        
+        // Add sender name to message
+        Map<String, dynamic> enrichedMessage = Map<String, dynamic>.from(message);
+        enrichedMessage['sender_name'] = senderName;
+        enrichedMessages.add(enrichedMessage);
+      }
+
       setState(() {
-        _messages = List<Map<String, dynamic>>.from(response);
+        _messages = enrichedMessages;
         _isLoading = false;
       });
 
@@ -422,10 +492,7 @@ class _AppointmentChatState extends State<AppointmentChat> {
                                 isMe: isMe,
                                 timestamp:
                                     DateTime.parse(message['created_at']),
-                                senderName: isMe
-                                    ? 'You'
-                                    : message['users']?['username'] ??
-                                        'Unknown',
+                                senderName: message['sender_name'] ?? 'Unknown',
                               );
                             },
                           ),

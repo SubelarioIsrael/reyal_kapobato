@@ -12,7 +12,6 @@ class SignUpPage extends StatefulWidget {
 class _SignUpPageState extends State<SignUpPage> {
   // Phase 1 - Login Info
   final _emailController = TextEditingController();
-  final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
@@ -42,7 +41,6 @@ class _SignUpPageState extends State<SignUpPage> {
       try {
         // Check for duplicates without creating account yet
         final email = _emailController.text.trim();
-        final username = _usernameController.text.trim();
 
         // Check email in users table
         final emailExists = await Supabase.instance.client
@@ -51,21 +49,10 @@ class _SignUpPageState extends State<SignUpPage> {
             .eq('email', email)
             .maybeSingle();
 
-        // Check username in users table
-        final usernameExists = await Supabase.instance.client
-            .from('users')
-            .select('user_id')
-            .eq('username', username)
-            .maybeSingle();
-
-        if (emailExists != null || usernameExists != null) {
-          List<String> takenFields = [];
-          if (emailExists != null) takenFields.add('Email');
-          if (usernameExists != null) takenFields.add('Username');
-
+        if (emailExists != null) {
           _showErrorDialog(
             'Account Already Exists',
-            'The following fields are already taken:\n• ${takenFields.join('\n• ')}\n\nPlease use different information.',
+            'An account with this email address already exists. Please use a different email address.',
           );
           setState(() {
             _isLoading = false;
@@ -100,7 +87,6 @@ class _SignUpPageState extends State<SignUpPage> {
 
       try {
         final email = _emailController.text.trim();
-        final username = _usernameController.text.trim();
         final studentCode = _studentIdController.text.trim();
 
         // Check if student_code already exists
@@ -149,7 +135,6 @@ class _SignUpPageState extends State<SignUpPage> {
             // Insert into the 'users' table only if not exists
             await Supabase.instance.client.from('users').insert({
               'user_id': user.id,
-              'username': username,
               'email': email,
               'registration_date': DateTime.now().toIso8601String(),
               'user_type': 'student',
@@ -466,39 +451,6 @@ class _SignUpPageState extends State<SignUpPage> {
             return emailRegex.hasMatch(value)
                 ? null
                 : 'Please enter a valid email address';
-          },
-        ),
-        const SizedBox(height: 16),
-
-        // Username Field
-        TextFormField(
-          key: const Key('signup_name'),
-          controller: _usernameController,
-          style: GoogleFonts.poppins(),
-          decoration: InputDecoration(
-            hintText: 'Username',
-            hintStyle: GoogleFonts.poppins(color: Colors.grey.shade500),
-            prefixIcon:
-                const Icon(Icons.person_outline, color: Color(0xFF7C83FD)),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFF7C83FD), width: 2),
-            ),
-            filled: true,
-            fillColor: Colors.grey.shade50,
-          ),
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'Please enter a username';
-            }
-            if (value.length < 3) {
-              return 'Username must be at least 3 characters';
-            }
-            return null;
           },
         ),
         const SizedBox(height: 16),

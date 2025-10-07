@@ -7,13 +7,13 @@ import 'dart:io';
 
 class StudentHistory extends StatefulWidget {
   final String userId;
-  final String username;
+  final String studentName;
   final String studentId;
 
   const StudentHistory({
     super.key,
     required this.userId,
-    required this.username,
+    required this.studentName,
     required this.studentId,
   });
 
@@ -122,7 +122,7 @@ class _StudentHistoryState extends State<StudentHistory>
           pw.Header(
               level: 0,
               text:
-                  'Student Report: ${widget.username} (ID: ${widget.studentId})'),
+                  'Student Report: ${widget.studentName} (ID: ${widget.studentId})'),
           pw.Header(level: 1, text: 'Journal Entries'),
           if (_journalEntries.isEmpty)
             pw.Text('No shared journal entries.')
@@ -232,7 +232,7 @@ class _StudentHistoryState extends State<StudentHistory>
       }
 
       final file = File(
-          '$customDownloadsPath/student_report_${widget.username.replaceAll(' ', '_')}.pdf');
+          '$customDownloadsPath/student_report_${widget.studentName.replaceAll(' ', '_')}.pdf');
 
       // Write the PDF bytes to the file
       await file.writeAsBytes(await pdf.save());
@@ -257,13 +257,13 @@ class _StudentHistoryState extends State<StudentHistory>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('${widget.username}\'s History'),
+        title: Text('${widget.studentName}\'s History'),
         actions: [
           IconButton(
             icon: const Icon(Icons.download),
             onPressed: () => _showDownloadConfirmation(
                 'Student Report',
-                'Do you want to download the report for ${widget.username}?',
+                'Do you want to download the report for ${widget.studentName}?',
                 _generateReportPdf),
             tooltip: 'Download Report',
           ),

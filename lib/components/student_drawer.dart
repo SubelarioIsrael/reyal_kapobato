@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/user_service.dart';
 
 class StudentDrawer extends StatefulWidget {
   const StudentDrawer({super.key});
@@ -10,37 +11,28 @@ class StudentDrawer extends StatefulWidget {
 }
 
 class _StudentDrawerState extends State<StudentDrawer> {
-  final _supabase = Supabase.instance.client;
-  String _username = '';
+  String _studentName = '';
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchUsername();
+    _fetchStudentName();
   }
 
-  Future<void> _fetchUsername() async {
+  Future<void> _fetchStudentName() async {
     try {
-      final userId = _supabase.auth.currentUser?.id;
-      if (userId != null) {
-        final userData = await _supabase
-            .from('users')
-            .select('username')
-            .eq('user_id', userId)
-            .single();
-
-        if (mounted) {
-          setState(() {
-            _username = userData['username'] ?? '';
-            _isLoading = false;
-          });
-        }
+      final name = await UserService.getStudentName();
+      if (mounted) {
+        setState(() {
+          _studentName = name;
+          _isLoading = false;
+        });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _username = '';
+          _studentName = 'Student';
           _isLoading = false;
         });
       }
@@ -73,9 +65,8 @@ class _StudentDrawerState extends State<StudentDrawer> {
                 _isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
                     : Text(
-                        _username.isNotEmpty
-                            ? _username[0].toUpperCase() +
-                                _username.substring(1)
+                        _studentName.isNotEmpty
+                            ? _studentName
                             : 'Student',
                         style: GoogleFonts.poppins(
                           color: Colors.white,

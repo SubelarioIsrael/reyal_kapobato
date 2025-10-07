@@ -158,8 +158,15 @@ class _CounselorChatListState extends State<CounselorChatList> {
               studentInfo['last_name'] != null) {
             final firstName = studentInfo['first_name'];
             final lastName = studentInfo['last_name'];
+            
+            // Helper function to properly capitalize names (keeps internal capitals)
+            String formatName(String name) {
+              if (name.isEmpty) return name;
+              return name[0].toUpperCase() + name.substring(1);
+            }
+            
             appointmentGroup['user_name'] =
-                '${firstName[0].toUpperCase()}${firstName.substring(1).toLowerCase()} ${lastName[0].toUpperCase()}${lastName.substring(1).toLowerCase()}';
+                '${formatName(firstName)} ${formatName(lastName)}';
             appointmentGroup['user_initials'] =
                 '${firstName[0].toUpperCase()}${lastName[0].toUpperCase()}';
           } else {
@@ -167,17 +174,16 @@ class _CounselorChatListState extends State<CounselorChatList> {
             try {
               final userInfo = await _supabase
                   .from('users')
-                  .select('username')
+                  .select('email')
                   .eq('user_id', userId)
                   .maybeSingle();
 
-              if (userInfo != null && userInfo['username'] != null) {
-                final username = userInfo['username'];
-                appointmentGroup['user_name'] = username[0].toUpperCase() +
-                    username.substring(1).toLowerCase();
-                appointmentGroup['user_initials'] = username.length >= 2
-                    ? username.substring(0, 2).toUpperCase()
-                    : username[0].toUpperCase();
+              if (userInfo != null && userInfo['email'] != null) {
+                final email = userInfo['email'];
+                appointmentGroup['user_name'] = email;
+                appointmentGroup['user_initials'] = email.length >= 2
+                    ? email.substring(0, 2).toUpperCase()
+                    : email[0].toUpperCase();
               }
             } catch (e) {
               print('Error fetching username for user_id $userId: $e');
@@ -214,7 +220,6 @@ class _CounselorChatListState extends State<CounselorChatList> {
 
   void _openChat(Map<String, dynamic> appointmentData) {
     final appointmentInfo = appointmentData['appointment'];
-    final userName = appointmentData['user_name'];
 
     final appointment = Appointment.fromJson({
       ...appointmentInfo,

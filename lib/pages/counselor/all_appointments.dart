@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/appointment.dart';
 import '../chat/appointment_chat.dart';
 import 'video_call_dialog.dart';
+import 'student_overview.dart';
 
 class AllAppointments extends StatefulWidget {
   const AllAppointments({super.key});
@@ -60,31 +61,22 @@ class _AllAppointmentsState extends State<AllAppointments> {
       Map<String, Map<String, String>> studentInfo = {};
 
       if (userIds.isNotEmpty) {
-        final usersResponse = await Supabase.instance.client
-            .from('users')
-            .select('user_id, username')
-            .inFilter('user_id', userIds);
-
         final studentsResponse = await Supabase.instance.client
             .from('students')
             .select('user_id, student_code, first_name, last_name')
             .inFilter('user_id', userIds);
 
-        for (var u in usersResponse) {
-          studentInfo[u['user_id'].toString().trim()] = {
-            'username': u['username'] ?? '',
-          };
-        }
-
         for (var s in studentsResponse) {
           final key = s['user_id'].toString().trim();
-          if (studentInfo[key] != null) {
-            studentInfo[key]!.addAll({
-              'student_code': s['student_code'] ?? '',
-              'first_name': s['first_name'] ?? '',
-              'last_name': s['last_name'] ?? '',
-            });
-          }
+          final firstName = s['first_name'] ?? '';
+          final lastName = s['last_name'] ?? '';
+          final fullName = '$firstName $lastName'.trim();
+          studentInfo[key] = {
+            'student_code': s['student_code'] ?? '',
+            'first_name': firstName,
+            'last_name': lastName,
+            'student_name': fullName.isNotEmpty ? fullName : 'Unknown Student'
+          };
         }
       }
 
@@ -248,7 +240,7 @@ class _AllAppointmentsState extends State<AllAppointments> {
     final studentName = '$firstName $lastName'.trim();
     final displayName = studentName.isNotEmpty
         ? studentName
-        : studentInfo['username'] ?? 'Unknown Student';
+        : studentInfo['student_name'] ?? 'Unknown Student';
     final studentCode = studentInfo['student_code'] ?? '';
 
     return Card(
@@ -341,15 +333,20 @@ class _AllAppointmentsState extends State<AllAppointments> {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () {
-                      // TODO: Navigate to student history
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('Student history coming soon')),
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => StudentOverview(
+                            userId: appointment.userId,
+                            studentName: displayName,
+                            studentId: studentCode,
+                          ),
+                        ),
                       );
                     },
-                    icon: const Icon(Icons.history, size: 16),
+                    icon: const Icon(Icons.person, size: 16),
                     label: Text(
-                      'History',
+                      'Overview',
                       style: GoogleFonts.poppins(fontSize: 12),
                     ),
                     style: OutlinedButton.styleFrom(
@@ -377,7 +374,7 @@ class _AllAppointmentsState extends State<AllAppointments> {
                     },
                     icon: const Icon(Icons.chat_bubble_outline, size: 16),
                     label: Text(
-                      'Message',
+                      'Chat',
                       style: GoogleFonts.poppins(fontSize: 12),
                     ),
                     style: ElevatedButton.styleFrom(

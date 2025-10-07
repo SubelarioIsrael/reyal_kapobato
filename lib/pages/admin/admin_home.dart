@@ -44,10 +44,10 @@ class _AdminHomeState extends State<AdminHome> {
                   .toIso8601String());
       final activeUsersCount = activeUsersResponse.length;
 
-      // Get recent user registrations (last 5)
+      // Get recent user registrations (last 5) with email instead of username
       final recentRegistrationsResponse = await supabase
           .from('users')
-          .select('username, registration_date')
+          .select('email, registration_date')
           .order('registration_date', ascending: false)
           .limit(5);
 
@@ -66,7 +66,7 @@ class _AdminHomeState extends State<AdminHome> {
         }
 
         return {
-          'name': user['username'],
+          'name': user['email'],
           'time': timeAgo,
         };
       }).toList();

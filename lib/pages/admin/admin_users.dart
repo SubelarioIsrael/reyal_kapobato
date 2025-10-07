@@ -47,7 +47,7 @@ class _AdminUsersState extends State<AdminUsers> {
       final response = await Supabase.instance.client
           .from('users')
           .select('*, students(*)')
-          .order('username');
+          .order('email');
 
       setState(() {
         _users = List<Map<String, dynamic>>.from(response);
@@ -73,10 +73,6 @@ class _AdminUsersState extends State<AdminUsers> {
         final matchesType =
             _selectedFilter == 'all' || user['user_type'] == _selectedFilter;
         final matchesSearch = _searchController.text.isEmpty ||
-            user['username']
-                .toString()
-                .toLowerCase()
-                .contains(_searchController.text.toLowerCase()) ||
             user['email']
                 .toString()
                 .toLowerCase()
@@ -237,7 +233,6 @@ class _AdminUsersState extends State<AdminUsers> {
                         if (authResponse.user != null) {
                           await Supabase.instance.client.from('users').insert({
                             'user_id': authResponse.user!.id,
-                            'username': _nameController.text.trim(),
                             'email': _emailController.text.trim(),
                             'user_type': _selectedRole,
                             'status': 'active',
@@ -403,11 +398,7 @@ class _AdminUsersState extends State<AdminUsers> {
                                 ),
                               ),
                               title: Text(
-                                user['username'] != null &&
-                                        user['username'].isNotEmpty
-                                    ? user['username'][0].toUpperCase() +
-                                        user['username'].substring(1)
-                                    : 'No Name',
+                                user['email'] ?? 'No Email',
                                 style: GoogleFonts.poppins(
                                   fontWeight: FontWeight.w600,
                                   color: const Color(0xFF3A3A50),
