@@ -11,9 +11,13 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(
-        find.byKey(const Key('login_email')), 'studenttestacc555@example.com');
+        find.byKey(const Key('login_email')),
+        const String.fromEnvironment('TEST_LOGIN_EMAIL',
+            defaultValue: 'default_email@example.com'));
     await tester.enterText(
-        find.byKey(const Key('login_password')), 'testpassword123');
+        find.byKey(const Key('login_password')),
+        const String.fromEnvironment('TEST_LOGIN_PASSWORD',
+            defaultValue: 'default_password'));
     await tester.tap(find.byKey(const Key('login_button')));
     await tester.pumpAndSettle(const Duration(seconds: 5));
 

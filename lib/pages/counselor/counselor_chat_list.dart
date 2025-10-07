@@ -155,7 +155,9 @@ class _CounselorChatListState extends State<CounselorChatList> {
 
           if (studentInfo != null &&
               studentInfo['first_name'] != null &&
-              studentInfo['last_name'] != null) {
+              studentInfo['last_name'] != null &&
+              studentInfo['first_name'].isNotEmpty &&
+              studentInfo['last_name'].isNotEmpty) {
             final firstName = studentInfo['first_name'];
             final lastName = studentInfo['last_name'];
             appointmentGroup['user_name'] =
@@ -175,9 +177,9 @@ class _CounselorChatListState extends State<CounselorChatList> {
                 final username = userInfo['username'];
                 appointmentGroup['user_name'] = username[0].toUpperCase() +
                     username.substring(1).toLowerCase();
-                appointmentGroup['user_initials'] = username.length >= 2
+                username.isNotEmpty
                     ? username.substring(0, 2).toUpperCase()
-                    : username[0].toUpperCase();
+                    : '';
               }
             } catch (e) {
               print('Error fetching username for user_id $userId: $e');

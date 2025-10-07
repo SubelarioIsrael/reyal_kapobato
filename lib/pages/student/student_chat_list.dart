@@ -54,30 +54,30 @@ class _StudentChatListState extends State<StudentChatList> {
       }
 
       // Get appointment IDs for message lookup
-      final appointmentIds = acceptedAppointments
-          .map((a) => a['appointment_id'] as int)
-          .toList();
+      final appointmentIds =
+          acceptedAppointments.map((a) => a['appointment_id'] as int).toList();
 
       // Fetch messages for these appointments
       final messages = await _supabase
           .from('messages')
-          .select('id, message, created_at, is_read, appointment_id, sender_id, receiver_id')
+          .select(
+              'id, message, created_at, is_read, appointment_id, sender_id, receiver_id')
           .or('sender_id.eq.${user.id},receiver_id.eq.${user.id}')
           .inFilter('appointment_id', appointmentIds)
           .order('created_at', ascending: false);
 
       // Group by counselor and create chat entries
       Map<int, Map<String, dynamic>> counselorChatsMap = {};
-      
+
       for (var appointment in acceptedAppointments) {
         final appointmentId = appointment['appointment_id'] as int;
         final counselorId = appointment['counselor_id'] as int;
-        
+
         // Skip if we already processed this counselor
         if (counselorChatsMap.containsKey(counselorId)) {
           continue;
         }
-        
+
         try {
           // Get counselor details
           final counselorResponse = await _supabase
@@ -85,31 +85,34 @@ class _StudentChatListState extends State<StudentChatList> {
               .select('first_name, last_name')
               .eq('counselor_id', counselorId)
               .single();
-          
+
           // Find the latest message for this appointment (if any)
           final appointmentMessages = messages
               .where((m) => m['appointment_id'] == appointmentId)
               .toList();
-          
+
           String lastMessage;
           String? lastMessageTime;
           bool isRead = true;
-          
+
           if (appointmentMessages.isNotEmpty) {
             final latestMessage = appointmentMessages.first;
             lastMessage = latestMessage['message'];
             lastMessageTime = latestMessage['created_at'];
             // Check if latest message is unread and received by student
-            isRead = (latestMessage['is_read'] ?? true) || latestMessage['receiver_id'] != user.id;
+            isRead = (latestMessage['is_read'] ?? true) ||
+                latestMessage['receiver_id'] != user.id;
           } else {
             // No messages yet - show default message
             lastMessage = 'Appointment accepted - Start chatting!';
-            lastMessageTime = appointment['appointment_date']; // Use appointment date as fallback
+            lastMessageTime = appointment[
+                'appointment_date']; // Use appointment date as fallback
           }
-          
+
           counselorChatsMap[counselorId] = {
             'counselor_id': counselorId,
-            'counselor_name': '${counselorResponse['first_name']} ${counselorResponse['last_name']}',
+            'counselor_name':
+                '${counselorResponse['first_name']} ${counselorResponse['last_name']}',
             'appointment_id': appointmentId,
             'last_message': lastMessage,
             'last_message_time': lastMessageTime,
@@ -117,7 +120,8 @@ class _StudentChatListState extends State<StudentChatList> {
           };
         } catch (e) {
           // Skip this counselor if we can't fetch their details
-          print('Error fetching counselor details for counselor_id $counselorId: $e');
+          print(
+              'Error fetching counselor details for counselor_id $counselorId: $e');
         }
       }
 
@@ -155,7 +159,7 @@ class _StudentChatListState extends State<StudentChatList> {
             '/appointment-chat',
             arguments: {
               'appointmentId': chat['appointment_id'],
-              'counselorName': chat['counselor_name'],
+              'counselorName': chat['counselor_name'] ?? 'Unknown Counselor',
             },
           ).then((_) => _fetchCounselorChats());
         },
@@ -213,7 +217,7 @@ class _StudentChatListState extends State<StudentChatList> {
                 ],
               ),
               const SizedBox(width: 16),
-              
+
               // Chat Details
               Expanded(
                 child: Column(
@@ -256,7 +260,7 @@ class _StudentChatListState extends State<StudentChatList> {
                   ],
                 ),
               ),
-              
+
               // Arrow Icon
               const SizedBox(width: 12),
               Container(
@@ -484,7 +488,9 @@ class _StudentChatListState extends State<StudentChatList> {
                     // Chat List
                     if (_counselorChats.isNotEmpty)
                       Column(
-                        children: _counselorChats.map((chat) => _buildChatCard(chat)).toList(),
+                        children: _counselorChats
+                            .map((chat) => _buildChatCard(chat))
+                            .toList(),
                       ),
                   ],
                 ),
