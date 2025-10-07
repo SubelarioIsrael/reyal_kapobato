@@ -68,7 +68,7 @@ class _StudentHistoryListState extends State<StudentHistoryList> {
 
       final usersResponse = await Supabase.instance.client
           .from('users')
-          .select('user_id, username, email')
+          .select('user_id, email')
           .inFilter('user_id', uniqueUserIds);
 
       // Combine data
@@ -355,7 +355,7 @@ class _StudentHistoryListState extends State<StudentHistoryList> {
                         MaterialPageRoute(
                           builder: (context) => StudentHistory(
                             userId: student['user_id'],
-                            username: displayName,
+                            studentName: displayName,
                             studentId: studentCode,
                           ),
                         ),

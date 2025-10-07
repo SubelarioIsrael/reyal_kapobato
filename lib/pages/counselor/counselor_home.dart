@@ -115,28 +115,20 @@ class _CounselorHomeState extends State<CounselorHome> {
       print('userIds: $userIds');
       Map<String, Map<String, String>> studentInfo = {};
       if (userIds.isNotEmpty) {
-        final usersResponse = await Supabase.instance.client
-            .from('users')
-            .select('user_id, username')
-            .inFilter('user_id', userIds);
         final studentsResponse = await Supabase.instance.client
             .from('students')
-            .select('user_id, student_code')
+            .select('user_id, student_code, first_name, last_name')
             .inFilter('user_id', userIds);
-        print('usersResponse: $usersResponse');
         print('studentsResponse: $studentsResponse');
-        for (var u in usersResponse) {
-          studentInfo[u['user_id'].toString().trim()] = {
-            'username': u['username'] ?? ''
-          };
-        }
         for (var s in studentsResponse) {
           final key = s['user_id'].toString().trim();
-          if (studentInfo[key] != null) {
-            studentInfo[key]!['student_id'] = s['student_code'] ?? '';
-          } else {
-            studentInfo[key] = {'student_id': s['student_code'] ?? ''};
-          }
+          final firstName = s['first_name'] ?? '';
+          final lastName = s['last_name'] ?? '';
+          final fullName = '$firstName $lastName'.trim();
+          studentInfo[key] = {
+            'student_name': fullName.isNotEmpty ? fullName : 'Unknown Student',
+            'student_id': s['student_code'] ?? ''
+          };
         }
       }
       // Calculate statistics
@@ -663,7 +655,7 @@ class _CounselorHomeState extends State<CounselorHome> {
 
   Widget _buildPendingAppointmentCard(Appointment appt) {
     final studentInfo = _studentInfo[appt.userId.toString().trim()] ?? {};
-    final username = studentInfo['username'] ?? 'Unknown Student';
+    final studentName = studentInfo['student_name'] ?? 'Unknown Student';
 
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -691,7 +683,7 @@ class _CounselorHomeState extends State<CounselorHome> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    username,
+                    studentName,
                     style: GoogleFonts.poppins(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -785,7 +777,7 @@ class _CounselorHomeState extends State<CounselorHome> {
 
   Widget _buildTodayAppointmentCard(Appointment appt) {
     final studentInfo = _studentInfo[appt.userId.toString().trim()] ?? {};
-    final username = studentInfo['username'] ?? 'Unknown Student';
+    final studentName = studentInfo['student_name'] ?? 'Unknown Student';
 
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -813,7 +805,7 @@ class _CounselorHomeState extends State<CounselorHome> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    username,
+                    studentName,
                     style: GoogleFonts.poppins(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,

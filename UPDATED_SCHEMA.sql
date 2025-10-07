@@ -238,7 +238,6 @@ CREATE TABLE public.user_notifications (
   CONSTRAINT user_notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(user_id)
 );
 CREATE TABLE public.users (
-  username character varying NOT NULL UNIQUE,
   email character varying NOT NULL UNIQUE,
   registration_date timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
   user_type character varying DEFAULT 'student'::character varying CHECK (user_type::text = ANY (ARRAY['student'::character varying::text, 'admin'::character varying::text, 'counselor'::character varying::text])),

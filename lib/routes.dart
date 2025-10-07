@@ -42,6 +42,7 @@ import 'pages/admin/admin_hotlines.dart';
 import 'pages/counselor/counselor_home.dart';
 import 'pages/counselor/counselor_settings.dart';
 import 'pages/counselor/student_history.dart';
+import 'pages/counselor/student_overview.dart';
 
 // page routes
 final Map<String, WidgetBuilder> appRoutes = {
@@ -79,6 +80,8 @@ final Map<String, WidgetBuilder> appRoutes = {
   'student-breathing-exercises': (context) =>
       const AuthGuard(child: StudentBreathingExercises()),
   'student-mood-journal': (context) =>
+      const AuthGuard(child: StudentJournalEntries()),
+  'student-mood-journal-write': (context) =>
       const AuthGuard(child: StudentMoodJournal()),
   'student-mental-health-resources': (context) =>
       const AuthGuard(child: StudentMentalHealthResources()),
@@ -188,8 +191,8 @@ final Map<String, WidgetBuilder> appRoutes = {
         child: StudentHistory(
           userId: (ModalRoute.of(context)?.settings.arguments
               as Map<String, dynamic>)['userId'] as String,
-          username: (ModalRoute.of(context)?.settings.arguments
-              as Map<String, dynamic>)['username'] as String,
+          studentName: (ModalRoute.of(context)?.settings.arguments
+              as Map<String, dynamic>)['studentName'] as String,
           studentId: (ModalRoute.of(context)?.settings.arguments
               as Map<String, dynamic>)['studentId'] as String,
         ),
