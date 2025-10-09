@@ -155,16 +155,18 @@ class _CounselorChatListState extends State<CounselorChatList> {
 
           if (studentInfo != null &&
               studentInfo['first_name'] != null &&
-              studentInfo['last_name'] != null) {
+              studentInfo['last_name'] != null &&
+              studentInfo['first_name'].isNotEmpty &&
+              studentInfo['last_name'].isNotEmpty) {
             final firstName = studentInfo['first_name'];
             final lastName = studentInfo['last_name'];
-            
+
             // Helper function to properly capitalize names (keeps internal capitals)
             String formatName(String name) {
               if (name.isEmpty) return name;
               return name[0].toUpperCase() + name.substring(1);
             }
-            
+
             appointmentGroup['user_name'] =
                 '${formatName(firstName)} ${formatName(lastName)}';
             appointmentGroup['user_initials'] =
