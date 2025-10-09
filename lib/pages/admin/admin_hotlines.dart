@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../components/modern_form_dialog.dart';
 
 class AdminHotlines extends StatefulWidget {
   const AdminHotlines({super.key});
@@ -90,124 +91,143 @@ class _AdminHotlinesState extends State<AdminHotlines> {
 
   void _showAddHotlineDialog() {
     _clearFormControllers();
-    showDialog(
+    ModernFormDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Add Hotline',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF3A3A50),
-          ),
-        ),
-        content: Form(
+      title: 'Add Mental Health Hotline',
+      subtitle: 'Create a new crisis support hotline for students',
+      content: StatefulBuilder(
+        builder: (context, setState) => Form(
           key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: _nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Service Name',
-                    prefixIcon: Icon(Icons.business_outlined),
-                  ),
-                  validator: (v) => (v == null || v.trim().isEmpty)
-                      ? 'Please enter a service name'
-                      : null,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              FormSection(
+                title: 'Service Information',
+                icon: Icons.support_agent,
+                child: Column(
+                  children: [
+                    ModernTextFormField(
+                      controller: _nameController,
+                      labelText: 'Service Name',
+                      hintText: 'e.g., National Suicide Prevention Lifeline',
+                      prefixIcon: Icons.business_outlined,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Please enter a service name'
+                          : null,
+                    ),
+                    const SizedBox(height: 20),
+                    ModernTextFormField(
+                      controller: _phoneController,
+                      labelText: 'Phone Number',
+                      hintText: 'e.g., 988 or (555) 123-4567',
+                      prefixIcon: Icons.phone_outlined,
+                      keyboardType: TextInputType.phone,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Please enter a phone number'
+                          : null,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _phoneController,
-                  decoration: const InputDecoration(
-                    labelText: 'Phone Number',
-                    prefixIcon: Icon(Icons.phone_outlined),
-                  ),
-                  validator: (v) => (v == null || v.trim().isEmpty)
-                      ? 'Please enter a phone number'
-                      : null,
+              ),
+              const SizedBox(height: 32),
+              FormSection(
+                title: 'Location & Details',
+                icon: Icons.info_outline,
+                child: Column(
+                  children: [
+                    ModernTextFormField(
+                      controller: _regionController,
+                      labelText: 'City/Region (Optional)',
+                      hintText: 'Service area or location',
+                      prefixIcon: Icons.location_on_outlined,
+                    ),
+                    const SizedBox(height: 20),
+                    ModernTextFormField(
+                      controller: _notesController,
+                      labelText: 'Additional Notes (Optional)',
+                      hintText: 'Operating hours, specializations, or other details',
+                      prefixIcon: Icons.sticky_note_2_outlined,
+                      maxLines: 3,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _regionController,
-                  decoration: const InputDecoration(
-                    labelText: 'City/Region (optional)',
-                    prefixIcon: Icon(Icons.location_on_outlined),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _notesController,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'Notes (optional)',
-                    prefixIcon: Icon(Icons.sticky_note_2_outlined),
-                  ),
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 24),
+            ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel',
-                style: GoogleFonts.poppins(color: Colors.grey[600])),
-          ),
-          ElevatedButton(
-            onPressed: _isLoading
-                ? null
-                : () async {
-                    if (!(_formKey.currentState?.validate() ?? false)) return;
-                    setState(() {
-                      _isLoading = true;
-                    });
-                    try {
-                      await Supabase.instance.client
-                          .from('mental_health_hotlines')
-                          .insert({
-                        'name': _nameController.text.trim(),
-                        'phone': _phoneController.text.trim(),
-                        'city_or_region': _regionController.text.trim(),
-                        'notes': _notesController.text.trim(),
-                      });
-                      if (mounted) {
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Hotline added')),
-                        );
-                        _loadHotlines();
-                      }
-                    } catch (e) {
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Failed to add hotline')),
-                        );
-                      }
-                    } finally {
-                      setState(() {
-                        _isLoading = false;
-                      });
-                    }
-                  },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF7C83FD),
-              foregroundColor: Colors.white,
-            ),
-            child: _isLoading
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  )
-                : const Text('Add'),
-          ),
-        ],
       ),
+      actions: [
+        ModernActionButton(
+          text: 'Cancel',
+          onPressed: () => Navigator.pop(context),
+        ),
+        ModernActionButton(
+          text: 'Add Hotline',
+          isPrimary: true,
+          isLoading: _isLoading,
+          icon: Icons.add,
+          onPressed: () async {
+            if (!(_formKey.currentState?.validate() ?? false)) return;
+            setState(() {
+              _isLoading = true;
+            });
+            try {
+              await Supabase.instance.client
+                  .from('mental_health_hotlines')
+                  .insert({
+                'name': _nameController.text.trim(),
+                'phone': _phoneController.text.trim(),
+                'city_or_region': _regionController.text.trim(),
+                'notes': _notesController.text.trim(),
+              });
+              if (mounted) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Row(
+                      children: [
+                        const Icon(Icons.check_circle, color: Colors.white),
+                        const SizedBox(width: 8),
+                        const Text('Hotline added successfully'),
+                      ],
+                    ),
+                    backgroundColor: Colors.green,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                );
+                _loadHotlines();
+              }
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Row(
+                      children: [
+                        const Icon(Icons.error, color: Colors.white),
+                        const SizedBox(width: 8),
+                        const Text('Failed to add hotline'),
+                      ],
+                    ),
+                    backgroundColor: Colors.red,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                );
+              }
+            } finally {
+              setState(() {
+                _isLoading = false;
+              });
+            }
+          },
+        ),
+      ],
     );
   }
 
@@ -216,124 +236,143 @@ class _AdminHotlinesState extends State<AdminHotlines> {
     _phoneController.text = hotline['phone'] ?? '';
     _regionController.text = hotline['city_or_region'] ?? '';
     _notesController.text = hotline['notes'] ?? '';
-    showDialog(
+    ModernFormDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Edit Hotline',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF3A3A50),
-          ),
-        ),
-        content: Form(
+      title: 'Edit Mental Health Hotline',
+      subtitle: 'Update the selected crisis support hotline',
+      content: StatefulBuilder(
+        builder: (context, setState) => Form(
           key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: _nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Service Name',
-                    prefixIcon: Icon(Icons.business_outlined),
-                  ),
-                  validator: (v) => (v == null || v.trim().isEmpty)
-                      ? 'Please enter a service name'
-                      : null,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              FormSection(
+                title: 'Service Information',
+                icon: Icons.support_agent,
+                child: Column(
+                  children: [
+                    ModernTextFormField(
+                      controller: _nameController,
+                      labelText: 'Service Name',
+                      hintText: 'e.g., National Suicide Prevention Lifeline',
+                      prefixIcon: Icons.business_outlined,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Please enter a service name'
+                          : null,
+                    ),
+                    const SizedBox(height: 20),
+                    ModernTextFormField(
+                      controller: _phoneController,
+                      labelText: 'Phone Number',
+                      hintText: 'e.g., 988 or (555) 123-4567',
+                      prefixIcon: Icons.phone_outlined,
+                      keyboardType: TextInputType.phone,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Please enter a phone number'
+                          : null,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _phoneController,
-                  decoration: const InputDecoration(
-                    labelText: 'Phone Number',
-                    prefixIcon: Icon(Icons.phone_outlined),
-                  ),
-                  validator: (v) => (v == null || v.trim().isEmpty)
-                      ? 'Please enter a phone number'
-                      : null,
+              ),
+              const SizedBox(height: 32),
+              FormSection(
+                title: 'Location & Details',
+                icon: Icons.info_outline,
+                child: Column(
+                  children: [
+                    ModernTextFormField(
+                      controller: _regionController,
+                      labelText: 'City/Region (Optional)',
+                      hintText: 'Service area or location',
+                      prefixIcon: Icons.location_on_outlined,
+                    ),
+                    const SizedBox(height: 20),
+                    ModernTextFormField(
+                      controller: _notesController,
+                      labelText: 'Additional Notes (Optional)',
+                      hintText: 'Operating hours, specializations, or other details',
+                      prefixIcon: Icons.sticky_note_2_outlined,
+                      maxLines: 3,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _regionController,
-                  decoration: const InputDecoration(
-                    labelText: 'City/Region (optional)',
-                    prefixIcon: Icon(Icons.location_on_outlined),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _notesController,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'Notes (optional)',
-                    prefixIcon: Icon(Icons.sticky_note_2_outlined),
-                  ),
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 24),
+            ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel',
-                style: GoogleFonts.poppins(color: Colors.grey[600])),
-          ),
-          ElevatedButton(
-            onPressed: _isLoading
-                ? null
-                : () async {
-                    if (!(_formKey.currentState?.validate() ?? false)) return;
-                    setState(() {
-                      _isLoading = true;
-                    });
-                    try {
-                      await Supabase.instance.client
-                          .from('mental_health_hotlines')
-                          .update({
-                        'name': _nameController.text.trim(),
-                        'phone': _phoneController.text.trim(),
-                        'city_or_region': _regionController.text.trim(),
-                        'notes': _notesController.text.trim(),
-                      }).eq('hotline_id', hotline['hotline_id']);
-                      if (mounted) {
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Hotline updated')),
-                        );
-                        _loadHotlines();
-                      }
-                    } catch (e) {
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Failed to update hotline')),
-                        );
-                      }
-                    } finally {
-                      setState(() {
-                        _isLoading = false;
-                      });
-                    }
-                  },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF7C83FD),
-              foregroundColor: Colors.white,
-            ),
-            child: _isLoading
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  )
-                : const Text('Save Changes'),
-          ),
-        ],
       ),
+      actions: [
+        ModernActionButton(
+          text: 'Cancel',
+          onPressed: () => Navigator.pop(context),
+        ),
+        ModernActionButton(
+          text: 'Save Changes',
+          isPrimary: true,
+          isLoading: _isLoading,
+          icon: Icons.save,
+          onPressed: () async {
+            if (!(_formKey.currentState?.validate() ?? false)) return;
+            setState(() {
+              _isLoading = true;
+            });
+            try {
+              await Supabase.instance.client
+                  .from('mental_health_hotlines')
+                  .update({
+                'name': _nameController.text.trim(),
+                'phone': _phoneController.text.trim(),
+                'city_or_region': _regionController.text.trim(),
+                'notes': _notesController.text.trim(),
+              }).eq('hotline_id', hotline['hotline_id']);
+              if (mounted) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Row(
+                      children: [
+                        const Icon(Icons.check_circle, color: Colors.white),
+                        const SizedBox(width: 8),
+                        const Text('Hotline updated successfully'),
+                      ],
+                    ),
+                    backgroundColor: Colors.green,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                );
+                _loadHotlines();
+              }
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Row(
+                      children: [
+                        const Icon(Icons.error, color: Colors.white),
+                        const SizedBox(width: 8),
+                        const Text('Failed to update hotline'),
+                      ],
+                    ),
+                    backgroundColor: Colors.red,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                );
+              }
+            } finally {
+              setState(() {
+                _isLoading = false;
+              });
+            }
+          },
+        ),
+      ],
     );
   }
 

@@ -68,7 +68,7 @@ class _CounselorHomeState extends State<CounselorHome> {
       if (counselorProfile == null) {
         // No counselor profile exists, redirect to setup
         if (mounted) {
-          Navigator.pushReplacementNamed(context, '/counselor-profile-setup');
+          Navigator.pushReplacementNamed(context, '/counselor-profile-first-setup');
         }
         return;
       }
@@ -1015,7 +1015,7 @@ class _CounselorHomeState extends State<CounselorHome> {
               onPressed: () {
                 Navigator.pop(ctx);
                 Navigator.pushReplacementNamed(
-                    context, '/counselor-profile-setup');
+                    context, '/counselor-profile-first-setup');
               },
               style: TextButton.styleFrom(
                 backgroundColor: const Color(0xFF7C83FD),

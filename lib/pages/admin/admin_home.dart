@@ -17,6 +17,7 @@ class _AdminHomeState extends State<AdminHome> {
   final int _selectedIndex = 0;
   int totalUsers = 0;
   int activeUsers = 0;
+  int completedAppointments = 0;
   List<Map<String, dynamic>> recentRegistrations = [];
 
   @override
@@ -43,6 +44,13 @@ class _AdminHomeState extends State<AdminHome> {
                   .subtract(const Duration(hours: 24))
                   .toIso8601String());
       final activeUsersCount = activeUsersResponse.length;
+
+      // Get completed appointments count
+      final completedAppointmentsResponse = await supabase
+          .from('counseling_appointments')
+          .select('appointment_id')
+          .eq('status', 'completed');
+      final completedAppointmentsCount = completedAppointmentsResponse.length;
 
       // Get recent user registrations (last 5) with email instead of username
       final recentRegistrationsResponse = await supabase
@@ -75,6 +83,7 @@ class _AdminHomeState extends State<AdminHome> {
         setState(() {
           totalUsers = totalUsersCount;
           activeUsers = activeUsersCount;
+          completedAppointments = completedAppointmentsCount;
           recentRegistrations = recentRegistrationsList;
         });
       }
@@ -141,16 +150,19 @@ class _AdminHomeState extends State<AdminHome> {
         ),
       ),
       appBar: AppBar(
-        title: Text(
-          "Dashboard",
-          style: GoogleFonts.poppins(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
+        title: Center(
+          child: Text(
+            "BreatheBetter",
+            style: GoogleFonts.poppins(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
         backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF3A3A50),
         elevation: 0,
+        centerTitle: true,
         actions: [
           IconButton(
             icon: const Icon(Icons.download),
@@ -176,33 +188,52 @@ class _AdminHomeState extends State<AdminHome> {
                 children: [
                   const SizedBox(height: 20),
                   Text(
-                    "Admin Dashboard",
+                    "Dashboard",
                     style: GoogleFonts.poppins(
-                      fontSize: 28,
+                      fontSize: 25,
                       fontWeight: FontWeight.bold,
                       color: const Color(0xFF3A3A50),
                     ),
                   ),
                   const SizedBox(height: 30),
                   // KPI Section
-                  Row(
+                  Column(
                     children: [
-                      Expanded(
-                        child: _buildKPICard(
-                          title: "Total Users",
-                          value: totalUsers.toString(),
-                          icon: Icons.people,
-                          color: const Color(0xFF7C83FD),
-                        ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildKPICard(
+                              title: "Total Users",
+                              value: totalUsers.toString(),
+                              icon: Icons.people,
+                              color: const Color(0xFF7C83FD),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: _buildKPICard(
+                              title: "Active Users",
+                              value: activeUsers.toString(),
+                              icon: Icons.person,
+                              color: const Color(0xFF81C784),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: _buildKPICard(
-                          title: "Active Users",
-                          value: activeUsers.toString(),
-                          icon: Icons.person,
-                          color: const Color(0xFF81C784),
-                        ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildKPICard(
+                              title: "Completed Appointments",
+                              value: completedAppointments.toString(),
+                              icon: Icons.event_available,
+                              color: const Color(0xFF4DB6AC),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          const Expanded(child: SizedBox()), // Empty space for symmetry
+                        ],
                       ),
                     ],
                   ),
@@ -222,12 +253,12 @@ class _AdminHomeState extends State<AdminHome> {
                     mainAxisSpacing: 16,
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    childAspectRatio: 1.1,
+                    childAspectRatio: 1.3,
                     children: [
                       _buildDashboardCard(
                         icon: Icons.people,
                         title: "User Management",
-                        description: "Manage all user accounts",
+                        description: "",
                         onTap: () =>
                             Navigator.pushNamed(context, 'admin-users'),
                         color: const Color(0xFF7C83FD),
@@ -235,7 +266,7 @@ class _AdminHomeState extends State<AdminHome> {
                       _buildDashboardCard(
                         icon: Icons.psychology,
                         title: "Mental Health Resources",
-                        description: "Add/Edit resources",
+                        description: "",
                         onTap: () =>
                             Navigator.pushNamed(context, 'admin-resources'),
                         color: const Color(0xFF4F646F),
@@ -243,7 +274,7 @@ class _AdminHomeState extends State<AdminHome> {
                       _buildDashboardCard(
                         icon: Icons.self_improvement,
                         title: "Breathing Exercises",
-                        description: "Manage breathing exercises",
+                        description: "",
                         onTap: () =>
                             Navigator.pushNamed(context, 'admin-exercises'),
                         color: const Color(0xFFBFDCE5),
@@ -251,7 +282,7 @@ class _AdminHomeState extends State<AdminHome> {
                       _buildDashboardCard(
                         icon: Icons.quiz,
                         title: "Questionnaire",
-                        description: "Manage assessment questions",
+                        description: "",
                         onTap: () => Navigator.pushNamed(
                             context, '/admin-questionnaire'),
                         color: const Color(0xFFE57373),
@@ -259,7 +290,7 @@ class _AdminHomeState extends State<AdminHome> {
                       _buildDashboardCard(
                         icon: Icons.support_agent,
                         title: "Manage Hotlines",
-                        description: "Manage emergency hotlines",
+                        description: "",
                         onTap: () =>
                             Navigator.pushNamed(context, 'admin-hotlines'),
                         color: const Color(0xFF4DB6AC),
@@ -317,14 +348,18 @@ class _AdminHomeState extends State<AdminHome> {
                   color: color.withAlpha(26),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon, color: color, size: 20),
+                child: Icon(icon, color: color, size: 18),
               ),
               const SizedBox(width: 8),
-              Text(
-                title,
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  color: Colors.grey[600],
+              Expanded(
+                child: Text(
+                  title,
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -432,13 +467,13 @@ class _AdminHomeState extends State<AdminHome> {
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: color.withAlpha(26),
                   shape: BoxShape.circle,
@@ -446,31 +481,31 @@ class _AdminHomeState extends State<AdminHome> {
                 child: Icon(
                   icon,
                   color: color,
-                  size: 28,
+                  size: 24,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               Text(
                 title,
                 style: GoogleFonts.poppins(
-                  fontSize: 16,
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: const Color(0xFF3A3A50),
                 ),
                 textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                maxLines: 2,
+                overflow: TextOverflow.visible,
               ),
               const SizedBox(height: 4),
               Text(
                 description,
                 style: GoogleFonts.poppins(
-                  fontSize: 12,
+                  fontSize: 10,
                   color: Colors.grey[600],
                 ),
                 textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+                overflow: TextOverflow.visible,
               ),
             ],
           ),
