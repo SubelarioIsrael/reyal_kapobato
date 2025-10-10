@@ -424,8 +424,61 @@ class _AppointmentBookingDialogState extends State<AppointmentBookingDialog> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error booking appointment')),
+        String errorMessage = 'Error booking appointment';
+        String title = 'Error';
+        if (e.toString().contains('pending or accepted appointment')) {
+          errorMessage = 'You already have a pending or accepted appointment. Please wait for it to be completed or cancelled before booking another one.';
+          title = 'Limit Reached';
+        }
+        
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: Row(
+                children: [
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    color: Colors.orange,
+                    size: 28,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    title,
+                    style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF3A3A50),
+                    ),
+                  ),
+                ],
+              ),
+              content: Text(
+                errorMessage,
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: const Color(0xFF5D5D72),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFF7C83FD),
+                  ),
+                  child: Text(
+                    'OK',
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
         );
       }
     } finally {

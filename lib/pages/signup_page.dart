@@ -111,6 +111,7 @@ class _SignUpPageState extends State<SignUpPage> {
         final authResponse = await Supabase.instance.client.auth.signUp(
           email: email,
           password: _passwordController.text.trim(),
+          emailRedirectTo: 'breathebetter://verify-email',
         );
 
         final user = authResponse.user;
@@ -881,49 +882,51 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
   Widget _buildPhase2Buttons() {
-    return Column(
+    return Row(
       children: [
-        // Back Button (above)
-        SizedBox(
-          width: double.infinity,
-          height: 50,
-          child: OutlinedButton(
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: Color(0xFF7C83FD)),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+        // Back Button (left side)
+        Expanded(
+          child: SizedBox(
+            height: 48,
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Color(0xFF7C83FD)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
               ),
-            ),
-            onPressed: _isLoading ? null : _goBackToPhase1,
-            child: Text(
-              'Back',
-              style: GoogleFonts.poppins(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF7C83FD),
+              onPressed: _isLoading ? null : _goBackToPhase1,
+              child: Text(
+                'Back',
+                style: GoogleFonts.poppins(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF7C83FD),
+                ),
               ),
             ),
           ),
         ),
-        const SizedBox(height: 16),
-        // Create Button (centered below)
-        Center(
+        const SizedBox(width: 16),
+        // Create Button (right side)
+        Expanded(
           child: SizedBox(
-            width: 200, // Fixed width to center the button
-            height: 50,
+            height: 48,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF7C83FD),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 elevation: 2,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
               ),
               onPressed: _isLoading ? null : _handlePhase2,
               child: _isLoading
                   ? const SizedBox(
-                      height: 20,
-                      width: 20,
+                      height: 18,
+                      width: 18,
                       child: CircularProgressIndicator(
                         color: Colors.white,
                         strokeWidth: 2,
@@ -932,7 +935,7 @@ class _SignUpPageState extends State<SignUpPage> {
                   : Text(
                       'Create',
                       style: GoogleFonts.poppins(
-                        fontSize: 16,
+                        fontSize: 15,
                         fontWeight: FontWeight.w600,
                         color: Colors.white,
                       ),

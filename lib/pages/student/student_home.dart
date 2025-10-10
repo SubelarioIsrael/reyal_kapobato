@@ -47,21 +47,21 @@ class _StudentHomeState extends State<StudentHome> {
   final List<_FeatureCardData> _emotionalWellbeing = [
     const _FeatureCardData(
       title: 'Track your mood',
-      icon: Icons.mood,
+      icon: Icons.psychology,
       image:
           'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80',
       route: 'student-mtq',
     ),
     const _FeatureCardData(
       title: 'Mood Journal',
-      icon: Icons.book,
+      icon: Icons.edit_note,
       image:
           'https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=400&q=80',
       route: 'student-mood-journal',
     ),
     const _FeatureCardData(
       title: 'Daily Mood Check-in',
-      icon: Icons.emoji_emotions,
+      icon: Icons.mood,
       image:
           'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80',
       route: '/student-daily-checkin',
@@ -70,21 +70,21 @@ class _StudentHomeState extends State<StudentHome> {
   final List<_FeatureCardData> _supportTools = [
     const _FeatureCardData(
       title: 'Breathing Exercises',
-      icon: Icons.self_improvement,
+      icon: Icons.air,
       image:
           'https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&w=400&q=80',
       route: 'student-breathing-exercises',
     ),
     const _FeatureCardData(
       title: 'Mental Resources',
-      icon: Icons.health_and_safety,
+      icon: Icons.library_books,
       image:
           'https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&w=400&q=80',
       route: 'student-mental-health-resources',
     ),
     const _FeatureCardData(
       title: 'Crisis Support',
-      icon: Icons.contact_emergency,
+      icon: Icons.emergency,
       image:
           'https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&w=400&q=80',
       route: 'student-contacts',
@@ -93,14 +93,14 @@ class _StudentHomeState extends State<StudentHome> {
   final List<_FeatureCardData> _connectManage = [
     const _FeatureCardData(
       title: 'Counselors',
-      icon: Icons.people,
+      icon: Icons.person_search,
       image:
           'https://images.unsplash.com/photo-1503676382389-4809596d5290?auto=format&fit=crop&w=400&q=80',
       route: 'student-counselors',
     ),
     const _FeatureCardData(
       title: 'My Appointments',
-      icon: Icons.event_note,
+      icon: Icons.calendar_month,
       image:
           'https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=400&q=80',
       route: 'student-appointments',
@@ -220,9 +220,13 @@ class _StudentHomeState extends State<StudentHome> {
     final week = getWeekDaysWithMood();
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: week.map((day) {
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        child: Row(
+          children: week.asMap().entries.map((entry) {
+            final index = entry.key;
+            final day = entry.value;
           final isToday = day['isToday'];
           final checkedIn = day['checkedIn'];
           final emoji = day['emoji'];
@@ -235,54 +239,58 @@ class _StudentHomeState extends State<StudentHome> {
           } else {
             bgColor = Colors.grey[200]!;
           }
-          return Column(
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: bgColor,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding:
-                    const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                child: Column(
-                  children: [
-                    Text(DateFormat('E').format(date),
-                        style: TextStyle(
-                          color: checkedIn
-                              ? Colors.white
-                              : (isToday ? Colors.white : Colors.black87),
-                          fontWeight: FontWeight.bold,
-                        )),
-                    Text('${date.day}',
-                        style: TextStyle(
-                          color: checkedIn
-                              ? Colors.white
-                              : (isToday ? Colors.white : Colors.black87),
-                          fontWeight: FontWeight.bold,
-                        )),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 4),
-              if (checkedIn)
-                Text(emoji ?? '', style: TextStyle(fontSize: 24))
-              else if (isToday)
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushNamed(context, '/student-daily-checkin');
-                  },
-                  child: Icon(Icons.add, size: 18),
-                  style: ElevatedButton.styleFrom(
-                    shape: CircleBorder(),
-                    padding: EdgeInsets.all(8),
-                    minimumSize: Size(36, 36),
+            return Padding(
+              padding: EdgeInsets.only(right: index < week.length - 1 ? 12.0 : 0),
+              child: Column(
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      color: bgColor,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                    child: Column(
+                      children: [
+                        Text(DateFormat('E').format(date),
+                            style: TextStyle(
+                              color: checkedIn
+                                  ? Colors.white
+                                  : (isToday ? Colors.white : Colors.black87),
+                              fontWeight: FontWeight.bold,
+                            )),
+                        Text('${date.day}',
+                            style: TextStyle(
+                              color: checkedIn
+                                  ? Colors.white
+                                  : (isToday ? Colors.white : Colors.black87),
+                              fontWeight: FontWeight.bold,
+                            )),
+                      ],
+                    ),
                   ),
-                )
-              else
-                SizedBox(height: 36),
-            ],
-          );
-        }).toList(),
+                  const SizedBox(height: 4),
+                  if (checkedIn)
+                    Text(emoji ?? '', style: TextStyle(fontSize: 24))
+                  else if (isToday)
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.pushNamed(context, '/student-daily-checkin');
+                      },
+                      child: Icon(Icons.add, size: 18),
+                      style: ElevatedButton.styleFrom(
+                        shape: CircleBorder(),
+                        padding: EdgeInsets.all(8),
+                        minimumSize: Size(36, 36),
+                      ),
+                    )
+                  else
+                    SizedBox(height: 36),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
       ),
     );
   }
@@ -506,7 +514,7 @@ class _StudentHomeState extends State<StudentHome> {
                     ),
                   ),
                   _buildWeeklyMoodBar(),
-                  const SizedBox(height: 20),
+        
                   // Daily Uplift Card
                   Card(
                     shape: RoundedRectangleBorder(
@@ -514,7 +522,7 @@ class _StudentHomeState extends State<StudentHome> {
                     color: Colors.cyan.shade50,
                     elevation: 0,
                     child: Padding(
-                      padding: const EdgeInsets.all(18.0),
+                      padding: const EdgeInsets.all(16.0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -538,7 +546,7 @@ class _StudentHomeState extends State<StudentHome> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
                   Text(
                     'Emotional Well-being',
                     style: GoogleFonts.poppins(
@@ -692,19 +700,16 @@ class _FeatureCard extends StatelessWidget {
     // Special handling for Crisis Support card
     if (feature.title == 'Crisis Support') {
       return GestureDetector(
-        onTap: () => Navigator.pushNamed(context,
-            'student-contacts'), // Make sure this matches your routes.dart
+        onTap: () => Navigator.pushNamed(context, 'student-contacts'),
         child: Card(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           elevation: 2,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
                 child: ClipRRect(
-                  borderRadius:
-                      const BorderRadius.vertical(top: Radius.circular(16)),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                   child: Image.network(
                     feature.image,
                     fit: BoxFit.cover,
@@ -714,40 +719,28 @@ class _FeatureCard extends StatelessWidget {
                         child: Icon(
                           feature.icon,
                           color: const Color(0xFF7C83FD),
-                          size: ResponsiveUtils.getResponsiveIconSize(context),
+                          size: 32,
                         ),
                       );
                     },
                   ),
                 ),
               ),
-              Padding(
-                padding: ResponsiveUtils.getResponsivePadding(context),
+              Container(
+                padding: const EdgeInsets.all(20),
                 child: Row(
                   children: [
                     Icon(
                       feature.icon,
                       color: const Color(0xFF7C83FD),
-                      size: ResponsiveUtils.getResponsiveIconSize(
-                        context,
-                        small: 16.0,
-                        medium: 18.0,
-                        large: 20.0,
-                      ),
+                      size: 20,
                     ),
-                    SizedBox(
-                        width: ResponsiveUtils.getResponsiveSpacing(context)),
+                    const SizedBox(width: 12),
                     Expanded(
-                      child: ResponsiveUtils.responsiveText(
-                        context,
+                      child: Text(
                         feature.title,
                         style: GoogleFonts.poppins(
-                          fontSize: ResponsiveUtils.getResponsiveFontSize(
-                            context,
-                            small: 12.0,
-                            medium: 14.0,
-                            large: 16.0,
-                          ),
+                          fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: const Color(0xFF3A3A50),
                         ),
@@ -766,8 +759,7 @@ class _FeatureCard extends StatelessWidget {
 
     // Default for other cards
     return GestureDetector(
-      onTap: () => Navigator.pushNamed(context,
-          feature.route), // This will use the route as defined in the card data
+      onTap: () => Navigator.pushNamed(context, feature.route),
       child: Card(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         elevation: 2,
@@ -776,8 +768,7 @@ class _FeatureCard extends StatelessWidget {
           children: [
             Expanded(
               child: ClipRRect(
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(16)),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                 child: Image.network(
                   feature.image,
                   fit: BoxFit.cover,
@@ -787,40 +778,28 @@ class _FeatureCard extends StatelessWidget {
                       child: Icon(
                         feature.icon,
                         color: const Color(0xFF7C83FD),
-                        size: ResponsiveUtils.getResponsiveIconSize(context),
+                        size: 32,
                       ),
                     );
                   },
                 ),
               ),
             ),
-            Padding(
-              padding: ResponsiveUtils.getResponsivePadding(context),
+            Container(
+              padding: const EdgeInsets.all(20),
               child: Row(
                 children: [
                   Icon(
                     feature.icon,
                     color: const Color(0xFF7C83FD),
-                    size: ResponsiveUtils.getResponsiveIconSize(
-                      context,
-                      small: 16.0,
-                      medium: 18.0,
-                      large: 20.0,
-                    ),
+                    size: 20,
                   ),
-                  SizedBox(
-                      width: ResponsiveUtils.getResponsiveSpacing(context)),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: ResponsiveUtils.responsiveText(
-                      context,
+                    child: Text(
                       feature.title,
                       style: GoogleFonts.poppins(
-                        fontSize: ResponsiveUtils.getResponsiveFontSize(
-                          context,
-                          small: 12.0,
-                          medium: 14.0,
-                          large: 16.0,
-                        ),
+                        fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: const Color(0xFF3A3A50),
                       ),

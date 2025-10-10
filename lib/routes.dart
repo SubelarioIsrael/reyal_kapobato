@@ -5,6 +5,7 @@ import 'widgets/auth_guard.dart';
 
 import 'pages/login_page.dart';
 import 'pages/signup_page.dart';
+import 'pages/reset_password_page.dart';
 
 import 'pages/counselor/counselor_profile_setup.dart';
 import 'pages/counselor/counselor_profile_first_setup.dart';
@@ -49,6 +50,7 @@ import 'pages/counselor/student_overview.dart';
 final Map<String, WidgetBuilder> appRoutes = {
   '/login': (context) => const LoginPage(),
   '/signup': (context) => const SignUpPage(),
+  '/reset-password': (context) => const ResetPasswordPage(),
 
   //home page routes
   'student-home': (context) => const AuthGuard(child: StudentHome()),

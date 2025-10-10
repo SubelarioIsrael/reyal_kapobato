@@ -212,36 +212,233 @@ class _StudentAppointmentsState extends State<StudentAppointments> {
     );
   }
 
-  void _showCallDialog() {
-    final callIdController = TextEditingController();
+  void _showErrorDialog(String title, String message) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Join Call'),
-        content: TextField(
-          controller: callIdController,
-          decoration: const InputDecoration(
-            labelText: 'Enter Call ID',
-            border: OutlineInputBorder(),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.error_outline,
+                color: Colors.red,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                title,
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF3A3A50),
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          message,
+          style: GoogleFonts.poppins(
+            fontSize: 14,
+            color: const Color(0xFF5D5D72),
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
           ElevatedButton(
-            onPressed: () async {
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text(
+              'OK',
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCallDialog() {
+    final callIdController = TextEditingController();
+    bool isJoiningCall = false;
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF81C784).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.video_call, 
+                color: Color(0xFF81C784), 
+                size: 28
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Join Video Call',
+                    style: GoogleFonts.poppins(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF3A3A50),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Enter the call code from your counselor',
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      color: const Color(0xFF5D5D72),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 4),
+            Text(
+              'Call Code',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF3A3A50),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: callIdController,
+              decoration: InputDecoration(
+                hintText: 'abc-def-ghi',
+                hintStyle: GoogleFonts.poppins(
+                  color: Colors.grey.shade500,
+                  fontSize: 16,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF81C784), width: 2),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                filled: true,
+                fillColor: Colors.grey.shade50,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                prefixIcon: Icon(
+                  Icons.code,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 1.5,
+              ),
+              textCapitalization: TextCapitalization.none,
+              autocorrect: false,
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF81C784).withOpacity(0.05),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFF81C784).withOpacity(0.2)),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    color: const Color(0xFF81C784),
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Enter the 3-segment code shared by your counselor',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: const Color(0xFF5D5D72),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: Text(
+                  'Cancel',
+                  style: GoogleFonts.poppins(
+                    color: const Color(0xFF5D5D72),
+                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              ElevatedButton(
+            onPressed: isJoiningCall ? null : () async {
+              setState(() {
+                isJoiningCall = true;
+              });
               final callCode = callIdController.text.trim();
               if (callCode.isEmpty) {
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Please enter a call code'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
+                  _showErrorDialog('Missing Call Code', 'Please enter a call code to join the video call.');
                 }
+                setState(() {
+                  isJoiningCall = false;
+                });
                 return;
               }
               
@@ -249,23 +446,89 @@ class _StudentAppointmentsState extends State<StudentAppointments> {
               final user = Supabase.instance.client.auth.currentUser;
               if (user != null) {
                 try {
+                  // Normalize the call code (trim and convert to lowercase)
+                  final normalizedCallCode = callCode.toLowerCase().trim();
+                  
+                  // Basic format validation (should be like "abc-def-ghi")
+                  if (!RegExp(r'^[a-z]{3}-[a-z]{3}-[a-z]{3}$').hasMatch(normalizedCallCode)) {
+                    if (mounted) {
+                      _showErrorDialog('Invalid Format', 'Please use the correct format: abc-def-ghi\n(3 letters, dash, 3 letters, dash, 3 letters)');
+                    }
+                    setState(() {
+                      isJoiningCall = false;
+                    });
+                    return;
+                  }
+                  
+                  print('Student searching for call code: $normalizedCallCode');
+                  
                   // Check if call code exists and is active
-                  final existingCall = await Supabase.instance.client
+                  print('Querying database for call code: $normalizedCallCode');
+                  print('User ID: ${user.id}');
+                  print('User email: ${user.email}');
+                  
+                  // Try the regular query first
+                  var existingCall = await Supabase.instance.client
                       .from('video_calls')
                       .select()
-                      .eq('call_code', callCode)
+                      .eq('call_code', normalizedCallCode)
                       .eq('status', 'active')
                       .maybeSingle();
 
+                  print('Found call with status filter: $existingCall');
+                  
+                  // If null, try using RPC function (if RLS is blocking access)
                   if (existingCall == null) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Call code does not exist or has expired'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
+                    try {
+                      final rpcResult = await Supabase.instance.client
+                          .rpc('find_active_video_call', params: {
+                        'call_code_param': normalizedCallCode
+                      });
+                      print('RPC result: $rpcResult');
+                      if (rpcResult != null && rpcResult.isNotEmpty) {
+                        existingCall = rpcResult[0];
+                      }
+                    } catch (rpcError) {
+                      print('RPC function not available: $rpcError');
+                      // Continue with normal flow
                     }
+                  }
+
+                  if (existingCall == null) {
+                    // Try to find the call without status filter to debug
+                    print('Trying to find call without status filter...');
+                    final anyCall = await Supabase.instance.client
+                        .from('video_calls')
+                        .select()
+                        .eq('call_code', normalizedCallCode)
+                        .maybeSingle();
+                    
+                    print('Found call without status filter: $anyCall');
+                    
+                    // Try to access any records from video_calls table to test permissions
+                    try {
+                      final testQuery = await Supabase.instance.client
+                          .from('video_calls')
+                          .select('call_code, status')
+                          .limit(1);
+                      print('Test query result (checking table access): $testQuery');
+                    } catch (e) {
+                      print('Error accessing video_calls table: $e');
+                    }
+                    
+                    String errorMessage = 'Call code does not exist or has expired';
+                    if (anyCall != null) {
+                      errorMessage = 'Call code exists but is not active (Status: ${anyCall['status']})';
+                    } else {
+                      errorMessage = 'Call code not found. This might be due to permissions or the code may not exist.';
+                    }
+                    
+                    if (mounted) {
+                      _showErrorDialog('Call Code Not Found', errorMessage);
+                    }
+                    setState(() {
+                      isJoiningCall = false;
+                    });
                     return;
                   }
 
@@ -276,7 +539,7 @@ class _StudentAppointmentsState extends State<StudentAppointments> {
                         'student_user_id': user.id,
                         'student_joined_at': DateTime.now().toIso8601String(),
                       })
-                      .eq('call_code', callCode);
+                      .eq('call_code', normalizedCallCode);
 
                   // Try to get student info for display name
                   String userName = user.email ?? 'Student';
@@ -301,7 +564,7 @@ class _StudentAppointmentsState extends State<StudentAppointments> {
                       context,
                       MaterialPageRoute(
                         builder: (context) => CallPage(
-                          callID: callCode,
+                          callID: normalizedCallCode,
                           userID: user.id,
                           userName: userName,
                         ),
@@ -311,20 +574,65 @@ class _StudentAppointmentsState extends State<StudentAppointments> {
                 } catch (e) {
                   // Check if widget is still mounted before showing SnackBar
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Error joining call: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
+                    _showErrorDialog('Connection Error', 'Unable to join the call. Please check your internet connection and try again.');
                   }
+                  setState(() {
+                    isJoiningCall = false;
+                  });
                 }
               }
             },
-            child: const Text('Join Call'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF81C784),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              elevation: 2,
+            ),
+            child: isJoiningCall
+                ? Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Joining...',
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  )
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.video_call, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Join Call',
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+              ),
+            ],
           ),
         ],
       ),
+        ),
     );
   }
 
@@ -466,8 +774,8 @@ class _StudentAppointmentsState extends State<StudentAppointments> {
         floatingActionButton: FloatingActionButton(
           onPressed: _showCallDialog,
           backgroundColor: const Color(0xFF81C784),
-          child: const Icon(Icons.call),
-          tooltip: 'Join a call',
+          child: const Icon(Icons.video_call),
+          tooltip: 'Join a video call',
         ),
     );
   }

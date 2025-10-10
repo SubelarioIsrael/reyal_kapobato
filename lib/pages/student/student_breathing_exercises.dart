@@ -301,11 +301,10 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises>
       appBar: AppBar(
         backgroundColor: const Color.fromARGB(255, 242, 241, 248),
         elevation: 0,
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu, color: Color(0xFF5D5D72)),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-          ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              color: Color(0xFF5D5D72)),
+          onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           "BreatheBetter",

@@ -116,6 +116,189 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  // Helper method to show success dialog
+  void _showSuccessDialog(String title, String message) {
+    if (mounted) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(
+            title,
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF4CAF50),
+            ),
+          ),
+          content: Text(
+            message,
+            style: GoogleFonts.poppins(),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(
+                'OK',
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF7C83FD),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  // Show forgot password dialog
+  void _showForgotPasswordDialog() {
+    final emailController = TextEditingController();
+    bool isLoading = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            'Reset Password',
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF3A3A50),
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Enter your email address and we\'ll send you a link to reset your password.',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: const Color(0xFF5D5D72),
+                ),
+              ),
+              const SizedBox(height: 20),
+              TextFormField(
+                controller: emailController,
+                keyboardType: TextInputType.emailAddress,
+                style: GoogleFonts.poppins(),
+                decoration: InputDecoration(
+                  hintText: 'Email Address',
+                  hintStyle: GoogleFonts.poppins(color: Colors.grey.shade500),
+                  prefixIcon: const Icon(Icons.email_outlined, color: Color(0xFF7C83FD)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF7C83FD), width: 2),
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey.shade50,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: isLoading ? null : () => Navigator.pop(ctx),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w500,
+                  color: const Color(0xFF5D5D72),
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: isLoading ? null : () async {
+                final email = emailController.text.trim();
+                if (email.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Please enter your email address',
+                        style: GoogleFonts.poppins(),
+                      ),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                final emailRegex = RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$');
+                if (!emailRegex.hasMatch(email)) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Please enter a valid email address',
+                        style: GoogleFonts.poppins(),
+                      ),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                setState(() {
+                  isLoading = true;
+                });
+
+                try {
+                  await _supabase.auth.resetPasswordForEmail(
+                    email,
+                    redirectTo: 'breathebetter://reset-password', // Deep link to open the app directly
+                  );
+                  Navigator.pop(ctx);
+                  _showSuccessDialog(
+                    'Reset Link Sent',
+                    'A password reset link has been sent to $email. Please check your inbox and follow the instructions to reset your password.',
+                  );
+                } on AuthException catch (e) {
+                  Navigator.pop(ctx);
+                  _showErrorDialog('Failed to send reset link: ${e.message}');
+                } catch (e) {
+                  Navigator.pop(ctx);
+                  _showErrorDialog('Something went wrong. Please try again later.');
+                } finally {
+                  setState(() {
+                    isLoading = false;
+                  });
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF7C83FD),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: isLoading
+                  ? const SizedBox(
+                      height: 16,
+                      width: 16,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : Text(
+                      'Send Reset Link',
+                      style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _login() async {
     // Validate form
     if (!_formKey.currentState!.validate()) {
@@ -308,7 +491,28 @@ class _LoginPageState extends State<LoginPage> {
                           },
                         ),
 
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 16),
+
+                        // Forgot Password Link
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: _showForgotPasswordDialog,
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                            ),
+                            child: Text(
+                              'Forgot Password?',
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: const Color(0xFF7C83FD),
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
 
                         // Login Button
                         SizedBox(
