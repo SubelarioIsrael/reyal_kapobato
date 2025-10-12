@@ -6,6 +6,7 @@ class Counselor {
   final String specialization;
   final String availabilityStatus;
   final String? bio;
+  final String? profilePicture;
 
   Counselor({
     required this.id,
@@ -15,6 +16,7 @@ class Counselor {
     required this.specialization,
     required this.availabilityStatus,
     this.bio,
+    this.profilePicture,
   });
 
   String get fullName => '$firstName $lastName';
@@ -28,6 +30,7 @@ class Counselor {
       specialization: json['specialization'],
       availabilityStatus: json['availability_status'],
       bio: json['bio'],
+      profilePicture: json['profile_picture'],
     );
   }
 
@@ -40,6 +43,7 @@ class Counselor {
       'specialization': specialization,
       'availability_status': availabilityStatus,
       'bio': bio,
+      'profile_picture': profilePicture,
     };
   }
 }

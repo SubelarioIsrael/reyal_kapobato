@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'student_history.dart';
+import 'student_overview.dart';
+import '../../widgets/student_avatar.dart';
 
 class StudentHistoryList extends StatefulWidget {
   const StudentHistoryList({super.key});
@@ -264,8 +265,6 @@ class _StudentHistoryListState extends State<StudentHistoryList> {
         ? studentName 
         : student['username'] ?? 'Unknown Student';
     final studentCode = student['student_code'] ?? '';
-    final totalAppointments = student['total_appointments'] ?? 0;
-    final completedAppointments = student['completed_appointments'] ?? 0;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -276,20 +275,12 @@ class _StudentHistoryListState extends State<StudentHistoryList> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+              Row(
               children: [
-                Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF7C83FD).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(25),
-                  ),
-                  child: const Icon(
-                    Icons.person,
-                    color: Color(0xFF7C83FD),
-                    size: 24,
-                  ),
+                StudentAvatar(
+                  userId: student['user_id'],
+                  radius: 25,
+                  fallbackName: displayName,
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -304,6 +295,7 @@ class _StudentHistoryListState extends State<StudentHistoryList> {
                           color: const Color(0xFF3A3A50),
                         ),
                       ),
+                      const SizedBox(height: 4),
                       if (studentCode.isNotEmpty)
                         Text(
                           'ID: $studentCode',
@@ -312,48 +304,29 @@ class _StudentHistoryListState extends State<StudentHistoryList> {
                             color: const Color(0xFF5D5D72),
                           ),
                         ),
-                      Text(
-                        student['email'] ?? '',
-                        style: GoogleFonts.poppins(
-                          fontSize: 12,
-                          color: const Color(0xFF5D5D72),
+                      if (student['email'] != null && student['email'].isNotEmpty)
+                        Text(
+                          student['email'],
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: const Color(0xFF7C83FD),
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '$completedAppointments/$totalAppointments Sessions',
-                        style: GoogleFonts.poppins(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.green,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () {
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF7C83FD).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: InkWell(
+                    onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => StudentHistory(
+                          builder: (context) => StudentOverview(
                             userId: student['user_id'],
                             studentName: displayName,
                             studentId: studentCode,
@@ -361,40 +334,25 @@ class _StudentHistoryListState extends State<StudentHistoryList> {
                         ),
                       );
                     },
-                    icon: const Icon(Icons.history, size: 16),
-                    label: Text(
-                      'View History',
-                      style: GoogleFonts.poppins(fontSize: 12),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF7C83FD),
-                      side: const BorderSide(color: Color(0xFF7C83FD)),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      // TODO: Start new appointment or message
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Contact student coming soon')),
-                      );
-                    },
-                    icon: const Icon(Icons.message, size: 16),
-                    label: Text(
-                      'Contact',
-                      style: GoogleFonts.poppins(fontSize: 12),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF7C83FD),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                    borderRadius: BorderRadius.circular(10),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.arrow_forward_ios,
+                          size: 16,
+                          color: Color(0xFF7C83FD),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'View',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF7C83FD),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

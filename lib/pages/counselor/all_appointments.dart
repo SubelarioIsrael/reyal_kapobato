@@ -6,6 +6,7 @@ import '../../services/counselor_service.dart';
 import '../chat/appointment_chat.dart';
 import 'video_call_dialog.dart';
 import 'student_overview.dart';
+import '../../widgets/student_avatar.dart';
 
 class AllAppointments extends StatefulWidget {
   const AllAppointments({super.key});
@@ -253,19 +254,22 @@ class _AllAppointmentsState extends State<AllAppointments> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+              Row(
               children: [
                 Container(
                   width: 50,
                   height: 50,
                   decoration: BoxDecoration(
-                    color: _getStatusColor(appointment.status).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(25),
+                    border: Border.all(
+                      color: _getStatusColor(appointment.status).withOpacity(0.3),
+                      width: 2,
+                    ),
                   ),
-                  child: Icon(
-                    Icons.person,
-                    color: _getStatusColor(appointment.status),
-                    size: 24,
+                  child: StudentAvatar(
+                    userId: appointment.userId,
+                    radius: 23,
+                    fallbackName: displayName,
                   ),
                 ),
                 const SizedBox(width: 16),

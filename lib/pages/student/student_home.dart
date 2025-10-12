@@ -43,66 +43,58 @@ class _StudentHomeState extends State<StudentHome> {
 
   int _unreadMessagesCount = 0;
 
-  // List of grid features for the home page
+  // List of grid features for the home age
   final List<_FeatureCardData> _emotionalWellbeing = [
     const _FeatureCardData(
-      title: 'Track your mood',
-      icon: Icons.psychology,
+      title: 'Bi-Weekly Mind Check-In',
       image:
-          'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80',
+          'https://www.21kschool.com/us/wp-content/uploads/sites/37/2024/12/Difference-Between-Assessment-and-Evaluation-A-Comprehensive-Guide.png',
       route: 'student-mtq',
     ),
     const _FeatureCardData(
-      title: 'Mood Journal',
-      icon: Icons.edit_note,
+      title: 'My Mood Journal',
       image:
-          'https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=400&q=80',
+          'https://t3.ftcdn.net/jpg/00/87/64/32/360_F_87643201_KtLtcqArlgjZ8zSFEPM48otNrRRW8RuJ.jpg',
       route: 'student-mood-journal',
     ),
     const _FeatureCardData(
       title: 'Daily Mood Check-in',
-      icon: Icons.mood,
       image:
-          'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80',
+          'https://news.harvard.edu/gazette/wp-content/uploads/2023/08/Phonewithmoodioons.jpg',
       route: '/student-daily-checkin',
     ),
   ];
   final List<_FeatureCardData> _supportTools = [
     const _FeatureCardData(
       title: 'Breathing Exercises',
-      icon: Icons.air,
       image:
-          'https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&w=400&q=80',
+          'https://www.bhf.org.uk/-/media/images/information-support/heart-matters/2023/december/wellbeing/deep-breathing-620x400.png?rev=4506ebd34dab4476b56c225b6ff3ad60&la=en&h=400&w=620&hash=725D49F995EDEA5C3934CB671E023CA2',
       route: 'student-breathing-exercises',
     ),
     const _FeatureCardData(
-      title: 'Mental Resources',
-      icon: Icons.library_books,
+      title: 'Wellness Resources',
       image:
-          'https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&w=400&q=80',
+          'https://cdn.brewersassociation.org/wp-content/uploads/2024/05/29100101/illustration-of-person-with-harmonious-mental-health-1200x800-1.jpg',
       route: 'student-mental-health-resources',
     ),
     const _FeatureCardData(
-      title: 'Crisis Support',
-      icon: Icons.emergency,
+      title: 'Support Contacts',
       image:
-          'https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&w=400&q=80',
+          'https://centerforliving.org/wp-content/uploads/2023/06/nycfl_1155348268.jpg',
       route: 'student-contacts',
     )
   ];
   final List<_FeatureCardData> _connectManage = [
     const _FeatureCardData(
-      title: 'Counselors',
-      icon: Icons.person_search,
+      title: 'Connect with a Counselor',
       image:
-          'https://images.unsplash.com/photo-1503676382389-4809596d5290?auto=format&fit=crop&w=400&q=80',
+          'https://bouve.northeastern.edu/wp-content/uploads/2023/05/what-do-mental-health-counselors-do-northeastern-graduate.webp',
       route: 'student-counselors',
     ),
     const _FeatureCardData(
       title: 'My Appointments',
-      icon: Icons.calendar_month,
       image:
-          'https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=400&q=80',
+          'https://3veta.com/wp-content/uploads/2021/11/66.-How-to-effectively-schedule-appointments.png',
       route: 'student-appointments',
     ),
   ];
@@ -482,7 +474,7 @@ class _StudentHomeState extends State<StudentHome> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 20), // Add some space below AppBar
+                   // Add some space below AppBar
                   Text(
                     "Welcome Back",
                     style: GoogleFonts.poppins(
@@ -491,7 +483,7 @@ class _StudentHomeState extends State<StudentHome> {
                       color: const Color(0xFF5D5D72),
                     ),
                   ),
-                  const SizedBox(height: 5),
+                  
                   Text(
                     isLoading
                         ? "Loading..."
@@ -502,9 +494,9 @@ class _StudentHomeState extends State<StudentHome> {
                       color: const Color(0xFF3A3A50),
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 10),
                   _buildProgressBar(),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 10),
                   Text(
                     'Daily Mood Check-in',
                     style: GoogleFonts.poppins(
@@ -546,23 +538,24 @@ class _StudentHomeState extends State<StudentHome> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 5),
                   Text(
                     'Emotional Well-being',
                     style: GoogleFonts.poppins(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                       color: const Color(0xFF3A3A50),
+      
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 5),
                   ResponsiveUtils.responsiveGridView(
                     context,
                     children: _emotionalWellbeing
                         .map((feature) => _FeatureCard(feature: feature))
                         .toList(),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 5),
                   ResponsiveUtils.responsiveText(
                     context,
                     'Support & Self-Care Tools',
@@ -577,14 +570,14 @@ class _StudentHomeState extends State<StudentHome> {
                       color: const Color(0xFF3A3A50),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 5),
                   ResponsiveUtils.responsiveGridView(
                     context,
                     children: _supportTools
                         .map((feature) => _FeatureCard(feature: feature))
                         .toList(),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 5),
                   ResponsiveUtils.responsiveText(
                     context,
                     'Connect & Manage',
@@ -599,14 +592,14 @@ class _StudentHomeState extends State<StudentHome> {
                       color: const Color(0xFF3A3A50),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 5),
                   ResponsiveUtils.responsiveGridView(
                     context,
                     children: _connectManage
                         .map((feature) => _FeatureCard(feature: feature))
                         .toList(),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 5),
                 ],
               ),
             ),
@@ -681,12 +674,10 @@ class _StudentHomeState extends State<StudentHome> {
 
 class _FeatureCardData {
   final String title;
-  final IconData icon;
   final String image;
   final String route;
   const _FeatureCardData(
       {required this.title,
-      required this.icon,
       required this.image,
       required this.route});
 }
@@ -716,11 +707,7 @@ class _FeatureCard extends StatelessWidget {
                     errorBuilder: (context, error, stackTrace) {
                       return Container(
                         color: Colors.grey[200],
-                        child: Icon(
-                          feature.icon,
-                          color: const Color(0xFF7C83FD),
-                          size: 32,
-                        ),
+                        child: const SizedBox(),
                       );
                     },
                   ),
@@ -728,27 +715,15 @@ class _FeatureCard extends StatelessWidget {
               ),
               Container(
                 padding: const EdgeInsets.all(20),
-                child: Row(
-                  children: [
-                    Icon(
-                      feature.icon,
-                      color: const Color(0xFF7C83FD),
-                      size: 20,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        feature.title,
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF3A3A50),
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  feature.title,
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF3A3A50),
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -775,11 +750,7 @@ class _FeatureCard extends StatelessWidget {
                   errorBuilder: (context, error, stackTrace) {
                     return Container(
                       color: Colors.grey[200],
-                      child: Icon(
-                        feature.icon,
-                        color: const Color(0xFF7C83FD),
-                        size: 32,
-                      ),
+                      child: const SizedBox(),
                     );
                   },
                 ),
@@ -787,27 +758,15 @@ class _FeatureCard extends StatelessWidget {
             ),
             Container(
               padding: const EdgeInsets.all(20),
-              child: Row(
-                children: [
-                  Icon(
-                    feature.icon,
-                    color: const Color(0xFF7C83FD),
-                    size: 20,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      feature.title,
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF3A3A50),
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
+              child: Text(
+                feature.title,
+                style: GoogleFonts.poppins(
+                  fontSize: 12.9,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF3A3A50),
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],

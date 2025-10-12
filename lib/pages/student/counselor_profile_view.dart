@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../widgets/counselor_avatar.dart';
+import '../../components/student_notification_button.dart';
 
 class CounselorProfileView extends StatefulWidget {
   final int counselorId;
@@ -28,7 +30,7 @@ class _CounselorProfileViewState extends State<CounselorProfileView> {
     try {
       final res = await Supabase.instance.client
           .from('counselors')
-          .select()
+          .select('*, users!inner(email)')
           .eq('counselor_id', widget.counselorId)
           .maybeSingle();
       setState(() {
@@ -56,118 +58,192 @@ class _CounselorProfileViewState extends State<CounselorProfileView> {
     final specialization = _data?['specialization']?.toString() ?? '';
     final availability = _data?['availability_status']?.toString() ?? '';
     final bio = _data?['bio']?.toString();
-    final picture = _data?['profile_picture']?.toString() ?? '';
+    final email = _data?['users']?['email']?.toString() ?? '';
+    final yearsOfExperience = _data?['years_of_experience']?.toString() ?? '';
+    final education = _data?['education']?.toString() ?? '';
+    final languages = _data?['languages']?.toString() ?? '';
+    final workSchedule = _data?['work_schedule']?.toString() ?? '';
 
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 242, 241, 248),
       appBar: AppBar(
+        backgroundColor: const Color.fromARGB(255, 242, 241, 248),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              color: Color(0xFF5D5D72)),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         title: Text(
-          'Counselor Profile',
+          "BreatheBetter",
           style: GoogleFonts.poppins(
             fontSize: 20,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFF3A3A50),
           ),
         ),
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF3A3A50),
-        elevation: 0,
+        centerTitle: true,
+        actions: [
+          const StudentNotificationButton(),
+        ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF7C83FD)),
+            ))
           : SingleChildScrollView(
               padding: const EdgeInsets.all(24),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 40,
-                        backgroundColor:
-                            const Color(0xFF7C83FD).withOpacity(0.1),
-                        backgroundImage:
-                            picture.isNotEmpty ? NetworkImage(picture) : null,
-                        child: picture.isEmpty
-                            ? Text(
-                                name.isNotEmpty ? name[0].toUpperCase() : '?',
-                                style: GoogleFonts.poppins(
-                                  color: const Color(0xFF7C83FD),
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 24,
-                                ),
-                              )
-                            : null,
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              name,
-                              style: GoogleFonts.poppins(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFF3A3A50),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              specialization,
-                              style: GoogleFonts.poppins(
-                                fontSize: 14,
-                                color: Colors.grey[700],
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color:
-                                    (availability.toLowerCase() == 'available'
-                                            ? Colors.green
-                                            : Colors.orange)
-                                        .withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                availability,
-                                style: GoogleFonts.poppins(
-                                  fontSize: 12,
-                                  color:
-                                      availability.toLowerCase() == 'available'
-                                          ? Colors.green
-                                          : Colors.orange,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+
+                  // Profile Picture Section - Centered
+                  CounselorAvatar(
+                    counselorId: widget.counselorId,
+                    radius: 60,
+                    fallbackName: name,
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
+
+                  // Name
                   Text(
-                    'About',
+                    name,
                     style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
                       color: const Color(0xFF3A3A50),
                     ),
+                    textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
+
+                  // Specialization
                   Text(
-                    (bio == null || bio.isEmpty) ? 'No bio provided.' : bio,
+                    specialization,
                     style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      color: Colors.grey[700],
-                      height: 1.6,
+                      fontSize: 16,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Availability Status
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: (availability.toLowerCase() == 'available'
+                              ? Colors.green
+                              : Colors.orange)
+                          .withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      availability,
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: availability.toLowerCase() == 'available'
+                            ? Colors.green
+                            : Colors.orange,
+                      ),
                     ),
                   ),
+                  const SizedBox(height: 32),
+
+                  // Professional Information
+                  if (yearsOfExperience.isNotEmpty)
+                    _buildSimpleInfoCard('Experience', '$yearsOfExperience years'),
+                  if (education.isNotEmpty)
+                    _buildSimpleInfoCard('Education', education),
+                  if (languages.isNotEmpty)
+                    _buildSimpleInfoCard('Languages', languages),
+                  if (workSchedule.isNotEmpty)
+                    _buildSimpleInfoCard('Schedule', workSchedule),
+                  if (email.isNotEmpty)
+                    _buildSimpleInfoCard('Email', email),
+
+                  // Bio/About Section
+                  if (bio != null && bio.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'About',
+                            style: GoogleFonts.poppins(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF3A3A50),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            bio,
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              color: Colors.grey[700],
+                              height: 1.6,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
+    );
+  }
+
+
+
+  Widget _buildSimpleInfoCard(String label, String value) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: GoogleFonts.poppins(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF3A3A50),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

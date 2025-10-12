@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/appointment.dart';
+import '../../widgets/student_avatar.dart';
 
 class AppointmentChat extends StatefulWidget {
   final Appointment appointment;
@@ -416,25 +417,41 @@ class _AppointmentChatState extends State<AppointmentChat> {
       appBar: AppBar(
         backgroundColor: const Color.fromARGB(255, 242, 241, 248),
         elevation: 0,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        title: Row(
           children: [
-            Text(
-              _otherUserName ?? 'Loading...',
-              style: GoogleFonts.poppins(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF3A3A50),
-              ),
-            ),
-            if (_otherUserRole != null)
-              Text(
-                _otherUserRole!.toUpperCase(),
-                style: GoogleFonts.poppins(
-                  fontSize: 12,
-                  color: Colors.grey[600],
+            // Show student avatar only if counselor is viewing the chat
+            if (widget.isCounselor && _otherUserRole == 'student')
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: StudentAvatar(
+                  userId: widget.appointment.userId,
+                  radius: 20,
+                  fallbackName: _otherUserName,
                 ),
               ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _otherUserName ?? 'Loading...',
+                    style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF3A3A50),
+                    ),
+                  ),
+                  if (_otherUserRole != null)
+                    Text(
+                      _otherUserRole!.toUpperCase(),
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ],
         ),
         leading: IconButton(

@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'dart:io';
+
+import 'dart:convert';
+import 'package:path_provider/path_provider.dart';
 import '../../components/modern_form_dialog.dart';
+import '../../widgets/hotline_avatar.dart';
+import '../../services/profile_image_service.dart';
 
 class AdminHotlines extends StatefulWidget {
   const AdminHotlines({super.key});
@@ -18,6 +25,10 @@ class _AdminHotlinesState extends State<AdminHotlines> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _regionController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
+  
+  File? _selectedImage;
+  String? _selectedImageBase64; // Store base64 data like counselors and students
+  String? _profileImageUrl;
 
   bool _isLoading = false;
   List<Map<String, dynamic>> _hotlines = [];
@@ -28,6 +39,8 @@ class _AdminHotlinesState extends State<AdminHotlines> {
     super.initState();
     _loadHotlines();
   }
+
+
 
   @override
   void dispose() {
@@ -87,7 +100,43 @@ class _AdminHotlinesState extends State<AdminHotlines> {
     _phoneController.clear();
     _regionController.clear();
     _notesController.clear();
+    _selectedImage = null;
+    _selectedImageBase64 = null; // Clear base64 data too
+    _profileImageUrl = null;
   }
+
+  Future<void> _pickImage() async {
+    try {
+      // Use the same image selection approach as counselors and students
+      final String? base64Image = await ProfileImageService.showImageSourceDialog(context);
+      if (base64Image != null) {
+        // Convert base64 back to File for preview (temporary approach)
+        final bytes = base64Decode(base64Image);
+        final tempDir = await getTemporaryDirectory();
+        final tempFile = File('${tempDir.path}/temp_hotline_image.jpg');
+        await tempFile.writeAsBytes(bytes);
+        
+        setState(() {
+          _selectedImage = tempFile;
+          _selectedImageBase64 = base64Image; // Store the base64 data
+        });
+      }
+    } catch (e) {
+      print('Error picking image: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error selecting image: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+
+
+
 
   void _showAddHotlineDialog() {
     _clearFormControllers();
@@ -106,6 +155,125 @@ class _AdminHotlinesState extends State<AdminHotlines> {
                 icon: Icons.support_agent,
                 child: Column(
                   children: [
+                    // Profile Image Selector
+                    Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey[300]!),
+                      ),
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.photo_camera_outlined,
+                                color: Colors.grey[600],
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Profile Picture (Optional)',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.grey[700],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              // Image Preview
+                              Container(
+                                width: 80,
+                                height: 80,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[100],
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.grey[300]!),
+                                ),
+                                child: _selectedImage != null
+                                    ? ClipRRect(
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: Image.file(
+                                          _selectedImage!,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      )
+                                    : _profileImageUrl != null
+                                        ? ClipRRect(
+                                            borderRadius: BorderRadius.circular(12),
+                                            child: Image.network(
+                                              _profileImageUrl!,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (context, error, stackTrace) =>
+                                                  Icon(Icons.photo, color: Colors.grey[400], size: 40),
+                                            ),
+                                          )
+                                        : Icon(
+                                            Icons.photo,
+                                            color: Colors.grey[400],
+                                            size: 40,
+                                          ),
+                              ),
+                              const SizedBox(width: 16),
+                              // Upload Button
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: () async {
+                                    await _pickImage();
+                                    setState(() {}); // Refresh dialog
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF7C83FD).withOpacity(0.1),
+                                    foregroundColor: const Color(0xFF7C83FD),
+                                    elevation: 0,
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                  icon: const Icon(Icons.upload, size: 20),
+                                  label: Text(
+                                    _selectedImage != null || _profileImageUrl != null
+                                        ? 'Change Image'
+                                        : 'Select Image',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (_selectedImage != null || _profileImageUrl != null) ...[
+                            const SizedBox(height: 8),
+                            TextButton.icon(
+                              onPressed: () {
+                                setState(() {
+                                  _selectedImage = null;
+                                  _profileImageUrl = null;
+                                });
+                              },
+                              style: TextButton.styleFrom(
+                                foregroundColor: Colors.red,
+                                padding: EdgeInsets.zero,
+                              ),
+                              icon: const Icon(Icons.delete, size: 16),
+                              label: Text(
+                                'Remove Image',
+                                style: GoogleFonts.poppins(fontSize: 12),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
                     ModernTextFormField(
                       controller: _nameController,
                       labelText: 'Service Name',
@@ -173,14 +341,34 @@ class _AdminHotlinesState extends State<AdminHotlines> {
               _isLoading = true;
             });
             try {
-              await Supabase.instance.client
+              String? profileImageBase64;
+              
+              // Use base64 image data if selected (same as counselors and students)
+              if (_selectedImageBase64 != null) {
+                print('Image selected, using base64 data');
+                profileImageBase64 = _selectedImageBase64;
+                print('Base64 data length: ${profileImageBase64!.length}');
+              }
+              
+              print('Inserting hotline with data: ${{
+                'name': _nameController.text.trim(),
+                'phone': _phoneController.text.trim(),
+                'city_or_region': _regionController.text.trim(),
+                'notes': _notesController.text.trim(),
+                'profile_picture': profileImageBase64,
+              }}');
+              
+              final insertResponse = await Supabase.instance.client
                   .from('mental_health_hotlines')
                   .insert({
                 'name': _nameController.text.trim(),
                 'phone': _phoneController.text.trim(),
                 'city_or_region': _regionController.text.trim(),
                 'notes': _notesController.text.trim(),
+                'profile_picture': profileImageBase64,
               });
+              
+              print('Database insert response: $insertResponse');
               if (mounted) {
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -236,6 +424,9 @@ class _AdminHotlinesState extends State<AdminHotlines> {
     _phoneController.text = hotline['phone'] ?? '';
     _regionController.text = hotline['city_or_region'] ?? '';
     _notesController.text = hotline['notes'] ?? '';
+    _selectedImage = null;
+    _selectedImageBase64 = null; // Clear any new selection
+    _profileImageUrl = hotline['profile_picture']; // This is now base64 data
     ModernFormDialog.show(
       context: context,
       title: 'Edit Mental Health Hotline',
@@ -251,6 +442,125 @@ class _AdminHotlinesState extends State<AdminHotlines> {
                 icon: Icons.support_agent,
                 child: Column(
                   children: [
+                    // Profile Image Selector
+                    Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey[300]!),
+                      ),
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.photo_camera_outlined,
+                                color: Colors.grey[600],
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Profile Picture (Optional)',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.grey[700],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              // Image Preview
+                              Container(
+                                width: 80,
+                                height: 80,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[100],
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.grey[300]!),
+                                ),
+                                child: _selectedImage != null
+                                    ? ClipRRect(
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: Image.file(
+                                          _selectedImage!,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      )
+                                    : _profileImageUrl != null
+                                        ? ClipRRect(
+                                            borderRadius: BorderRadius.circular(12),
+                                            child: Image.network(
+                                              _profileImageUrl!,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (context, error, stackTrace) =>
+                                                  Icon(Icons.photo, color: Colors.grey[400], size: 40),
+                                            ),
+                                          )
+                                        : Icon(
+                                            Icons.photo,
+                                            color: Colors.grey[400],
+                                            size: 40,
+                                          ),
+                              ),
+                              const SizedBox(width: 16),
+                              // Upload Button
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: () async {
+                                    await _pickImage();
+                                    setState(() {}); // Refresh dialog
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF7C83FD).withOpacity(0.1),
+                                    foregroundColor: const Color(0xFF7C83FD),
+                                    elevation: 0,
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                  icon: const Icon(Icons.upload, size: 20),
+                                  label: Text(
+                                    _selectedImage != null || _profileImageUrl != null
+                                        ? 'Change Image'
+                                        : 'Select Image',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (_selectedImage != null || _profileImageUrl != null) ...[
+                            const SizedBox(height: 8),
+                            TextButton.icon(
+                              onPressed: () {
+                                setState(() {
+                                  _selectedImage = null;
+                                  _profileImageUrl = null;
+                                });
+                              },
+                              style: TextButton.styleFrom(
+                                foregroundColor: Colors.red,
+                                padding: EdgeInsets.zero,
+                              ),
+                              icon: const Icon(Icons.delete, size: 16),
+                              label: Text(
+                                'Remove Image',
+                                style: GoogleFonts.poppins(fontSize: 12),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
                     ModernTextFormField(
                       controller: _nameController,
                       labelText: 'Service Name',
@@ -318,6 +628,14 @@ class _AdminHotlinesState extends State<AdminHotlines> {
               _isLoading = true;
             });
             try {
+              String? profileImageBase64 = _profileImageUrl;
+              
+              // Use new base64 image data if selected (same as counselors and students)
+              if (_selectedImageBase64 != null) {
+                profileImageBase64 = _selectedImageBase64;
+                print('Using new base64 image data, length: ${profileImageBase64!.length}');
+              }
+              
               await Supabase.instance.client
                   .from('mental_health_hotlines')
                   .update({
@@ -325,6 +643,7 @@ class _AdminHotlinesState extends State<AdminHotlines> {
                 'phone': _phoneController.text.trim(),
                 'city_or_region': _regionController.text.trim(),
                 'notes': _notesController.text.trim(),
+                'profile_picture': profileImageBase64,
               }).eq('hotline_id', hotline['hotline_id']);
               if (mounted) {
                 Navigator.pop(context);
@@ -442,6 +761,13 @@ class _AdminHotlinesState extends State<AdminHotlines> {
         backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF3A3A50),
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.storage_outlined),
+            tooltip: 'Check Database Schema',
+            onPressed: _checkDatabaseColumn,
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -507,11 +833,11 @@ class _AdminHotlinesState extends State<AdminHotlines> {
                             ),
                             child: ListTile(
                               contentPadding: const EdgeInsets.all(16),
-                              leading: CircleAvatar(
-                                backgroundColor:
-                                    const Color(0xFF4F646F).withOpacity(0.1),
-                                child: const Icon(Icons.phone,
-                                    color: Color(0xFF4F646F)),
+                              leading: HotlineAvatar(
+                                profilePictureUrl: hotline['profile_picture'],
+                                size: 60,
+                                backgroundColor: const Color(0xFF4F646F).withOpacity(0.1),
+                                iconColor: const Color(0xFF4F646F),
                               ),
                               title: Text(
                                 hotline['name'] ?? 'Unknown',
@@ -591,5 +917,58 @@ class _AdminHotlinesState extends State<AdminHotlines> {
         child: const Icon(Icons.add),
       ),
     );
+  }
+
+  Future<void> _checkDatabaseColumn() async {
+    try {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 20),
+              Text('Checking database schema...'),
+            ],
+          ),
+        ),
+      );
+
+      // Check if the profile_picture column exists using information_schema
+      final columns = await Supabase.instance.client
+          .from('information_schema.columns')
+          .select('column_name')
+          .eq('table_name', 'mental_health_hotlines');
+      
+      Navigator.of(context).pop(); // Close loading dialog
+
+      final hasProfilePicture = columns.any((col) => col['column_name'] == 'profile_picture');
+      
+      print('Database columns found: ${columns.map((c) => c['column_name']).join(', ')}');
+      print('Profile picture column exists: $hasProfilePicture');
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(hasProfilePicture 
+            ? '✅ Database column exists!' 
+            : '❌ Database column missing! Please run: ALTER TABLE mental_health_hotlines ADD COLUMN profile_picture TEXT;'),
+          backgroundColor: hasProfilePicture ? Colors.green : Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+
+    } catch (e) {
+      Navigator.of(context).pop(); // Close loading dialog
+      print('Database column check failed: $e');
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Database check failed: $e'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    }
   }
 }

@@ -95,30 +95,9 @@ class _MyAppState extends State<MyApp> {
         });
       }
       
-      // Handle email confirmation
-      if (event == AuthChangeEvent.signedIn && session != null) {
-        // Check if this is from email confirmation
-        final user = session.user;
-        if (user.emailConfirmedAt != null) {
-          print('Email confirmation detected');
-          // User just confirmed their email, show success message
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (_navigatorKey.currentContext != null) {
-              ScaffoldMessenger.of(_navigatorKey.currentContext!).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Email verified successfully! Welcome to BreatheBetter.',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                  backgroundColor: Color(0xFF4CAF50),
-                  duration: Duration(seconds: 4),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            }
-          });
-        }
-      }
+      // Note: Removed automatic email verification message on sign in
+      // This was causing the message to show on every login for users with verified emails
+      // Email verification success is now only handled through the deep link flow
       
       // Also handle token refresh which might happen during password recovery
       if (event == AuthChangeEvent.tokenRefreshed && session != null) {

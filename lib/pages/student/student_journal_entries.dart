@@ -437,7 +437,7 @@ class _StudentJournalEntriesState extends State<StudentJournalEntries> {
                 ],
               ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.pushNamed(context, 'student-mood-journal-write').then((_) {
             // Refresh the journal entries when returning from writing
@@ -446,13 +446,7 @@ class _StudentJournalEntriesState extends State<StudentJournalEntries> {
         },
         backgroundColor: const Color(0xFF7C83FD),
         foregroundColor: Colors.white,
-        icon: const Icon(Icons.add),
-        label: Text(
-          'Write Entry',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        child: const Icon(Icons.edit),
       ),
     );
   }

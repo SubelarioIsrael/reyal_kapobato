@@ -41,6 +41,11 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
     _fetchTodayCheckIn();
   }
 
+  String _capitalizeString(String text) {
+    if (text.isEmpty) return text;
+    return text[0].toUpperCase() + text.substring(1);
+  }
+
   Future<void> _fetchTodayCheckIn() async {
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null) return;
@@ -176,11 +181,13 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
         ],
       ),
       drawer: const StudentDrawer(),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: isComplete && todayCheckIn != null
-            ? _buildSummary()
-            : _buildStepper(),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: isComplete && todayCheckIn != null
+              ? _buildSummary()
+              : _buildStepper(),
+        ),
       ),
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: Colors.white,
@@ -303,7 +310,7 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
         ] else if (step == 1) ...[
           const SizedBox(height: 20),
           Text(
-            "What's making you feel ${moodType?.capitalize() ?? ''}?",
+            "What's making you feel ${moodType != null ? _capitalizeString(moodType!) : ''}?",
             style: GoogleFonts.poppins(
               fontSize: 24,
               fontWeight: FontWeight.w600,
@@ -503,14 +510,14 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
     if (todayCheckIn == null) return const SizedBox();
     final emoji = todayCheckIn!['emoji_code'] ?? '';
     final mood = todayCheckIn!['mood_type'] ?? '';
-    final reasons = (todayCheckIn!['reasons'] as List?)?.join(', ') ?? '';
+    final reasonsList = (todayCheckIn!['reasons'] as List?)?.cast<String>() ?? [];
     final notes = todayCheckIn!['notes'] ?? '';
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        const SizedBox(height: 40),
+        
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(32),
@@ -541,11 +548,11 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 10),
               Text(
                 'Daily Check-in Complete!',
                 style: GoogleFonts.poppins(
-                  fontSize: 24,
+                  fontSize: 22,
                   fontWeight: FontWeight.w600,
                   color: const Color(0xFF3A3A50),
                 ),
@@ -553,17 +560,18 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
               ),
               const SizedBox(height: 12),
               Text(
-                'You felt ${mood.capitalize()}',
+                'You felt ${_capitalizeString(mood)}',
                 style: GoogleFonts.poppins(
-                  fontSize: 18,
+                  fontSize: 16,
                   fontWeight: FontWeight.w500,
                   color: const Color(0xFF5D5D72),
                 ),
                 textAlign: TextAlign.center,
               ),
-              if (reasons.isNotEmpty) ...[
+              if (reasonsList.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 Container(
+                  width: double.infinity,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.grey[50],
@@ -580,25 +588,58 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
                           color: const Color(0xFF3A3A50),
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        reasons,
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          color: const Color(0xFF5D5D72),
-                        ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: reasonsList.map((reason) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF7C83FD).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: const Color(0xFF7C83FD).withOpacity(0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Text(
+                              reason,
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: const Color(0xFF7C83FD),
+                              ),
+                            ),
+                          );
+                        }).toList(),
                       ),
                     ],
                   ),
                 ),
               ],
               if (notes.isNotEmpty) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 Container(
+                  width: double.infinity,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.grey[50],
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.grey[300]!,
+                      width: 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -611,12 +652,26 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
                           color: const Color(0xFF3A3A50),
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        notes,
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          color: const Color(0xFF5D5D72),
+                      const SizedBox(height: 12),
+                      Container(
+                        width: double.infinity,
+                        constraints: const BoxConstraints(minHeight: 80),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[50],
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Colors.grey[200]!,
+                            width: 1,
+                          ),
+                        ),
+                        child: Text(
+                          notes,
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            color: const Color(0xFF5D5D72),
+                            height: 1.5,
+                          ),
                         ),
                       ),
                     ],
@@ -626,7 +681,7 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
             ],
           ),
         ),
-        const SizedBox(height: 32),
+        const SizedBox(height: 10),
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
@@ -664,14 +719,5 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
         ),
       ],
     );
-  }
-}
-
-extension StringExtension on String {
-  String capitalize() {
-    if (isEmpty) {
-      return this;
-    }
-    return this[0].toUpperCase() + substring(1);
   }
 }

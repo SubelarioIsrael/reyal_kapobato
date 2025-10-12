@@ -37,13 +37,11 @@ import 'pages/admin/admin_users.dart';
 import 'pages/admin/admin_resources.dart';
 import 'pages/admin/admin_exercises.dart';
 import 'pages/admin/admin_notifications.dart';
-import 'pages/admin/admin_settings.dart';
 import 'pages/admin/admin_profile.dart';
 import 'pages/admin/admin_questionnaire.dart';
 import 'pages/admin/admin_hotlines.dart';
 import 'pages/counselor/counselor_home.dart';
 import 'pages/counselor/counselor_settings.dart';
-import 'pages/counselor/student_history.dart';
 import 'pages/counselor/student_overview.dart';
 
 // page routes
@@ -113,7 +111,6 @@ final Map<String, WidgetBuilder> appRoutes = {
 
     if (appointmentId == null ||
         counselorName == null ||
-        counselorName == null ||
         counselorName.isEmpty) {
       return const Scaffold(
         body: Center(child: Text('Error: Invalid or missing chat arguments')),
@@ -177,7 +174,6 @@ final Map<String, WidgetBuilder> appRoutes = {
   'admin-exercises': (context) => const AuthGuard(child: AdminExercises()),
   'admin-notifications': (context) =>
       const AuthGuard(child: AdminNotifications()),
-  'admin-settings': (context) => const AuthGuard(child: AdminSettings()),
   'admin-profile': (context) => const AuthGuard(child: AdminProfile()),
   '/admin-questionnaire': (context) =>
       const AuthGuard(child: AdminQuestionnaire()),
@@ -192,8 +188,8 @@ final Map<String, WidgetBuilder> appRoutes = {
       const AuthGuard(child: CounselorProfileFirstSetup()),
   'counselor-settings': (context) =>
       const AuthGuard(child: CounselorSettings()),
-  '/student-history': (context) => AuthGuard(
-        child: StudentHistory(
+  '/student-overview': (context) => AuthGuard(
+        child: StudentOverview(
           userId: (ModalRoute.of(context)?.settings.arguments
               as Map<String, dynamic>)['userId'] as String,
           studentName: (ModalRoute.of(context)?.settings.arguments

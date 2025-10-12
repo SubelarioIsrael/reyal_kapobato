@@ -12,6 +12,7 @@ class ProfileImageService {
   /// Pick image from gallery and convert to base64
   static Future<String?> pickImageFromGallery() async {
     try {
+      print('DEBUG: Opening gallery picker');
       final XFile? image = await _picker.pickImage(
         source: ImageSource.gallery,
         maxWidth: 800,
@@ -20,11 +21,14 @@ class ProfileImageService {
       );
       
       if (image != null) {
+        print('DEBUG: Image selected from gallery: ${image.path}');
         final File file = File(image.path);
         final Uint8List imageBytes = await file.readAsBytes();
         final String base64String = base64Encode(imageBytes);
+        print('DEBUG: Image converted to base64, length: ${base64String.length}');
         return base64String;
       }
+      print('DEBUG: No image selected from gallery');
       return null;
     } catch (e) {
       print('Error picking image: $e');
@@ -59,9 +63,7 @@ class ProfileImageService {
 
   /// Show image source selection dialog
   static Future<String?> showImageSourceDialog(context) async {
-    String? selectedImageBase64;
-    
-    await showDialog(
+    String? selectedSource = await showDialog<String>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
@@ -72,24 +74,18 @@ class ProfileImageService {
               ListTile(
                 leading: const Icon(Icons.photo_library),
                 title: const Text('Gallery'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  selectedImageBase64 = await pickImageFromGallery();
-                },
+                onTap: () => Navigator.pop(context, 'gallery'),
               ),
               ListTile(
                 leading: const Icon(Icons.camera_alt),
                 title: const Text('Camera'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  selectedImageBase64 = await pickImageFromCamera();
-                },
+                onTap: () => Navigator.pop(context, 'camera'),
               ),
             ],
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(context, null),
               child: const Text('Cancel'),
             ),
           ],
@@ -97,7 +93,16 @@ class ProfileImageService {
       },
     );
     
-    return selectedImageBase64;
+    if (selectedSource == null) return null;
+    
+    // Now get the actual image based on the selected source
+    if (selectedSource == 'gallery') {
+      return await pickImageFromGallery();
+    } else if (selectedSource == 'camera') {
+      return await pickImageFromCamera();
+    }
+    
+    return null;
   }
 
   /// Update profile image for counselor (stores base64 data directly in database)
@@ -119,12 +124,17 @@ class ProfileImageService {
   /// Update profile image for student (stores base64 data directly in database)
   static Future<bool> updateStudentProfileImage(String base64Image, String userId) async {
     try {
+      print('DEBUG: Updating student profile image for user: $userId');
+      print('DEBUG: Base64 length: ${base64Image.length}');
+      
       // Update user profile with base64 image data
-      await _supabase
+      final result = await _supabase
           .from('users')
           .update({'profile_picture': base64Image})
-          .eq('user_id', userId);
+          .eq('user_id', userId)
+          .select();
 
+      print('DEBUG: Database update result: $result');
       return true;
     } catch (e) {
       print('Error updating student profile image: $e');

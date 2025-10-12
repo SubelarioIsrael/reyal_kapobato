@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../widgets/student_avatar.dart';
 
 class StudentOverview extends StatefulWidget {
   final String userId;
@@ -255,18 +256,10 @@ class _StudentOverviewState extends State<StudentOverview>
       ),
       child: Row(
         children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: const Color(0xFF7C83FD).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(40),
-            ),
-            child: const Icon(
-              Icons.person,
-              size: 40,
-              color: Color(0xFF7C83FD),
-            ),
+          StudentAvatar(
+            userId: widget.userId,
+            radius: 40,
+            fallbackName: widget.studentName,
           ),
           const SizedBox(width: 16),
           Expanded(
