@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../components/student_drawer.dart';
 import '../../components/student_notification_button.dart';
 import '../../services/activity_service.dart';
+import '../../services/api/sentiment_app.dart'; // Ensure this import is present
+import '../../services/intervention_service.dart';
 
 class StudentMoodJournal extends StatefulWidget {
   const StudentMoodJournal({super.key});
@@ -18,8 +20,10 @@ class _StudentMoodJournalState extends State<StudentMoodJournal> {
   final _contentController = TextEditingController();
   bool _isSubmitting = false;
   bool _isSharedWithCounselor = false;
+  List<Map<String, dynamic>> _hotlines = const [];
 
   Future<void> _submitJournal() async {
+    final result = await analyzeSentiment(_contentController.text.trim());
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isSubmitting = true);
@@ -33,14 +37,36 @@ class _StudentMoodJournalState extends State<StudentMoodJournal> {
     }
 
     try {
-      await Supabase.instance.client.from('journal_entries').insert({
-        'title': _titleController.text.trim(),
-        'content': _contentController.text.trim(),
-        'sentiment_score': 1.00,
-        'entry_timestamp': DateTime.now().toIso8601String(),
-        'is_shared_with_counselor': _isSharedWithCounselor,
-        'user_id': userId,
-      });
+      final inserted = await Supabase.instance.client
+          .from('journal_entries')
+          .insert({
+            // Title is optional; include only when provided
+            if (_titleController.text.trim().isNotEmpty)
+              'title': _titleController.text.trim(),
+            'content': _contentController.text.trim(),
+            'sentiment': result['sentiment'],
+            'insight': result['thought'],
+            'entry_timestamp': DateTime.now().toIso8601String(),
+            'is_shared_with_counselor': _isSharedWithCounselor,
+            'user_id': userId,
+          })
+          .select('journal_id')
+          .single();
+
+      final int journalId = inserted['journal_id'] as int;
+
+      final level = await InterventionService.triggerJournalIntervention(
+        journalId: journalId,
+        userId: userId,
+        sentiment: (result['sentiment'] ?? '').toString(),
+        content: _contentController.text.trim(),
+        insight: (result['thought'] ?? '').toString(),
+      );
+
+      if (level == InterventionLevel.high) {
+        _hotlines = await InterventionService.fetchHotlines(limit: 5);
+        if (mounted) _showHighRiskModal();
+      }
 
       // Record activity completion
       await ActivityService.recordActivityCompletion('mood_journal');
@@ -66,7 +92,7 @@ class _StudentMoodJournalState extends State<StudentMoodJournal> {
   @override
   Widget build(BuildContext context) {
     const pastelBlue = Color.fromARGB(255, 242, 241, 248);
-    const lightPurple = Color.fromARGB(255, 244, 253, 231);
+    // const lightPurple = Color.fromARGB(255, 244, 253, 231);
     const darkText = Color(0xFF3A3A50);
 
     return Scaffold(
@@ -191,11 +217,83 @@ class _StudentMoodJournalState extends State<StudentMoodJournal> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 8),
+                // Realtime toasts could be added in a separate listener screen-wide
               ],
             ),
           ),
         ),
       ),
+    );
+  }
+
+  void _showHighRiskModal() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('We are here for you', style: GoogleFonts.poppins()),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'If things feel overwhelming, please reach out now. You can contact your counselor or call a hotline:',
+                  style: GoogleFonts.poppins(fontSize: 13),
+                ),
+                const SizedBox(height: 12),
+                ..._hotlines.map((h) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.call,
+                              size: 16, color: Color(0xFF7C83FD)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(h['name'] ?? 'Hotline',
+                                    style: GoogleFonts.poppins(
+                                        fontWeight: FontWeight.w600)),
+                                Text(h['phone'] ?? '',
+                                    style: GoogleFonts.poppins(fontSize: 12)),
+                                if ((h['city_or_region'] ?? '')
+                                    .toString()
+                                    .isNotEmpty)
+                                  Text(h['city_or_region'],
+                                      style: GoogleFonts.poppins(
+                                          fontSize: 11,
+                                          color: Colors.grey[600])),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    )),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Close', style: GoogleFonts.poppins()),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                Navigator.pushNamed(context, 'student-counselors');
+              },
+              child: Text('Contact counselor',
+                  style: GoogleFonts.poppins(color: const Color(0xFF7C83FD))),
+            ),
+          ],
+        );
+      },
     );
   }
 }

@@ -39,8 +39,10 @@ class JournalService {
   static Future<bool> updateJournalEntry(JournalEntry entry) async {
     try {
       await _supabase.from('journal_entries').update({
-        'title': entry.title,
+        if (entry.title != null) 'title': entry.title,
         'content': entry.content,
+        if (entry.sentiment != null) 'sentiment': entry.sentiment,
+        if (entry.insight != null) 'insight': entry.insight,
         'is_shared_with_counselor': entry.isSharedWithCounselor,
       }).eq('journal_id', entry.journalId);
 
@@ -72,7 +74,7 @@ class JournalService {
           .from('journal_entries')
           .select()
           .eq('user_id', userId)
-          .or('title.ilike.%$query%,content.ilike.%$query%')
+          .or('title.ilike.%$query%,content.ilike.%$query%,insight.ilike.%$query%')
           .order('entry_timestamp', ascending: false);
 
       return (response as List)
@@ -88,7 +90,7 @@ class JournalService {
     try {
       final response = await _supabase
           .from('journal_entries')
-          .select('sentiment_score, is_shared_with_counselor')
+          .select('sentiment, is_shared_with_counselor')
           .eq('user_id', userId);
 
       int totalEntries = response.length;
@@ -98,8 +100,7 @@ class JournalService {
 
       int positiveEntries = response
           .where((entry) =>
-              entry['sentiment_score'] != null &&
-              (entry['sentiment_score'] as num).toDouble() >= 0.5)
+              (entry['sentiment'] as String?)?.toLowerCase() == 'positive')
           .length;
 
       return {

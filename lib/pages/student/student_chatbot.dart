@@ -17,6 +17,13 @@ class _StudentChatbotState extends State<StudentChatbot> {
   final List<Map<String, String>> _messages = [];
   final TextEditingController _controller = TextEditingController();
   bool _isLoading = false;
+  List<Map<String, dynamic>> _hotlines = const [];
+  // Simple abuse protection: cooldown + rolling window cap
+  DateTime? _lastSendAt;
+  final List<DateTime> _sendTimestamps = [];
+  static const Duration _sendCooldown = Duration(seconds: 3);
+  static const Duration _windowDuration = Duration(minutes: 10);
+  static const int _windowMaxMessages = 15;
 
   @override
   void initState() {
@@ -31,6 +38,35 @@ class _StudentChatbotState extends State<StudentChatbot> {
 
   Future<void> _sendMessage(String text) async {
     if (text.trim().isEmpty) return;
+
+    // Cooldown enforcement
+    final now = DateTime.now();
+    if (_lastSendAt != null && now.difference(_lastSendAt!) < _sendCooldown) {
+      final remaining = _sendCooldown - now.difference(_lastSendAt!);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(
+                  'Please wait ${remaining.inSeconds}s before sending again.')),
+        );
+      }
+      return;
+    }
+
+    // Rolling window cap enforcement
+    _sendTimestamps.removeWhere((t) => now.difference(t) > _windowDuration);
+    if (_sendTimestamps.length >= _windowMaxMessages) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text(
+                  'You have reached the message limit. Please try again later.')),
+        );
+      }
+      return;
+    }
+    _sendTimestamps.add(now);
+    _lastSendAt = now;
 
     setState(() {
       _messages.add({"sender": "user", "text": text});
@@ -80,6 +116,10 @@ class _StudentChatbotState extends State<StudentChatbot> {
         final hasRecent = await InterventionService.hasRecentIntervention();
         if (!hasRecent) {
           await InterventionService.triggerIntervention(messageLevel, message);
+          if (messageLevel == InterventionLevel.high) {
+            _hotlines = await InterventionService.fetchHotlines(limit: 5);
+            if (mounted) _showHighRiskModal();
+          }
         }
         return;
       }
@@ -90,11 +130,85 @@ class _StudentChatbotState extends State<StudentChatbot> {
         final hasRecent = await InterventionService.hasRecentIntervention();
         if (!hasRecent) {
           await InterventionService.triggerIntervention(historyLevel, message);
+          if (historyLevel == InterventionLevel.high) {
+            _hotlines = await InterventionService.fetchHotlines(limit: 5);
+            if (mounted) _showHighRiskModal();
+          }
         }
       }
     } catch (e) {
       print('Error checking for intervention: $e');
     }
+  }
+
+  void _showHighRiskModal() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('We are here for you', style: GoogleFonts.poppins()),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'If things feel overwhelming, please reach out now. You can contact your counselor or call a hotline:',
+                  style: GoogleFonts.poppins(fontSize: 13),
+                ),
+                const SizedBox(height: 12),
+                ..._hotlines.map((h) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.call,
+                              size: 16, color: Color(0xFF7C83FD)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(h['name'] ?? 'Hotline',
+                                    style: GoogleFonts.poppins(
+                                        fontWeight: FontWeight.w600)),
+                                Text(h['phone'] ?? '',
+                                    style: GoogleFonts.poppins(fontSize: 12)),
+                                if ((h['city_or_region'] ?? '')
+                                    .toString()
+                                    .isNotEmpty)
+                                  Text(h['city_or_region'],
+                                      style: GoogleFonts.poppins(
+                                          fontSize: 11,
+                                          color: Colors.grey[600])),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    )),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Close', style: GoogleFonts.poppins()),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                Navigator.pushNamed(context, 'student-counselors');
+              },
+              child: Text('Contact counselor',
+                  style: GoogleFonts.poppins(color: const Color(0xFF7C83FD))),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
