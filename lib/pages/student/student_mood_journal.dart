@@ -36,7 +36,7 @@ class _StudentMoodJournalState extends State<StudentMoodJournal> {
       await Supabase.instance.client.from('journal_entries').insert({
         'title': _titleController.text.trim(),
         'content': _contentController.text.trim(),
-        'sentiment_score': 0.75,
+        'sentiment_score': 1.00,
         'entry_timestamp': DateTime.now().toIso8601String(),
         'is_shared_with_counselor': _isSharedWithCounselor,
         'user_id': userId,

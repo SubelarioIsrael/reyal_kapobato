@@ -13,8 +13,8 @@ void main() {
 
     // Enter login credentials
     await tester.enterText(
-        find.byKey(const Key('login_email')), 'boiblek04@gmail.com');
-    await tester.enterText(find.byKey(const Key('login_password')), 'lolz1433');
+        find.byKey(const Key('login_email')), 'testuser@gmail.com');
+    await tester.enterText(find.byKey(const Key('login_password')), 'testuser123');
 
     // Tap login button
     final loginButton = find.byKey(const Key('login_button'));
