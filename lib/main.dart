@@ -57,15 +57,17 @@ void main() async {
       await registerDeviceWithSupabase();
     }
   });
-  runApp(const MyApp());
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final navigatorKey = GlobalKey<NavigatorState>();
+  MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       title: 'BreatheBetter',
       initialRoute: '/login',

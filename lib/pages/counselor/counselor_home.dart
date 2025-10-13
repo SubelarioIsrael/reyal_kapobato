@@ -363,6 +363,7 @@ class _CounselorHomeState extends State<CounselorHome> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: const Key('counselorHomeScreen'),
       backgroundColor: const Color.fromARGB(255, 242, 241, 248),
       appBar: AppBar(
         backgroundColor: const Color.fromARGB(255, 242, 241, 248),

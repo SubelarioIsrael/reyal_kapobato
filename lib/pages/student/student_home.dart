@@ -132,7 +132,8 @@ class _StudentHomeState extends State<StudentHome> {
   }
 
   void _listenToStudentNameChanges() {
-    _studentNameSubscription = UserService.studentNameStream.listen((newStudentName) {
+    _studentNameSubscription =
+        UserService.studentNameStream.listen((newStudentName) {
       if (mounted) {
         setState(() {
           studentName = newStudentName;
@@ -434,6 +435,7 @@ class _StudentHomeState extends State<StudentHome> {
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
+        key: const Key('studentHomeScreen'),
         backgroundColor: const Color.fromARGB(255, 242, 241, 248),
         appBar: AppBar(
           backgroundColor: const Color.fromARGB(255, 242, 241, 248),
@@ -485,9 +487,7 @@ class _StudentHomeState extends State<StudentHome> {
                   ),
                   const SizedBox(height: 5),
                   Text(
-                    isLoading
-                        ? "Loading..."
-                        : "Hi, ${studentName ?? ''}!",
+                    isLoading ? "Loading..." : "Hi, ${studentName ?? ''}!",
                     style: GoogleFonts.poppins(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
