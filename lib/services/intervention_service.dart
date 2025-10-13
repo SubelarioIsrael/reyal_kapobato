@@ -1,5 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'notification_service.dart';
+// import 'notification_service.dart';
 
 class InterventionService {
   static final supabase = Supabase.instance.client;
@@ -61,6 +61,115 @@ class InterventionService {
     'sexual assault'
   ];
 
+  /// Find keyword and phrase matches in a text
+  static List<String> _findMatches(String textLower) {
+    final List<String> matches = [];
+    for (final phrase in _highRiskPhrases) {
+      if (textLower.contains(phrase)) matches.add(phrase);
+    }
+    for (final keyword in _concerningKeywords) {
+      if (textLower.contains(keyword)) matches.add(keyword);
+    }
+    return matches.toSet().toList();
+  }
+
+  /// Determine journal intervention level from sentiment + text
+  static InterventionLevel analyzeJournal(String sentiment, String text,
+      {String? insight}) {
+    if (sentiment.toLowerCase().trim() != 'negative') {
+      return InterventionLevel.none;
+    }
+
+    final lower = (text + ' ' + (insight ?? '')).toLowerCase();
+    // High risk if any high-risk phrase present
+    for (final phrase in _highRiskPhrases) {
+      if (lower.contains(phrase)) return InterventionLevel.high;
+    }
+
+    // Moderate if any concerning keyword found
+    for (final keyword in _concerningKeywords) {
+      if (lower.contains(keyword)) return InterventionLevel.moderate;
+    }
+
+    // Otherwise negative sentiment without keywords → low
+    return InterventionLevel.moderate; // prefer surfacing negative entries
+  }
+
+  /// Throttle alerts by risk level
+  static Future<bool> _isThrottled(
+      String userId, InterventionLevel level) async {
+    final Duration window = switch (level) {
+      InterventionLevel.high => const Duration(hours: 2),
+      InterventionLevel.moderate => const Duration(minutes: 30),
+      InterventionLevel.none => const Duration(seconds: 0),
+    };
+    if (level == InterventionLevel.none) return true;
+
+    final cutoff = DateTime.now().subtract(window).toIso8601String();
+    final resp = await supabase
+        .from('alerts')
+        .select('created_at')
+        .eq('user_id', userId)
+        .gte('created_at', cutoff)
+        .order('created_at', ascending: false)
+        .limit(1);
+    return resp.isNotEmpty;
+  }
+
+  /// Create alert + notifications for a journal entry
+  static Future<InterventionLevel> triggerJournalIntervention({
+    required int journalId,
+    required String userId,
+    required String sentiment,
+    required String content,
+    String? insight,
+  }) async {
+    final level = analyzeJournal(sentiment, content, insight: insight);
+    if (level == InterventionLevel.none) return level;
+
+    if (await _isThrottled(userId, level)) return level;
+
+    final textLower = (content + ' ' + (insight ?? '')).toLowerCase();
+    final matches = _findMatches(textLower);
+
+    await supabase.from('alerts').insert({
+      'user_id': userId,
+      'journal_id': journalId,
+      'risk_level': level.name,
+      'sentiment': sentiment.toLowerCase(),
+      'matched_terms': matches,
+    });
+
+    // Student notification content
+    final String studentTitle = level == InterventionLevel.high
+        ? 'We are here for you'
+        : 'You are not alone';
+    final String studentContent = level == InterventionLevel.high
+        ? 'If things feel overwhelming, consider reaching out now. Hotlines and your counselor are available.'
+        : 'It helps to talk. Would you like to reach out to your counselor or try a grounding exercise?';
+
+    await supabase.from('user_notifications').insert({
+      'user_id': userId,
+      'notification_type': studentTitle,
+      'content': studentContent,
+      'is_read': false,
+      'action_url': '/student/counselors',
+    });
+
+    return level;
+  }
+
+  /// Fetch mental health hotlines (can filter by region later)
+  static Future<List<Map<String, dynamic>>> fetchHotlines(
+      {int limit = 5}) async {
+    final rows = await supabase
+        .from('mental_health_hotlines')
+        .select('name, phone, city_or_region, notes, profile_picture')
+        .order('created_at', ascending: false)
+        .limit(limit);
+    return List<Map<String, dynamic>>.from(rows);
+  }
+
   /// Analyzes a chat message for concerning content
   static InterventionLevel analyzeMessage(String message) {
     final lowerMessage = message.toLowerCase();
@@ -103,7 +212,7 @@ class InterventionService {
           .order('created_at', ascending: false)
           .limit(50);
 
-      if (response == null || response.isEmpty) {
+      if (response.isEmpty) {
         return InterventionLevel.none;
       }
 

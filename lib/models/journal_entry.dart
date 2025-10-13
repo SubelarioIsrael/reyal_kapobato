@@ -1,17 +1,20 @@
 class JournalEntry {
   final int journalId;
-  final String title;
+  final String? title; // Optional: table may not have a title column anymore
   final String content;
-  final double? sentimentScore;
+  // Only use text label from NLP service
+  final String? sentiment; // new: 'positive' | 'neutral' | 'negative'
+  final String? insight; // optional explanatory text
   final DateTime entryTimestamp;
   final bool isSharedWithCounselor;
   final String userId;
 
   JournalEntry({
     required this.journalId,
-    required this.title,
+    this.title,
     required this.content,
-    this.sentimentScore,
+    this.sentiment,
+    this.insight,
     required this.entryTimestamp,
     required this.isSharedWithCounselor,
     required this.userId,
@@ -20,11 +23,10 @@ class JournalEntry {
   factory JournalEntry.fromMap(Map<String, dynamic> map) {
     return JournalEntry(
       journalId: map['journal_id'] as int,
-      title: map['title'] as String,
+      title: map.containsKey('title') ? map['title'] as String? : null,
       content: map['content'] as String,
-      sentimentScore: map['sentiment_score'] != null
-          ? (map['sentiment_score'] as num).toDouble()
-          : null,
+      sentiment: map['sentiment'] as String?,
+      insight: map['insight'] as String?,
       entryTimestamp: DateTime.parse(map['entry_timestamp'] as String),
       isSharedWithCounselor: map['is_shared_with_counselor'] as bool? ?? false,
       userId: map['user_id'] as String,
@@ -34,9 +36,10 @@ class JournalEntry {
   Map<String, dynamic> toMap() {
     return {
       'journal_id': journalId,
-      'title': title,
+      if (title != null) 'title': title,
       'content': content,
-      'sentiment_score': sentimentScore,
+      if (sentiment != null) 'sentiment': sentiment,
+      if (insight != null) 'insight': insight,
       'entry_timestamp': entryTimestamp.toIso8601String(),
       'is_shared_with_counselor': isSharedWithCounselor,
       'user_id': userId,
@@ -44,16 +47,22 @@ class JournalEntry {
   }
 
   String get sentimentLabel {
-    if (sentimentScore == null) return 'Unknown';
-    if (sentimentScore! >= 0.5) return 'Positive';
-    if (sentimentScore! >= -0.1) return 'Neutral';
-    return 'Negative';
+    if (sentiment != null) {
+      final normalized = sentiment!.toLowerCase().trim();
+      if (normalized == 'positive') return 'Positive';
+      if (normalized == 'neutral') return 'Neutral';
+      if (normalized == 'negative') return 'Negative';
+    }
+    return 'Unknown';
   }
 
   String get sentimentEmoji {
-    if (sentimentScore == null) return '😐';
-    if (sentimentScore! >= 0.5) return '😊';
-    if (sentimentScore! >= -0.1) return '😐';
-    return '😔';
+    if (sentiment != null) {
+      final normalized = sentiment!.toLowerCase().trim();
+      if (normalized == 'positive') return '😊';
+      if (normalized == 'neutral') return '😐';
+      if (normalized == 'negative') return '😔';
+    }
+    return '😐';
   }
 }

@@ -23,22 +23,22 @@ class _StudentOverviewState extends State<StudentOverview>
     with TickerProviderStateMixin {
   bool _isLoading = true;
   String? _errorMessage;
-  
+
   // Student Profile Data
   Map<String, dynamic>? _studentProfile;
-  
+
   // Dashboard Statistics
   int _totalActivitiesCompleted = 0;
   int _totalJournalEntries = 0;
   int _totalQuestionnaires = 0;
   int _totalSessions = 0;
-  
+
   // Recent Data
   List<Map<String, dynamic>> _activityCounts = [];
   List<Map<String, dynamic>> _recentJournalEntries = [];
   List<Map<String, dynamic>> _recentQuestionnaires = [];
   List<Map<String, dynamic>> _sessionNotes = [];
-  
+
   late TabController _tabController;
 
   @override
@@ -84,10 +84,11 @@ class _StudentOverviewState extends State<StudentOverview>
   Future<void> _loadStudentProfile() async {
     final response = await Supabase.instance.client
         .from('students')
-        .select('*, users!students_user_id_fkey(email, registration_date, status)')
+        .select(
+            '*, users!students_user_id_fkey(email, registration_date, status)')
         .eq('user_id', widget.userId)
         .single();
-    
+
     _studentProfile = response;
   }
 
@@ -97,7 +98,7 @@ class _StudentOverviewState extends State<StudentOverview>
         .from('activity_completions')
         .select('completion_id')
         .eq('user_id', widget.userId);
-    
+
     _totalActivitiesCompleted = completedResponse.length;
 
     // Get activity counts grouped by activity type
@@ -105,16 +106,17 @@ class _StudentOverviewState extends State<StudentOverview>
         .from('activity_completions')
         .select('activity_id, activities(name, description, points)')
         .eq('user_id', widget.userId);
-    
+
     // Group completions by activity and count them
     Map<int, Map<String, dynamic>> activityMap = {};
-    
+
     for (var completion in activityCountsResponse) {
       final activityId = completion['activity_id'] as int;
       final activityInfo = completion['activities'] as Map<String, dynamic>;
-      
+
       if (activityMap.containsKey(activityId)) {
-        activityMap[activityId]!['count'] = (activityMap[activityId]!['count'] as int) + 1;
+        activityMap[activityId]!['count'] =
+            (activityMap[activityId]!['count'] as int) + 1;
       } else {
         activityMap[activityId] = {
           'activity_id': activityId,
@@ -123,20 +125,22 @@ class _StudentOverviewState extends State<StudentOverview>
         };
       }
     }
-    
+
     _activityCounts = activityMap.values.toList();
-    
+
     // Sort by count (highest first)
-    _activityCounts.sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
+    _activityCounts
+        .sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
   }
 
   Future<void> _loadJournalStats() async {
     final response = await Supabase.instance.client
         .from('journal_entries')
-        .select('journal_id, title, entry_timestamp, sentiment_score, is_shared_with_counselor')
+        .select(
+            'journal_id, title, entry_timestamp, sentiment, is_shared_with_counselor')
         .eq('user_id', widget.userId)
         .order('entry_timestamp', ascending: false);
-    
+
     _totalJournalEntries = response.length;
     _recentJournalEntries = List<Map<String, dynamic>>.from(response.take(5));
   }
@@ -152,7 +156,7 @@ class _StudentOverviewState extends State<StudentOverview>
         ''')
         .eq('user_id', widget.userId)
         .order('submission_timestamp', ascending: false);
-    
+
     _totalQuestionnaires = response.length;
     _recentQuestionnaires = List<Map<String, dynamic>>.from(response.take(5));
   }
@@ -160,10 +164,11 @@ class _StudentOverviewState extends State<StudentOverview>
   Future<void> _loadSessionStats() async {
     final response = await Supabase.instance.client
         .from('counseling_session_notes')
-        .select('*, counseling_appointments(appointment_date, start_time, end_time)')
+        .select(
+            '*, counseling_appointments(appointment_date, start_time, end_time)')
         .eq('student_user_id', widget.userId)
         .order('created_at', ascending: false);
-    
+
     _totalSessions = response.length;
     _sessionNotes = List<Map<String, dynamic>>.from(response);
   }
@@ -200,7 +205,8 @@ class _StudentOverviewState extends State<StudentOverview>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+                      Icon(Icons.error_outline,
+                          size: 64, color: Colors.red[300]),
                       const SizedBox(height: 16),
                       Text(
                         _errorMessage!,
@@ -239,7 +245,7 @@ class _StudentOverviewState extends State<StudentOverview>
 
     final student = _studentProfile!;
     final userInfo = student['users'] as Map<String, dynamic>?;
-    
+
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(20),
@@ -375,7 +381,8 @@ class _StudentOverviewState extends State<StudentOverview>
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+      String title, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -477,7 +484,8 @@ class _StudentOverviewState extends State<StudentOverview>
 
   Widget _buildActivitiesTab() {
     if (_activityCounts.isEmpty) {
-      return _buildEmptyState('No activities completed yet', Icons.fitness_center);
+      return _buildEmptyState(
+          'No activities completed yet', Icons.fitness_center);
     }
 
     return ListView.builder(
@@ -485,9 +493,10 @@ class _StudentOverviewState extends State<StudentOverview>
       itemCount: _activityCounts.length,
       itemBuilder: (context, index) {
         final activityData = _activityCounts[index];
-        final activityInfo = activityData['activity_info'] as Map<String, dynamic>;
+        final activityInfo =
+            activityData['activity_info'] as Map<String, dynamic>;
         final count = activityData['count'] as int;
-        
+
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
@@ -546,7 +555,8 @@ class _StudentOverviewState extends State<StudentOverview>
               Column(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: Colors.green,
                       borderRadius: BorderRadius.circular(8),
@@ -589,8 +599,8 @@ class _StudentOverviewState extends State<StudentOverview>
       itemCount: _recentJournalEntries.length,
       itemBuilder: (context, index) {
         final journal = _recentJournalEntries[index];
-        final sentimentScore = journal['sentiment_score'] as double?;
-        
+        final sentiment = (journal['sentiment'] as String?)?.toLowerCase();
+
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
@@ -625,7 +635,8 @@ class _StudentOverviewState extends State<StudentOverview>
                   ),
                   if (journal['is_shared_with_counselor'] == true)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
                         color: Colors.green.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(6),
@@ -652,18 +663,18 @@ class _StudentOverviewState extends State<StudentOverview>
                     ),
                   ),
                   const Spacer(),
-                  if (sentimentScore != null) ...[
+                  if (sentiment != null) ...[
                     Icon(
-                      _getSentimentIcon(sentimentScore),
+                      _getSentimentIconLabel(sentiment),
                       size: 16,
-                      color: _getSentimentColor(sentimentScore),
+                      color: _getSentimentColorLabel(sentiment),
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      _getSentimentLabel(sentimentScore),
+                      _getSentimentTextLabel(sentiment),
                       style: GoogleFonts.poppins(
                         fontSize: 11,
-                        color: _getSentimentColor(sentimentScore),
+                        color: _getSentimentColorLabel(sentiment),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -689,7 +700,7 @@ class _StudentOverviewState extends State<StudentOverview>
         final questionnaire = _recentQuestionnaires[index];
         final summaries = questionnaire['questionnaire_summaries'] as List?;
         final summary = summaries?.isNotEmpty == true ? summaries!.first : null;
-        
+
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
@@ -709,7 +720,8 @@ class _StudentOverviewState extends State<StudentOverview>
                       color: Colors.orange.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.quiz, color: Colors.orange, size: 20),
+                    child:
+                        const Icon(Icons.quiz, color: Colors.orange, size: 20),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -736,7 +748,8 @@ class _StudentOverviewState extends State<StudentOverview>
                   ),
                   if (summary != null)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: _getSeverityColor(summary['severity_level']),
                         borderRadius: BorderRadius.circular(8),
@@ -789,8 +802,9 @@ class _StudentOverviewState extends State<StudentOverview>
       itemCount: _sessionNotes.length,
       itemBuilder: (context, index) {
         final session = _sessionNotes[index];
-        final appointment = session['counseling_appointments'] as Map<String, dynamic>?;
-        
+        final appointment =
+            session['counseling_appointments'] as Map<String, dynamic>?;
+
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
@@ -810,7 +824,8 @@ class _StudentOverviewState extends State<StudentOverview>
                       color: Colors.purple.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.psychology, color: Colors.purple, size: 20),
+                    child: const Icon(Icons.psychology,
+                        color: Colors.purple, size: 20),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -897,22 +912,43 @@ class _StudentOverviewState extends State<StudentOverview>
     }
   }
 
-  IconData _getSentimentIcon(double score) {
-    if (score >= 0.1) return Icons.sentiment_very_satisfied;
-    if (score >= -0.1) return Icons.sentiment_neutral;
-    return Icons.sentiment_very_dissatisfied;
+  IconData _getSentimentIconLabel(String? label) {
+    switch ((label ?? '').toLowerCase()) {
+      case 'positive':
+        return Icons.sentiment_very_satisfied;
+      case 'neutral':
+        return Icons.sentiment_neutral;
+      case 'negative':
+        return Icons.sentiment_very_dissatisfied;
+      default:
+        return Icons.help_outline;
+    }
   }
 
-  Color _getSentimentColor(double score) {
-    if (score >= 0.1) return Colors.green;
-    if (score >= -0.1) return Colors.orange;
-    return Colors.red;
+  Color _getSentimentColorLabel(String? label) {
+    switch ((label ?? '').toLowerCase()) {
+      case 'positive':
+        return Colors.green;
+      case 'neutral':
+        return Colors.orange;
+      case 'negative':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
   }
 
-  String _getSentimentLabel(double score) {
-    if (score >= 0.1) return 'Positive';
-    if (score >= -0.1) return 'Neutral';
-    return 'Negative';
+  String _getSentimentTextLabel(String? label) {
+    switch ((label ?? '').toLowerCase()) {
+      case 'positive':
+        return 'Positive';
+      case 'neutral':
+        return 'Neutral';
+      case 'negative':
+        return 'Negative';
+      default:
+        return 'Unknown';
+    }
   }
 
   Color _getSeverityColor(String severity) {
@@ -945,7 +981,7 @@ class _StudentOverviewState extends State<StudentOverview>
       default:
         icon = Icons.fitness_center;
     }
-    
+
     return Icon(icon, color: Colors.green, size: 20);
   }
 
@@ -958,7 +994,9 @@ class _StudentOverviewState extends State<StudentOverview>
       case 'track_mood':
         return 'Mental Health Assessments';
       default:
-        return activityName.replaceAll('_', ' ').split(' ')
+        return activityName
+            .replaceAll('_', ' ')
+            .split(' ')
             .map((word) => word[0].toUpperCase() + word.substring(1))
             .join(' ');
     }

@@ -62,7 +62,8 @@ class _StudentJournalEntriesState extends State<StudentJournalEntries> {
       _filteredEntries = _journalEntries.where((entry) {
         // Search filter
         bool matchesSearch = _searchQuery.isEmpty ||
-            entry.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+            (entry.title?.toLowerCase().contains(_searchQuery.toLowerCase()) ??
+                false) ||
             entry.content.toLowerCase().contains(_searchQuery.toLowerCase());
 
         // Category filter
@@ -72,17 +73,13 @@ class _StudentJournalEntriesState extends State<StudentJournalEntries> {
             matchesFilter = entry.isSharedWithCounselor;
             break;
           case 'positive':
-            matchesFilter =
-                entry.sentimentScore != null && entry.sentimentScore! >= 0.5;
+            matchesFilter = entry.sentiment?.toLowerCase() == 'positive';
             break;
           case 'negative':
-            matchesFilter =
-                entry.sentimentScore != null && entry.sentimentScore! < -0.1;
+            matchesFilter = entry.sentiment?.toLowerCase() == 'negative';
             break;
           case 'neutral':
-            matchesFilter = entry.sentimentScore != null &&
-                entry.sentimentScore! >= -0.1 &&
-                entry.sentimentScore! < 0.5;
+            matchesFilter = entry.sentiment?.toLowerCase() == 'neutral';
             break;
         }
 
@@ -103,7 +100,7 @@ class _StudentJournalEntriesState extends State<StudentJournalEntries> {
       builder: (context) => AlertDialog(
         title: Text('Delete Entry', style: GoogleFonts.poppins()),
         content: Text(
-          'Are you sure you want to delete "${entry.title}"?',
+          'Are you sure you want to delete "${entry.title ?? entry.content.substring(0, entry.content.length.clamp(0, 20))}"?',
           style: GoogleFonts.poppins(),
         ),
         actions: [
@@ -152,7 +149,7 @@ class _StudentJournalEntriesState extends State<StudentJournalEntries> {
                 children: [
                   Expanded(
                     child: Text(
-                      entry.title,
+                      entry.title ?? 'Journal Entry',
                       style: GoogleFonts.poppins(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -212,7 +209,7 @@ class _StudentJournalEntriesState extends State<StudentJournalEntries> {
                   ),
                 ),
               ),
-              if (entry.sentimentScore != null) ...[
+              if (entry.sentiment != null) ...[
                 const SizedBox(height: 20),
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -535,7 +532,7 @@ class _StudentJournalEntriesState extends State<StudentJournalEntries> {
                 children: [
                   Expanded(
                     child: Text(
-                      entry.title,
+                      entry.title ?? entry.content,
                       style: GoogleFonts.poppins(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -545,7 +542,7 @@ class _StudentJournalEntriesState extends State<StudentJournalEntries> {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  if (entry.sentimentScore != null)
+                  if (entry.sentiment != null)
                     Text(
                       entry.sentimentEmoji,
                       style: const TextStyle(fontSize: 20),
