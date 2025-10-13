@@ -219,7 +219,7 @@ class _StudentMentalHealthResourcesState
           )
         else
           ...resources.map((resource) => _buildResourceCard(resource)),
-        const SizedBox(height: 24),
+        
       ],
     );
   }

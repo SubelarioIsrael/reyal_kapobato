@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class CounselorSettings extends StatefulWidget {
   const CounselorSettings({super.key});
@@ -10,8 +12,79 @@ class CounselorSettings extends StatefulWidget {
 
 class _CounselorSettingsState extends State<CounselorSettings> {
   bool _notificationsEnabled = true;
-  bool _darkMode = false;
-  String _selectedLanguage = 'English';
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNotificationSettings();
+  }
+
+  Future<void> _loadNotificationSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      setState(() {
+        _notificationsEnabled = prefs.getBool('notifications_enabled') ?? true;
+      });
+    } catch (e) {
+      print('Error loading notification settings: $e');
+    }
+  }
+
+  Future<void> _toggleNotifications(bool enabled) async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('notifications_enabled', enabled);
+      
+      // Update in database for counselor
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId != null) {
+        await Supabase.instance.client
+            .from('counselors')
+            .update({'notifications_enabled': enabled})
+            .eq('user_id', userId);
+      }
+
+      setState(() {
+        _notificationsEnabled = enabled;
+        _isLoading = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              enabled 
+                  ? 'Push notifications enabled' 
+                  : 'Push notifications disabled',
+              style: GoogleFonts.poppins(),
+            ),
+            backgroundColor: const Color(0xFF7C83FD),
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Failed to update notification settings',
+              style: GoogleFonts.poppins(),
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,40 +106,14 @@ class _CounselorSettingsState extends State<CounselorSettings> {
         padding: const EdgeInsets.all(16),
         children: [
           _buildSection(
-            title: "General",
+            title: "Notifications",
             children: [
               _buildSwitchTile(
-                title: "Notifications",
-                subtitle: "Enable push notifications",
+                title: "Push Notifications",
+                subtitle: "Receive notifications for appointments and messages",
                 value: _notificationsEnabled,
-                onChanged: (value) {
-                  setState(() {
-                    _notificationsEnabled = value;
-                  });
-                },
-              ),
-              _buildSwitchTile(
-                title: "Dark Mode",
-                subtitle: "Enable dark theme",
-                value: _darkMode,
-                onChanged: (value) {
-                  setState(() {
-                    _darkMode = value;
-                  });
-                },
-              ),
-              _buildDropdownTile(
-                title: "Language",
-                subtitle: "Select your preferred language",
-                value: _selectedLanguage,
-                items: const ['English', 'Spanish', 'French', 'German'],
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() {
-                      _selectedLanguage = value;
-                    });
-                  }
-                },
+                isLoading: _isLoading,
+                onChanged: _toggleNotifications,
               ),
             ],
           ),
@@ -79,23 +126,7 @@ class _CounselorSettingsState extends State<CounselorSettings> {
                 subtitle: "Update your password",
                 icon: Icons.lock_outline,
                 onTap: () {
-                  // TODO: Implement change password
-                },
-              ),
-              _buildListTile(
-                title: "Privacy Policy",
-                subtitle: "Read our privacy policy",
-                icon: Icons.privacy_tip_outlined,
-                onTap: () {
-                  // TODO: Show privacy policy
-                },
-              ),
-              _buildListTile(
-                title: "Terms of Service",
-                subtitle: "Read our terms of service",
-                icon: Icons.description_outlined,
-                onTap: () {
-                  // TODO: Show terms of service
+                  _showChangePasswordDialog();
                 },
               ),
             ],
@@ -148,6 +179,7 @@ class _CounselorSettingsState extends State<CounselorSettings> {
     required String subtitle,
     required bool value,
     required ValueChanged<bool> onChanged,
+    bool isLoading = false,
   }) {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -165,46 +197,172 @@ class _CounselorSettingsState extends State<CounselorSettings> {
           color: Colors.grey[600],
         ),
       ),
-      trailing: Switch(
-        value: value,
-        onChanged: onChanged,
-        activeColor: const Color(0xFF7C83FD),
-      ),
+      trailing: isLoading
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF7C83FD)),
+              ),
+            )
+          : Switch(
+              value: value,
+              onChanged: onChanged,
+              activeColor: const Color(0xFF7C83FD),
+            ),
     );
   }
 
-  Widget _buildDropdownTile({
-    required String title,
-    required String subtitle,
-    required String value,
-    required List<String> items,
-    required ValueChanged<String?> onChanged,
-  }) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      title: Text(
-        title,
-        style: GoogleFonts.poppins(
-          fontWeight: FontWeight.w500,
-          color: const Color(0xFF3A3A50),
+  void _showChangePasswordDialog() {
+    final currentPasswordController = TextEditingController();
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+    bool isLoading = false;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            'Change Password',
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF3A3A50),
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: currentPasswordController,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: 'Current Password',
+                  labelStyle: GoogleFonts.poppins(),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: newPasswordController,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: 'New Password',
+                  labelStyle: GoogleFonts.poppins(),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: confirmPasswordController,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: 'Confirm New Password',
+                  labelStyle: GoogleFonts.poppins(),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: isLoading ? null : () => Navigator.pop(context),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.poppins(color: Colors.grey[600]),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: isLoading
+                  ? null
+                  : () async {
+                      if (newPasswordController.text != confirmPasswordController.text) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Passwords do not match',
+                              style: GoogleFonts.poppins(),
+                            ),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                        return;
+                      }
+
+                      setDialogState(() {
+                        isLoading = true;
+                      });
+
+                      try {
+                        await Supabase.instance.client.auth.updateUser(
+                          UserAttributes(password: newPasswordController.text),
+                        );
+
+                        if (context.mounted) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Password updated successfully',
+                                style: GoogleFonts.poppins(),
+                              ),
+                              backgroundColor: const Color(0xFF7C83FD),
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        setDialogState(() {
+                          isLoading = false;
+                        });
+                        
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Failed to update password',
+                                style: GoogleFonts.poppins(),
+                              ),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF7C83FD),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: isLoading
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : Text(
+                      'Update',
+                      style: GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+            ),
+          ],
         ),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: GoogleFonts.poppins(
-          fontSize: 12,
-          color: Colors.grey[600],
-        ),
-      ),
-      trailing: DropdownButton<String>(
-        value: value,
-        items: items
-            .map((item) => DropdownMenuItem(
-                  value: item,
-                  child: Text(item),
-                ))
-            .toList(),
-        onChanged: onChanged,
       ),
     );
   }

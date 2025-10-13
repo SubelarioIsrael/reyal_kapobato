@@ -40,9 +40,15 @@ import 'pages/admin/admin_notifications.dart';
 import 'pages/admin/admin_profile.dart';
 import 'pages/admin/admin_questionnaire.dart';
 import 'pages/admin/admin_hotlines.dart';
+import 'pages/admin/admin_daily_uplifts.dart';
 import 'pages/counselor/counselor_home.dart';
 import 'pages/counselor/counselor_settings.dart';
 import 'pages/counselor/student_overview.dart';
+import 'pages/counselor/all_appointments.dart';
+import 'pages/counselor/student_history_list.dart';
+import 'pages/counselor/counselor_chat_list.dart';
+import 'pages/settings.dart';
+import 'pages/change_password.dart';
 
 // page routes
 final Map<String, WidgetBuilder> appRoutes = {
@@ -178,6 +184,11 @@ final Map<String, WidgetBuilder> appRoutes = {
   '/admin-questionnaire': (context) =>
       const AuthGuard(child: AdminQuestionnaire()),
   'admin-hotlines': (context) => const AuthGuard(child: AdminHotlines()),
+  'admin-daily-uplifts': (context) => const AuthGuard(child: AdminDailyUplifts()),
+
+  // universal pages (accessible by all user types)
+  '/settings': (context) => const AuthGuard(child: SettingsPage()),
+  '/change-password': (context) => const AuthGuard(child: ChangePasswordPage()),
 
   // counselor page routes
   '/counselor-profile': (context) =>
@@ -188,6 +199,12 @@ final Map<String, WidgetBuilder> appRoutes = {
       const AuthGuard(child: CounselorProfileFirstSetup()),
   'counselor-settings': (context) =>
       const AuthGuard(child: CounselorSettings()),
+  '/all-appointments': (context) =>
+      const AuthGuard(child: AllAppointments()),
+  '/student-history-list': (context) =>
+      const AuthGuard(child: StudentHistoryList()),
+  '/counselor-chat-list': (context) =>
+      const AuthGuard(child: CounselorChatList()),
   '/student-overview': (context) => AuthGuard(
         child: StudentOverview(
           userId: (ModalRoute.of(context)?.settings.arguments

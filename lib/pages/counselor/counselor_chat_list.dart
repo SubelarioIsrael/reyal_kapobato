@@ -434,8 +434,8 @@ class _CounselorChatListState extends State<CounselorChatList> {
         title: Text(
           'Student Chats',
           style: GoogleFonts.poppins(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
             color: const Color(0xFF3A3A50),
           ),
         ),

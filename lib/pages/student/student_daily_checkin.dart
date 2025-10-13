@@ -181,14 +181,17 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
         ],
       ),
       drawer: const StudentDrawer(),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: isComplete && todayCheckIn != null
-              ? _buildSummary()
-              : _buildStepper(),
-        ),
-      ),
+      body: isComplete && todayCheckIn != null
+          ? SingleChildScrollView(
+              padding: const EdgeInsets.all(20.0),
+              child: _buildSummary(),
+            )
+          : SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: _buildStepper(),
+              ),
+            ),
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: Colors.white,
         selectedItemColor: const Color(0xFF7C83FD),
@@ -283,7 +286,7 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
               }).toList(),
             ),
           ),
-          const Spacer(),
+          const SizedBox(height: 50),
           Container(
             width: double.infinity,
             height: 56,
@@ -440,7 +443,7 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
               ],
             ),
           ),
-          const Spacer(),
+          const SizedBox(height: 50),
           Row(
             children: [
               Expanded(

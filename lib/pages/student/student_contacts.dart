@@ -307,7 +307,7 @@ class _StudentContactsPageState extends State<StudentContactsPage> {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: isEmergency ? const Color(0xFFFFF3E0) : Colors.white,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -373,7 +373,7 @@ class _StudentContactsPageState extends State<StudentContactsPage> {
                   ),
                 ),
                 IconButton(
-                  icon: Icon(Icons.call, color: isEmergency ? Colors.red : const Color(0xFF81C784)),
+                  icon: const Icon(Icons.call, color: Color(0xFF7C83FD)),
                   onPressed: () => _launchContact(contact['phone']),
                   tooltip: 'Call',
                 ),
@@ -394,7 +394,7 @@ class _StudentContactsPageState extends State<StudentContactsPage> {
           style: GoogleFonts.poppins(
             fontSize: 20,
             fontWeight: FontWeight.w600,
-            color: isEmergency ? Colors.red : const Color(0xFF3A3A50),
+            color: const Color(0xFF3A3A50),
           ),
         ),
         const SizedBox(height: 16),
@@ -416,7 +416,7 @@ class _StudentContactsPageState extends State<StudentContactsPage> {
             child: Column(
               children: [
                 Icon(
-                  isEmergency ? Icons.warning : Icons.person_off,
+                  isEmergency ? Icons.support_agent : Icons.person_off,
                   size: 48,
                   color: Colors.grey[400],
                 ),

@@ -227,6 +227,13 @@ CREATE TABLE public.students (
   CONSTRAINT students_pkey PRIMARY KEY (student_id),
   CONSTRAINT students_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(user_id)
 );
+CREATE TABLE public.uplifts (
+  uplift_id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  quote text,
+  author character varying,
+  CONSTRAINT uplifts_pkey PRIMARY KEY (uplift_id)
+);
 CREATE TABLE public.user_notifications (
   notification_id integer NOT NULL DEFAULT nextval('usernotifications_notification_id_seq'::regclass),
   notification_type character varying NOT NULL,

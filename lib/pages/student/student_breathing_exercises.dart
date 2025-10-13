@@ -523,12 +523,12 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises>
           Text(
             'Breathing Exercises',
             style: GoogleFonts.poppins(
-              fontSize: 24,
+              fontSize: 22,
               fontWeight: FontWeight.w600,
               color: const Color(0xFF3A3A50),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 10),
           Text(
             'Choose an exercise to begin:',
             style: GoogleFonts.poppins(

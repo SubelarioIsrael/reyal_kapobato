@@ -20,14 +20,10 @@ class HotlineAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bgColor = backgroundColor ?? 
-        (isEmergency 
-          ? Colors.red.withOpacity(0.1) 
-          : const Color(0xFF81C784).withOpacity(0.1));
+        const Color(0xFF7C83FD).withOpacity(0.1);
     
     final iColor = iconColor ?? 
-        (isEmergency 
-          ? Colors.red 
-          : const Color(0xFF81C784));
+        const Color(0xFF7C83FD);
 
     return Container(
       width: size,
@@ -41,7 +37,7 @@ class HotlineAvatar extends StatelessWidget {
               child: _buildImageFromBase64(profilePictureUrl!, size, iColor, isEmergency),
             )
           : Icon(
-              isEmergency ? Icons.local_phone : Icons.support_agent,
+              Icons.support_agent,
               color: iColor,
               size: size * 0.5,
             ),
@@ -58,7 +54,7 @@ class HotlineAvatar extends StatelessWidget {
         height: size,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) => Icon(
-          isEmergency ? Icons.local_phone : Icons.support_agent,
+          Icons.support_agent,
           color: iconColor,
           size: size * 0.5,
         ),
@@ -66,7 +62,7 @@ class HotlineAvatar extends StatelessWidget {
     } catch (e) {
       // If base64 decoding fails, show the default icon
       return Icon(
-        isEmergency ? Icons.local_phone : Icons.support_agent,
+        Icons.support_agent,
         color: iconColor,
         size: size * 0.5,
       );

@@ -365,7 +365,14 @@ class _AdminHomeState extends State<AdminHome> {
               ),
             ),
             const SizedBox(width: 16),
-            const Expanded(child: SizedBox()), // Empty space for symmetry
+            Expanded(
+              child: _buildQuickActionCard(
+                'Daily Uplifts',
+                Icons.format_quote,
+                Colors.teal,
+                () => Navigator.pushNamed(context, 'admin-daily-uplifts'),
+              ),
+            ),
           ],
         ),
       ],

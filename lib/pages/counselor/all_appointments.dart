@@ -3,9 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/appointment.dart';
 import '../../services/counselor_service.dart';
-import '../chat/appointment_chat.dart';
 import 'video_call_dialog.dart';
-import 'student_overview.dart';
 import '../../widgets/student_avatar.dart';
 
 class AllAppointments extends StatefulWidget {
@@ -243,205 +241,190 @@ class _AllAppointmentsState extends State<AllAppointments> {
     final displayName = studentName.isNotEmpty
         ? studentName
         : studentInfo['student_name'] ?? 'Unknown Student';
-    final studentCode = studentInfo['student_code'] ?? '';
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 2,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-              Row(
+            // Main appointment info row
+            Row(
               children: [
-                Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(25),
-                    border: Border.all(
-                      color: _getStatusColor(appointment.status).withOpacity(0.3),
-                      width: 2,
-                    ),
-                  ),
-                  child: StudentAvatar(
-                    userId: appointment.userId,
-                    radius: 23,
-                    fallbackName: displayName,
-                  ),
+                // Student Avatar
+                StudentAvatar(
+                  userId: appointment.userId,
+                  radius: 30,
+                  fallbackName: displayName,
                 ),
                 const SizedBox(width: 16),
+                
+                // Appointment Details
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        displayName,
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF3A3A50),
-                        ),
-                      ),
-                      if (studentCode.isNotEmpty)
-                        Text(
-                          'ID: $studentCode',
-                          style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            color: const Color(0xFF5D5D72),
+                      // Student Name and Status
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              displayName,
+                              style: GoogleFonts.poppins(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF3A3A50),
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
                           ),
-                        ),
-                      Text(
-                        '${appointment.appointmentDate.toString().split(' ')[0]} • ${TimeOfDay.fromDateTime(appointment.startTime).format(context)} - ${TimeOfDay.fromDateTime(appointment.endTime).format(context)}',
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          color: const Color(0xFF5D5D72),
-                        ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _getStatusColor(appointment.status).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              appointment.status.toUpperCase(),
+                              style: GoogleFonts.poppins(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w600,
+                                color: _getStatusColor(appointment.status),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      
+                      // Date and Time Info
+                      Column(
+                        children: [
+                          // Date Row
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.calendar_today,
+                                size: 14,
+                                color: Colors.grey[600],
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                '${appointment.appointmentDate.day}/${appointment.appointmentDate.month}/${appointment.appointmentDate.year}',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 13,
+                                  color: Colors.grey[700],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          
+                          // Time Row with Status Dropdown
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.access_time,
+                                size: 14,
+                                color: Colors.grey[600],
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  '${TimeOfDay(hour: appointment.startTime.hour, minute: appointment.startTime.minute).format(context)} - ${TimeOfDay(hour: appointment.endTime.hour, minute: appointment.endTime.minute).format(context)}',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 13,
+                                    color: Colors.grey[700],
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              // Status Dropdown (only show for pending/accepted appointments)
+                              if (appointment.status.toLowerCase() == 'pending' ||
+                                  appointment.status.toLowerCase() == 'accepted')
+                                PopupMenuButton<String>(
+                                  onSelected: (String value) => _updateAppointmentStatus(appointment, value),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    child: Text(
+                                      'UPDATE',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w600,
+                                        color: const Color(0xFF7C83FD),
+                                      ),
+                                    ),
+                                  ),
+                                  itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                                    if (appointment.status.toLowerCase() != 'completed')
+                                      const PopupMenuItem<String>(
+                                        value: 'completed',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.check_circle, color: Colors.green, size: 18),
+                                            SizedBox(width: 8),
+                                            Text('Mark as Completed'),
+                                          ],
+                                        ),
+                                      ),
+                                    if (appointment.status.toLowerCase() != 'cancelled')
+                                      const PopupMenuItem<String>(
+                                        value: 'cancelled',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.cancel, color: Colors.red, size: 18),
+                                            SizedBox(width: 8),
+                                            Text('Mark as Cancelled'),
+                                          ],
+                                        ),
+                                      ),
+                                    if (appointment.status.toLowerCase() == 'pending')
+                                      const PopupMenuItem<String>(
+                                        value: 'accepted',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.check, color: Colors.blue, size: 18),
+                                            SizedBox(width: 8),
+                                            Text('Accept Appointment'),
+                                          ],
+                                        ),
+                                      ),
+                                    if (appointment.status.toLowerCase() == 'pending')
+                                      const PopupMenuItem<String>(
+                                        value: 'rejected',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.close, color: Colors.orange, size: 18),
+                                            SizedBox(width: 8),
+                                            Text('Reject Appointment'),
+                                          ],
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                            ],
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: _getStatusColor(appointment.status),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    appointment.status.toUpperCase(),
-                    style: GoogleFonts.poppins(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            if (appointment.notes != null && appointment.notes!.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Text(
-                'Notes: ${appointment.notes}',
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  color: const Color(0xFF5D5D72),
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-            ],
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => StudentOverview(
-                            userId: appointment.userId,
-                            studentName: displayName,
-                            studentId: studentCode,
-                          ),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.person, size: 16),
-                    label: Text(
-                      'Overview',
-                      style: GoogleFonts.poppins(fontSize: 12),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF7C83FD),
-                      side: const BorderSide(color: Color(0xFF7C83FD)),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => AppointmentChat(
-                            appointment: appointment,
-                            isCounselor: true,
-                          ),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.chat_bubble_outline, size: 16),
-                    label: Text(
-                      'Chat',
-                      style: GoogleFonts.poppins(fontSize: 12),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF7C83FD),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                PopupMenuButton<String>(
-                  onSelected: (String value) => _updateAppointmentStatus(appointment, value),
-                  icon: const Icon(Icons.more_vert, color: Color(0xFF5D5D72)),
-                  tooltip: 'Update Status',
-                  itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                    if (appointment.status.toLowerCase() != 'completed')
-                      const PopupMenuItem<String>(
-                        value: 'completed',
-                        child: Row(
-                          children: [
-                            Icon(Icons.check_circle, color: Colors.green, size: 20),
-                            SizedBox(width: 8),
-                            Text('Mark as Completed'),
-                          ],
-                        ),
-                      ),
-                    if (appointment.status.toLowerCase() != 'cancelled')
-                      const PopupMenuItem<String>(
-                        value: 'cancelled',
-                        child: Row(
-                          children: [
-                            Icon(Icons.cancel, color: Colors.red, size: 20),
-                            SizedBox(width: 8),
-                            Text('Mark as Cancelled'),
-                          ],
-                        ),
-                      ),
-                    if (appointment.status.toLowerCase() == 'pending')
-                      const PopupMenuItem<String>(
-                        value: 'accepted',
-                        child: Row(
-                          children: [
-                            Icon(Icons.check, color: Colors.blue, size: 20),
-                            SizedBox(width: 8),
-                            Text('Accept Appointment'),
-                          ],
-                        ),
-                      ),
-                    if (appointment.status.toLowerCase() == 'pending')
-                      const PopupMenuItem<String>(
-                        value: 'rejected',
-                        child: Row(
-                          children: [
-                            Icon(Icons.close, color: Colors.orange, size: 20),
-                            SizedBox(width: 8),
-                            Text('Reject Appointment'),
-                          ],
-                        ),
-                      ),
-                  ],
                 ),
               ],
             ),
@@ -461,6 +444,8 @@ class _AllAppointmentsState extends State<AllAppointments> {
         return Colors.green;
       case 'rejected':
         return Colors.red;
+      case 'cancelled':
+        return Colors.grey[600]!;
       default:
         return Colors.grey;
     }

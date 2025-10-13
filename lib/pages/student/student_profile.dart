@@ -240,7 +240,7 @@ class _StudentProfileState extends State<StudentProfile> {
                       Text(
                         'Student Profile',
                         style: GoogleFonts.poppins(
-                          fontSize: 24,
+                          fontSize: 22,
                           fontWeight: FontWeight.bold,
                           color: const Color(0xFF3A3A50),
                         ),
@@ -254,7 +254,7 @@ class _StudentProfileState extends State<StudentProfile> {
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 10),
 
                       // Profile Picture Section
                       Stack(

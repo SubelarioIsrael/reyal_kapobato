@@ -42,6 +42,8 @@ class _StudentHomeState extends State<StudentHome> {
   };
 
   int _unreadMessagesCount = 0;
+  Map<String, dynamic>? dailyUplift;
+  bool isDailyUpliftLoading = true;
 
   // List of grid features for the home age
   final List<_FeatureCardData> _emotionalWellbeing = [
@@ -108,6 +110,7 @@ class _StudentHomeState extends State<StudentHome> {
     _fetchWeeklyMood();
     _loadTodayProgress();
     _loadUnreadMessagesCount();
+    _loadDailyUplift();
   }
 
   @override
@@ -314,6 +317,7 @@ class _StudentHomeState extends State<StudentHome> {
       _fetchTodayCheckIn(),
       _fetchWeeklyMood(),
       _loadUnreadMessagesCount(),
+      _loadDailyUplift(),
     ]);
 
     setState(() {
@@ -340,6 +344,51 @@ class _StudentHomeState extends State<StudentHome> {
     if (mounted) {
       setState(() {
         _unreadMessagesCount = count;
+      });
+    }
+  }
+
+  Future<void> _loadDailyUplift() async {
+    setState(() => isDailyUpliftLoading = true);
+    try {
+      // Get all uplift IDs first
+      final idsResponse = await Supabase.instance.client
+          .from('uplifts')
+          .select('uplift_id')
+          .order('uplift_id', ascending: true);
+      
+      if (idsResponse.isNotEmpty) {
+        // Get list of all available uplift IDs
+        final availableIds = idsResponse
+            .map((item) => item['uplift_id'] as int)
+            .toList();
+        
+        // Generate a random index based on current time
+        final randomIndex = DateTime.now().millisecondsSinceEpoch % availableIds.length;
+        final selectedUpliftId = availableIds[randomIndex];
+        
+        // Fetch the selected uplift
+        final response = await Supabase.instance.client
+            .from('uplifts')
+            .select('*')
+            .eq('uplift_id', selectedUpliftId)
+            .single();
+        
+        setState(() {
+          dailyUplift = response;
+          isDailyUpliftLoading = false;
+        });
+      } else {
+        setState(() {
+          dailyUplift = null;
+          isDailyUpliftLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading daily uplift: $e');
+      setState(() {
+        dailyUplift = null;
+        isDailyUpliftLoading = false;
       });
     }
   }
@@ -465,6 +514,7 @@ class _StudentHomeState extends State<StudentHome> {
               _refreshData(),
               _loadTodayProgress(),
               _loadUnreadMessagesCount(),
+              _loadDailyUplift(),
             ]);
           },
           child: SingleChildScrollView(
@@ -515,27 +565,57 @@ class _StudentHomeState extends State<StudentHome> {
                     elevation: 0,
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Healing takes time, and asking for help is a courageous step.',
-                            style: GoogleFonts.poppins(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                              color: const Color(0xFF3A3A50),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            '— Mariska Hargitay',
-                            style: GoogleFonts.poppins(
-                              fontSize: 14,
-                              color: Colors.grey[700],
-                            ),
-                          ),
-                        ],
-                      ),
+                      child: isDailyUpliftLoading
+                          ? const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(16.0),
+                                child: CircularProgressIndicator(),
+                              ),
+                            )
+                          : dailyUplift != null
+                              ? Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      dailyUplift!['quote'] ?? 'Stay positive and keep going!',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500,
+                                        color: const Color(0xFF3A3A50),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    if (dailyUplift!['author'] != null && dailyUplift!['author'].toString().isNotEmpty)
+                                      Text(
+                                        '— ${dailyUplift!['author']}',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 14,
+                                          color: Colors.grey[700],
+                                        ),
+                                      ),
+                                  ],
+                                )
+                              : Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Stay positive and keep going!',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500,
+                                        color: const Color(0xFF3A3A50),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Daily uplifts will appear here when available.',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 14,
+                                        color: Colors.grey[700],
+                                      ),
+                                    ),
+                                  ],
+                                ),
                     ),
                   ),
                   const SizedBox(height: 5),

@@ -3,27 +3,27 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-class StudentDrawer extends StatefulWidget {
-  const StudentDrawer({super.key});
+class CounselorDrawer extends StatefulWidget {
+  const CounselorDrawer({super.key});
 
   @override
-  State<StudentDrawer> createState() => _StudentDrawerState();
+  State<CounselorDrawer> createState() => _CounselorDrawerState();
 }
 
-class _StudentDrawerState extends State<StudentDrawer> {
+class _CounselorDrawerState extends State<CounselorDrawer> {
   String _firstName = '';
   String _lastName = '';
   String? _profilePicture;
-  String _studentCode = '';
+  String _specialization = '';
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchStudentData();
+    _fetchCounselorData();
   }
 
-  Future<void> _fetchStudentData() async {
+  Future<void> _fetchCounselorData() async {
     try {
       final userId = Supabase.instance.client.auth.currentUser?.id;
       if (userId == null) return;
@@ -35,27 +35,27 @@ class _StudentDrawerState extends State<StudentDrawer> {
           .eq('user_id', userId)
           .maybeSingle();
 
-      // Get student data from students table
-      final studentResponse = await Supabase.instance.client
-          .from('students')
-          .select('first_name, last_name, student_code')
+      // Get counselor data from counselors table
+      final counselorResponse = await Supabase.instance.client
+          .from('counselors')
+          .select('first_name, last_name, specialization')
           .eq('user_id', userId)
           .maybeSingle();
 
       if (mounted) {
         setState(() {
-          _firstName = studentResponse?['first_name'] ?? '';
-          _lastName = studentResponse?['last_name'] ?? '';
+          _firstName = counselorResponse?['first_name'] ?? '';
+          _lastName = counselorResponse?['last_name'] ?? '';
           _profilePicture = userResponse?['profile_picture'];
-          _studentCode = studentResponse?['student_code'] ?? '';
+          _specialization = counselorResponse?['specialization'] ?? '';
           _isLoading = false;
         });
       }
     } catch (e) {
-      print('Error loading student data: $e');
+      print('Error loading counselor data: $e');
       if (mounted) {
         setState(() {
-          _firstName = 'Student';
+          _firstName = 'Counselor';
           _lastName = '';
           _isLoading = false;
         });
@@ -88,19 +88,8 @@ class _StudentDrawerState extends State<StudentDrawer> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.spa,
-                        color: Color(0xFF81C784),
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
+                    
+                    
                     Text(
                       'BreatheBetter',
                       style: GoogleFonts.poppins(
@@ -153,7 +142,7 @@ class _StudentDrawerState extends State<StudentDrawer> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
-                                    _firstName.isNotEmpty ? _firstName : 'Student',
+                                    _firstName.isNotEmpty ? _firstName : 'Counselor',
                                     style: GoogleFonts.poppins(
                                       color: Colors.white,
                                       fontSize: 14,
@@ -176,9 +165,9 @@ class _StudentDrawerState extends State<StudentDrawer> {
                                     ),
                                   ],
                                   const SizedBox(height: 2),
-                                  if (_studentCode.isNotEmpty)
+                                  if (_specialization.isNotEmpty)
                                     Text(
-                                      'ID: $_studentCode',
+                                      _specialization,
                                       style: GoogleFonts.poppins(
                                         color: Colors.white.withOpacity(0.8),
                                         fontSize: 11,
@@ -200,51 +189,38 @@ class _StudentDrawerState extends State<StudentDrawer> {
             icon: Icons.home_rounded,
             title: 'Home',
             onTap: () {
-              Navigator.pushReplacementNamed(context, 'student-home');
+              Navigator.pushReplacementNamed(context, 'counselor-home');
             },
           ),
           _buildDrawerItem(
             icon: Icons.person_rounded,
             title: 'Profile',
             onTap: () {
-              Navigator.pushNamed(context, '/student-profile');
+              Navigator.pushNamed(context, '/counselor-profile-setup');
             },
           ),
           _buildDrawerItem(
-            icon: Icons.auto_awesome_rounded,
-            title: 'Daily Check-in',
+            icon: Icons.calendar_today_rounded,
+            title: 'All Appointments',
             onTap: () {
-              Navigator.pushNamed(context, '/student-daily-checkin');
+              Navigator.pushNamed(context, '/all-appointments');
             },
           ),
           _buildDrawerItem(
-            icon: Icons.air_rounded,
-            title: 'Breathing Exercises',
+            icon: Icons.people_rounded,
+            title: 'My Students',
             onTap: () {
-              Navigator.pushNamed(context, 'student-breathing-exercises');
+              Navigator.pushNamed(context, '/student-history-list');
             },
           ),
           _buildDrawerItem(
             icon: Icons.chat_bubble_rounded,
-            title: 'Chatbot',
+            title: 'Student Chats',
             onTap: () {
-              Navigator.pushNamed(context, 'student-chatbot');
+              Navigator.pushNamed(context, '/counselor-chat-list');
             },
           ),
-          _buildDrawerItem(
-            icon: Icons.book_rounded,
-            title: 'Journal Entries',
-            onTap: () {
-              Navigator.pushNamed(context, 'student-journal-entries');
-            },
-          ),
-          _buildDrawerItem(
-            icon: Icons.contacts_rounded,
-            title: 'Emergency Contacts',
-            onTap: () {
-              Navigator.pushNamed(context, 'student-contacts');
-            },
-          ),
+
           _buildDrawerItem(
             icon: Icons.settings_rounded,
             title: 'Settings',
@@ -332,6 +308,6 @@ class _StudentDrawerState extends State<StudentDrawer> {
     if (_lastName.isNotEmpty) {
       initials += _lastName[0].toUpperCase();
     }
-    return initials.isNotEmpty ? initials : 'S';
+    return initials.isNotEmpty ? initials : 'C';
   }
 }

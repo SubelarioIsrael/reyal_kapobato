@@ -3,12 +3,12 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/appointment.dart';
 import '../chat/appointment_chat.dart';
-import 'all_appointments.dart';
-import 'student_history_list.dart';
 import 'student_overview.dart';
-import 'counselor_chat_list.dart';
 import 'video_call_dialog.dart';
+
 import '../../widgets/student_avatar.dart';
+import '../../components/counselor_drawer.dart';
+import '../../services/notification_service.dart';
 
 class CounselorHome extends StatefulWidget {
   const CounselorHome({super.key});
@@ -217,32 +217,29 @@ class _CounselorHomeState extends State<CounselorHome> {
           .update({'status': newStatus, 'status_message': message}).eq(
               'appointment_id', appt.id);
 
-      // Send notification to user
-      await Supabase.instance.client.from('user_notifications').insert({
-        'user_id': appt.userId,
-        'notification_type': 'Appointment Status Update',
-        'content':
-            'Your appointment on ${appt.appointmentDate.toString().split(' ')[0]} from ${appt.startTime.toString().split(' ')[1].substring(0, 5)} to ${appt.endTime.toString().split(' ')[1].substring(0, 5)} has been changed to ${newStatus.toUpperCase()}. ${message?.isNotEmpty == true ? "Message: $message" : ""}',
-        'action_url': '/appointments'
-      });
+      // Check if notifications are enabled before sending
+      if (await NotificationService.areNotificationsEnabled()) {
+        // Send in-app notification
+        await Supabase.instance.client.from('user_notifications').insert({
+          'user_id': appt.userId,
+          'notification_type': 'Appointment Status Update',
+          'content':
+              'Your appointment on ${appt.appointmentDate.toString().split(' ')[0]} from ${appt.startTime.toString().split(' ')[1].substring(0, 5)} to ${appt.endTime.toString().split(' ')[1].substring(0, 5)} has been changed to ${newStatus.toUpperCase()}. ${message?.isNotEmpty == true ? "Message: $message" : ""}',
+          'action_url': '/appointments'
+        });
 
-      // Trigger Edge Function to send push via OneSignal (Android)
-      try {
-        await Supabase.instance.client.functions.invoke(
-          'send-notification',
-          body: {
-            'user_id': appt.userId,
-            'title': 'Appointment Status Update',
-            'body':
-                'Your appointment on ${appt.appointmentDate.toString().split(' ')[0]} from ${appt.startTime.toString().split(' ')[1].substring(0, 5)} to ${appt.endTime.toString().split(' ')[1].substring(0, 5)} has been changed to ${newStatus.toUpperCase()}.',
-            'data': {
-              'action': 'appointment_status_changed',
-              'appointment_id': appt.id,
-              'route': '/appointments'
-            }
+        // Send push notification
+        await NotificationService.sendPushNotification(
+          userId: appt.userId,
+          title: 'Appointment Status Update',
+          body: 'Your appointment on ${appt.appointmentDate.toString().split(' ')[0]} from ${appt.startTime.toString().split(' ')[1].substring(0, 5)} to ${appt.endTime.toString().split(' ')[1].substring(0, 5)} has been changed to ${newStatus.toUpperCase()}.',
+          data: {
+            'action': 'appointment_status_changed',
+            'appointment_id': appt.id,
+            'route': '/appointments'
           },
         );
-      } catch (_) {}
+      }
 
       // If status is completed, show session notes dialog
       if (newStatus.toLowerCase() == 'completed') {
@@ -384,7 +381,7 @@ class _CounselorHomeState extends State<CounselorHome> {
         ),
         centerTitle: true,
       ),
-      drawer: _buildDrawer(),
+      drawer: const CounselorDrawer(),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
@@ -398,7 +395,6 @@ class _CounselorHomeState extends State<CounselorHome> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const SizedBox(height: 20),
                           _buildWelcomeSection(),
                           const SizedBox(height: 32),
                           _buildStatsCards(),
@@ -417,56 +413,7 @@ class _CounselorHomeState extends State<CounselorHome> {
     );
   }
 
-  Widget _buildDrawer() {
-    return Drawer(
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          DrawerHeader(
-            decoration: const BoxDecoration(color: Color(0xFF7C83FD)),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.psychology, size: 60, color: Colors.white),
-                const SizedBox(height: 8),
-                Text(
-                  'Counselor Portal',
-                  style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          ListTile(
-            leading: const Icon(Icons.person, color: Color(0xFF7C83FD)),
-            title: Text('Profile', style: GoogleFonts.poppins()),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushNamed(context, '/counselor-profile-setup');
-            },
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.logout, color: Color(0xFF7C83FD)),
-            title: Text('Logout', style: GoogleFonts.poppins()),
-            onTap: () async {
-              await Supabase.instance.client.auth.signOut();
-              if (context.mounted) {
-                Navigator.pushNamedAndRemoveUntil(
-                  context,
-                  '/login',
-                  (route) => false,
-                );
-              }
-            },
-          ),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildWelcomeSection() {
     return Column(
@@ -953,28 +900,18 @@ class _CounselorHomeState extends State<CounselorHome> {
                 Icons.calendar_today,
                 Colors.blue,
                 () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const AllAppointments(),
-                    ),
-                  );
+                  Navigator.pushNamed(context, '/all-appointments');
                 },
               ),
             ),
             const SizedBox(width: 16),
             Expanded(
               child: _buildQuickActionCard(
-                'Student History',
-                Icons.history,
+                'My \nStudents',
+                Icons.people,
                 Colors.purple,
                 () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const StudentHistoryList(),
-                    ),
-                  );
+                  Navigator.pushNamed(context, '/student-history-list');
                 },
               ),
             ),
@@ -989,12 +926,7 @@ class _CounselorHomeState extends State<CounselorHome> {
                 Icons.chat_bubble_outline,
                 Colors.green,
                 () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const CounselorChatList(),
-                    ),
-                  );
+                  Navigator.pushNamed(context, '/counselor-chat-list');
                 },
               ),
             ),
