@@ -119,6 +119,7 @@ CREATE TABLE public.mental_health_hotlines (
   city_or_region text,
   notes text,
   created_at timestamp with time zone DEFAULT now(),
+  profile_picture text,
   CONSTRAINT mental_health_hotlines_pkey PRIMARY KEY (hotline_id)
 );
 CREATE TABLE public.mental_health_resources (

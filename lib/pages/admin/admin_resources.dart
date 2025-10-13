@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../components/modern_form_dialog.dart';
 
 class AdminResources extends StatefulWidget {
   const AdminResources({super.key});
@@ -87,84 +88,120 @@ class _AdminResourcesState extends State<AdminResources> {
     _tagsController.clear();
     _selectedType = 'article';
     _selectedDate = DateTime.now();
-    showDialog(
+    
+    ModernFormDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Add New Resource',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF3A3A50),
-          ),
-        ),
-        content: Form(
+      title: 'Add New Resource',
+      subtitle: 'Create a new mental health resource for students',
+      content: StatefulBuilder(
+        builder: (context, setState) => Form(
           key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: _titleController,
-                  decoration: const InputDecoration(
-                    labelText: 'Title',
-                    prefixIcon: Icon(Icons.title),
-                  ),
-                  validator: (value) => value == null || value.isEmpty
-                      ? 'Please enter a title'
-                      : null,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _contentController,
-                  decoration: const InputDecoration(
-                    labelText: 'Content',
-                    prefixIcon: Icon(Icons.description),
-                  ),
-                  maxLines: 3,
-                  validator: (value) => value == null || value.isEmpty
-                      ? 'Please enter content'
-                      : null,
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  value: _selectedType,
-                  decoration: const InputDecoration(
-                    labelText: 'Resource Type',
-                    prefixIcon: Icon(Icons.category),
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'article', child: Text('Article')),
-                    DropdownMenuItem(value: 'video', child: Text('Video')),
-                  ],
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedType = value!;
-                    });
-                  },
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _mediaUrlController,
-                  decoration: const InputDecoration(
-                    labelText: 'Media URL',
-                    prefixIcon: Icon(Icons.link),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _tagsController,
-                  decoration: const InputDecoration(
-                    labelText: 'Tags (comma separated)',
-                    prefixIcon: Icon(Icons.label),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              FormSection(
+                title: 'Basic Information',
+                icon: Icons.info_outline,
+                child: Column(
                   children: [
-                    const Icon(Icons.date_range, color: Colors.grey),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: InkWell(
+                    ModernTextFormField(
+                      controller: _titleController,
+                      labelText: 'Resource Title',
+                      hintText: 'Enter a descriptive title',
+                      prefixIcon: Icons.title,
+                      validator: (value) => value == null || value.isEmpty
+                          ? 'Please enter a title'
+                          : null,
+                    ),
+                    const SizedBox(height: 20),
+                    ModernDropdownFormField<String>(
+                      value: _selectedType,
+                      labelText: 'Resource Type',
+                      prefixIcon: Icons.category,
+                      items: const [
+                        DropdownMenuItem(value: 'article', child: Text('Article')),
+                        DropdownMenuItem(value: 'video', child: Text('Video')),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedType = value!;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 32),
+              FormSection(
+                title: 'Content',
+                icon: Icons.edit_note,
+                child: Column(
+                  children: [
+                    ModernTextFormField(
+                      controller: _contentController,
+                      labelText: 'Content Description',
+                      hintText: 'Provide a detailed description of the resource',
+                      prefixIcon: Icons.description,
+                      maxLines: 4,
+                      validator: (value) => value == null || value.isEmpty
+                          ? 'Please enter content'
+                          : null,
+                    ),
+                    const SizedBox(height: 20),
+                    ModernTextFormField(
+                      controller: _tagsController,
+                      labelText: 'Tags',
+                      hintText: 'anxiety, depression, self-care (comma separated)',
+                      prefixIcon: Icons.label,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 32),
+              FormSection(
+                title: 'Additional Settings',
+                icon: Icons.settings,
+                child: Column(
+                  children: [
+                    ModernTextFormField(
+                      controller: _mediaUrlController,
+                      labelText: 'Media URL (Optional)',
+                      hintText: 'Link to video, image, or external resource',
+                      prefixIcon: Icons.link,
+                      keyboardType: TextInputType.url,
+                    ),
+                    const SizedBox(height: 20),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.grey[50],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.grey[200]!,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: ListTile(
+                        leading: Icon(
+                          Icons.date_range,
+                          color: const Color(0xFF7C83FD),
+                        ),
+                        title: Text(
+                          'Publish Date',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF3A3A50),
+                          ),
+                        ),
+                        subtitle: Text(
+                          _selectedDate != null
+                              ? '${_selectedDate!.toLocal().toString().split(' ')[0]}'
+                              : 'Select publish date',
+                          style: GoogleFonts.poppins(
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
                         onTap: () async {
                           final picked = await showDatePicker(
                             context: context,
@@ -178,91 +215,92 @@ class _AdminResourcesState extends State<AdminResources> {
                             });
                           }
                         },
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          child: Text(
-                            _selectedDate != null
-                                ? 'Publish Date: ${_selectedDate!.toLocal().toString().split(' ')[0]}'
-                                : 'Select Publish Date',
-                            style: GoogleFonts.poppins(
-                              color: Colors.grey[700],
-                            ),
-                          ),
-                        ),
                       ),
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 24),
+            ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel',
-                style: GoogleFonts.poppins(color: Colors.grey[600])),
-          ),
-          ElevatedButton(
-            onPressed: _isLoading
-                ? null
-                : () async {
-                    if (_formKey.currentState?.validate() ?? false) {
-                      setState(() {
-                        _isLoading = true;
-                      });
-                      try {
-                        await Supabase.instance.client
-                            .from('mental_health_resources')
-                            .insert({
-                          'title': _titleController.text.trim(),
-                          'description': _contentController.text.trim(),
-                          'resource_type': _selectedType,
-                          'media_url': _mediaUrlController.text.trim(),
-                          'tags': _tagsController.text.trim(),
-                          'publish_date': (_selectedDate ?? DateTime.now())
-                              .toIso8601String(),
-                        });
-                        if (mounted) {
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Resource added successfully')),
-                          );
-                          _loadResources();
-                        }
-                      } catch (e) {
-                        print('Error adding resource: $e');
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Failed to add resource')),
-                          );
-                        }
-                      } finally {
-                        setState(() {
-                          _isLoading = false;
-                        });
-                      }
-                    }
-                  },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF7C83FD),
-              foregroundColor: Colors.white,
-            ),
-            child: _isLoading
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  )
-                : const Text('Add Resource'),
-          ),
-        ],
       ),
+      actions: [
+        ModernActionButton(
+          text: 'Cancel',
+          onPressed: () => Navigator.pop(context),
+        ),
+        ModernActionButton(
+          text: 'Add Resource',
+          isPrimary: true,
+          isLoading: _isLoading,
+          icon: Icons.add,
+          onPressed: () async {
+            if (_formKey.currentState?.validate() ?? false) {
+              setState(() {
+                _isLoading = true;
+              });
+              try {
+                await Supabase.instance.client
+                    .from('mental_health_resources')
+                    .insert({
+                  'title': _titleController.text.trim(),
+                  'description': _contentController.text.trim(),
+                  'resource_type': _selectedType,
+                  'media_url': _mediaUrlController.text.trim(),
+                  'tags': _tagsController.text.trim(),
+                  'publish_date': (_selectedDate ?? DateTime.now())
+                      .toIso8601String(),
+                });
+                if (mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Row(
+                        children: [
+                          const Icon(Icons.check_circle, color: Colors.white),
+                          const SizedBox(width: 8),
+                          const Text('Resource added successfully'),
+                        ],
+                      ),
+                      backgroundColor: Colors.green,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  );
+                  _loadResources();
+                }
+              } catch (e) {
+                print('Error adding resource: $e');
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Row(
+                        children: [
+                          const Icon(Icons.error, color: Colors.white),
+                          const SizedBox(width: 8),
+                          const Text('Failed to add resource'),
+                        ],
+                      ),
+                      backgroundColor: Colors.red,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  );
+                }
+              } finally {
+                setState(() {
+                  _isLoading = false;
+                });
+              }
+            }
+          },
+        ),
+      ],
     );
   }
 
@@ -275,84 +313,120 @@ class _AdminResourcesState extends State<AdminResources> {
     _selectedDate = resource['publish_date'] != null
         ? DateTime.tryParse(resource['publish_date'].toString())
         : DateTime.now();
-    showDialog(
+        
+    ModernFormDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Edit Resource',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF3A3A50),
-          ),
-        ),
-        content: Form(
+      title: 'Edit Resource',
+      subtitle: 'Update the selected mental health resource',
+      content: StatefulBuilder(
+        builder: (context, setState) => Form(
           key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: _titleController,
-                  decoration: const InputDecoration(
-                    labelText: 'Title',
-                    prefixIcon: Icon(Icons.title),
-                  ),
-                  validator: (value) => value == null || value.isEmpty
-                      ? 'Please enter a title'
-                      : null,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _contentController,
-                  decoration: const InputDecoration(
-                    labelText: 'Content',
-                    prefixIcon: Icon(Icons.description),
-                  ),
-                  maxLines: 3,
-                  validator: (value) => value == null || value.isEmpty
-                      ? 'Please enter content'
-                      : null,
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  value: _selectedType,
-                  decoration: const InputDecoration(
-                    labelText: 'Resource Type',
-                    prefixIcon: Icon(Icons.category),
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'article', child: Text('Article')),
-                    DropdownMenuItem(value: 'video', child: Text('Video')),
-                  ],
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedType = value!;
-                    });
-                  },
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _mediaUrlController,
-                  decoration: const InputDecoration(
-                    labelText: 'Media URL',
-                    prefixIcon: Icon(Icons.link),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _tagsController,
-                  decoration: const InputDecoration(
-                    labelText: 'Tags (comma separated)',
-                    prefixIcon: Icon(Icons.label),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              FormSection(
+                title: 'Basic Information',
+                icon: Icons.info_outline,
+                child: Column(
                   children: [
-                    const Icon(Icons.date_range, color: Colors.grey),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: InkWell(
+                    ModernTextFormField(
+                      controller: _titleController,
+                      labelText: 'Resource Title',
+                      hintText: 'Enter a descriptive title',
+                      prefixIcon: Icons.title,
+                      validator: (value) => value == null || value.isEmpty
+                          ? 'Please enter a title'
+                          : null,
+                    ),
+                    const SizedBox(height: 20),
+                    ModernDropdownFormField<String>(
+                      value: _selectedType,
+                      labelText: 'Resource Type',
+                      prefixIcon: Icons.category,
+                      items: const [
+                        DropdownMenuItem(value: 'article', child: Text('Article')),
+                        DropdownMenuItem(value: 'video', child: Text('Video')),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedType = value!;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 32),
+              FormSection(
+                title: 'Content',
+                icon: Icons.edit_note,
+                child: Column(
+                  children: [
+                    ModernTextFormField(
+                      controller: _contentController,
+                      labelText: 'Content Description',
+                      hintText: 'Provide a detailed description of the resource',
+                      prefixIcon: Icons.description,
+                      maxLines: 4,
+                      validator: (value) => value == null || value.isEmpty
+                          ? 'Please enter content'
+                          : null,
+                    ),
+                    const SizedBox(height: 20),
+                    ModernTextFormField(
+                      controller: _tagsController,
+                      labelText: 'Tags',
+                      hintText: 'anxiety, depression, self-care (comma separated)',
+                      prefixIcon: Icons.label,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 32),
+              FormSection(
+                title: 'Additional Settings',
+                icon: Icons.settings,
+                child: Column(
+                  children: [
+                    ModernTextFormField(
+                      controller: _mediaUrlController,
+                      labelText: 'Media URL (Optional)',
+                      hintText: 'Link to video, image, or external resource',
+                      prefixIcon: Icons.link,
+                      keyboardType: TextInputType.url,
+                    ),
+                    const SizedBox(height: 20),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.grey[50],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.grey[200]!,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: ListTile(
+                        leading: Icon(
+                          Icons.date_range,
+                          color: const Color(0xFF7C83FD),
+                        ),
+                        title: Text(
+                          'Publish Date',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF3A3A50),
+                          ),
+                        ),
+                        subtitle: Text(
+                          _selectedDate != null
+                              ? '${_selectedDate!.toLocal().toString().split(' ')[0]}'
+                              : 'Select publish date',
+                          style: GoogleFonts.poppins(
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
                         onTap: () async {
                           final picked = await showDatePicker(
                             context: context,
@@ -366,91 +440,92 @@ class _AdminResourcesState extends State<AdminResources> {
                             });
                           }
                         },
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          child: Text(
-                            _selectedDate != null
-                                ? 'Publish Date: ${_selectedDate!.toLocal().toString().split(' ')[0]}'
-                                : 'Select Publish Date',
-                            style: GoogleFonts.poppins(
-                              color: Colors.grey[700],
-                            ),
-                          ),
-                        ),
                       ),
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 24),
+            ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel',
-                style: GoogleFonts.poppins(color: Colors.grey[600])),
-          ),
-          ElevatedButton(
-            onPressed: _isLoading
-                ? null
-                : () async {
-                    if (_formKey.currentState?.validate() ?? false) {
-                      setState(() {
-                        _isLoading = true;
-                      });
-                      try {
-                        await Supabase.instance.client
-                            .from('mental_health_resources')
-                            .update({
-                          'title': _titleController.text.trim(),
-                          'description': _contentController.text.trim(),
-                          'resource_type': _selectedType,
-                          'media_url': _mediaUrlController.text.trim(),
-                          'tags': _tagsController.text.trim(),
-                          'publish_date': (_selectedDate ?? DateTime.now())
-                              .toIso8601String(),
-                        }).eq('resource_id', resource['resource_id']);
-                        if (mounted) {
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Resource updated successfully')),
-                          );
-                          _loadResources();
-                        }
-                      } catch (e) {
-                        print('Error updating resource: $e');
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Failed to update resource')),
-                          );
-                        }
-                      } finally {
-                        setState(() {
-                          _isLoading = false;
-                        });
-                      }
-                    }
-                  },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF7C83FD),
-              foregroundColor: Colors.white,
-            ),
-            child: _isLoading
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  )
-                : const Text('Save Changes'),
-          ),
-        ],
       ),
+      actions: [
+        ModernActionButton(
+          text: 'Cancel',
+          onPressed: () => Navigator.pop(context),
+        ),
+        ModernActionButton(
+          text: 'Save Changes',
+          isPrimary: true,
+          isLoading: _isLoading,
+          icon: Icons.save,
+          onPressed: () async {
+            if (_formKey.currentState?.validate() ?? false) {
+              setState(() {
+                _isLoading = true;
+              });
+              try {
+                await Supabase.instance.client
+                    .from('mental_health_resources')
+                    .update({
+                  'title': _titleController.text.trim(),
+                  'description': _contentController.text.trim(),
+                  'resource_type': _selectedType,
+                  'media_url': _mediaUrlController.text.trim(),
+                  'tags': _tagsController.text.trim(),
+                  'publish_date': (_selectedDate ?? DateTime.now())
+                      .toIso8601String(),
+                }).eq('resource_id', resource['resource_id']);
+                if (mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Row(
+                        children: [
+                          const Icon(Icons.check_circle, color: Colors.white),
+                          const SizedBox(width: 8),
+                          const Text('Resource updated successfully'),
+                        ],
+                      ),
+                      backgroundColor: Colors.green,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  );
+                  _loadResources();
+                }
+              } catch (e) {
+                print('Error updating resource: $e');
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Row(
+                        children: [
+                          const Icon(Icons.error, color: Colors.white),
+                          const SizedBox(width: 8),
+                          const Text('Failed to update resource'),
+                        ],
+                      ),
+                      backgroundColor: Colors.red,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  );
+                }
+              } finally {
+                setState(() {
+                  _isLoading = false;
+                });
+              }
+            }
+          },
+        ),
+      ],
     );
   }
 

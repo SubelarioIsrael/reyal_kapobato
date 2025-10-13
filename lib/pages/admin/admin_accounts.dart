@@ -467,8 +467,11 @@ class _AdminAccountsState extends State<AdminAccounts> {
                                           color: account['user_type'] == 'admin'
                                               ? const Color(0xFF7C83FD)
                                                   .withOpacity(0.1)
-                                              : const Color(0xFF81C784)
-                                                  .withOpacity(0.1),
+                                              : account['user_type'] == 'student'
+                                                  ? const Color(0xFFFF9800)
+                                                      .withOpacity(0.1)
+                                                  : const Color(0xFF81C784)
+                                                      .withOpacity(0.1),
                                           borderRadius:
                                               BorderRadius.circular(12),
                                         ),
@@ -481,7 +484,9 @@ class _AdminAccountsState extends State<AdminAccounts> {
                                             color:
                                                 account['user_type'] == 'admin'
                                                     ? const Color(0xFF7C83FD)
-                                                    : const Color(0xFF81C784),
+                                                    : account['user_type'] == 'student'
+                                                        ? const Color(0xFFFF9800)
+                                                        : const Color(0xFF81C784),
                                           ),
                                         ),
                                       ),

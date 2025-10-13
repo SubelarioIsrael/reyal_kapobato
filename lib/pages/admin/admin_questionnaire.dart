@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../components/modern_form_dialog.dart';
 
 class AdminQuestionnaire extends StatefulWidget {
   const AdminQuestionnaire({super.key});
@@ -108,285 +109,261 @@ class _AdminQuestionnaireState extends State<AdminQuestionnaire> {
 
   void _showEditQuestionDialog(Map<String, dynamic> question) {
     _questionController.text = question['question_text'];
-    showDialog(
+    
+    ModernFormDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Edit Question',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF3A3A50),
-          ),
+      title: 'Edit Question',
+      subtitle: 'Modify the selected question text',
+      content: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            FormSection(
+              title: 'Question Details',
+              icon: Icons.edit_outlined,
+              child: ModernTextFormField(
+                controller: _questionController,
+                labelText: 'Question Text',
+                hintText: 'Enter the updated question text',
+                prefixIcon: Icons.help_outline,
+                maxLines: 3,
+                validator: (value) =>
+                    value?.isEmpty ?? true ? 'Please enter a question' : null,
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
         ),
-        content: Form(
-          key: _formKey,
-          child: TextFormField(
-            controller: _questionController,
-            decoration: const InputDecoration(
-              labelText: 'Question Text',
-              hintText: 'Enter the question text...',
-            ),
-            maxLines: 3,
-            validator: (value) =>
-                value?.isEmpty ?? true ? 'Please enter a question' : null,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: GoogleFonts.poppins(color: Colors.grey[600]),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: _isLoading
-                ? null
-                : () async {
-                    if (_formKey.currentState?.validate() ?? false) {
-                      setState(() {
-                        _isLoading = true;
-                      });
-
-                      try {
-                        await Supabase.instance.client
-                            .from('questions')
-                            .update({
-                          'question_text': _questionController.text.trim(),
-                        }).eq('question_id', question['question_id']);
-
-                        if (mounted) {
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Question updated successfully')),
-                          );
-                          _loadQuestions();
-                        }
-                      } catch (e) {
-                        print('Error updating question: $e');
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Failed to update question')),
-                          );
-                        }
-                      } finally {
-                        setState(() {
-                          _isLoading = false;
-                        });
-                      }
-                    }
-                  },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF7C83FD),
-              foregroundColor: Colors.white,
-            ),
-            child: _isLoading
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  )
-                : const Text('Update Question'),
-          ),
-        ],
       ),
+      actions: [
+        const ModernActionButton(
+          text: 'Cancel',
+        ),
+        ModernActionButton(
+          text: 'Update Question',
+          isPrimary: true,
+          onPressed: _isLoading
+              ? null
+              : () async {
+                  if (_formKey.currentState?.validate() ?? false) {
+                    setState(() {
+                      _isLoading = true;
+                    });
+
+                    try {
+                      await Supabase.instance.client
+                          .from('questions')
+                          .update({
+                        'question_text': _questionController.text.trim(),
+                      }).eq('question_id', question['question_id']);
+
+                      if (mounted) {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('Question updated successfully')),
+                        );
+                        _loadQuestions();
+                      }
+                    } catch (e) {
+                      print('Error updating question: $e');
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('Failed to update question')),
+                        );
+                      }
+                    } finally {
+                      setState(() {
+                        _isLoading = false;
+                      });
+                    }
+                  }
+                },
+          isLoading: _isLoading,
+        ),
+      ],
     );
   }
 
   void _showAddQuestionDialog() {
     _questionController.clear();
-    showDialog(
+    
+    ModernFormDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Add New Question',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF3A3A50),
-          ),
-        ),
-        content: Form(
-          key: _formKey,
-          child: TextFormField(
-            controller: _questionController,
-            decoration: const InputDecoration(
-              labelText: 'Question Text',
-              hintText: 'Enter the question text...',
+      title: 'Add New Question',
+      subtitle: 'Create a new question for the questionnaire',
+      content: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            FormSection(
+              title: 'Question Details',
+              icon: Icons.quiz_outlined,
+              child: ModernTextFormField(
+                controller: _questionController,
+                labelText: 'Question Text',
+                hintText: 'Enter the question text that will be displayed to users',
+                prefixIcon: Icons.help_outline,
+                maxLines: 3,
+                validator: (value) =>
+                    value?.isEmpty ?? true ? 'Please enter a question' : null,
+              ),
             ),
-            maxLines: 3,
-            validator: (value) =>
-                value?.isEmpty ?? true ? 'Please enter a question' : null,
-          ),
+            const SizedBox(height: 24),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: GoogleFonts.poppins(color: Colors.grey[600]),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: _isLoading
-                ? null
-                : () async {
-                    if (_formKey.currentState?.validate() ?? false) {
-                      setState(() {
-                        _isLoading = true;
+      ),
+      actions: [
+        const ModernActionButton(
+          text: 'Cancel',
+        ),
+        ModernActionButton(
+          text: 'Add Question',
+          isPrimary: true,
+          onPressed: _isLoading
+              ? null
+              : () async {
+                  if (_formKey.currentState?.validate() ?? false) {
+                    setState(() {
+                      _isLoading = true;
+                    });
+
+                    try {
+                      final questionResponse = await Supabase.instance.client
+                          .from('questions')
+                          .insert({
+                            'question_text': _questionController.text.trim(),
+                            'is_active': true,
+                          })
+                          .select()
+                          .single();
+
+                      await Supabase.instance.client
+                          .from('questionnaire_questions')
+                          .insert({
+                        'version_id': _selectedVersionId,
+                        'question_id': questionResponse['question_id'],
+                        'question_order': _questions.length + 1,
                       });
 
-                      try {
-                        final questionResponse = await Supabase.instance.client
-                            .from('questions')
-                            .insert({
-                              'question_text': _questionController.text.trim(),
-                              'is_active': true,
-                            })
-                            .select()
-                            .single();
-
-                        await Supabase.instance.client
-                            .from('questionnaire_questions')
-                            .insert({
-                          'version_id': _selectedVersionId,
-                          'question_id': questionResponse['question_id'],
-                          'question_order': _questions.length + 1,
-                        });
-
-                        if (mounted) {
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Question added successfully')),
-                          );
-                          _loadQuestions();
-                        }
-                      } catch (e) {
-                        print('Error adding question: $e');
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Failed to add question')),
-                          );
-                        }
-                      } finally {
-                        setState(() {
-                          _isLoading = false;
-                        });
+                      if (mounted) {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('Question added successfully')),
+                        );
+                        _loadQuestions();
                       }
+                    } catch (e) {
+                      print('Error adding question: $e');
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('Failed to add question')),
+                        );
+                      }
+                    } finally {
+                      setState(() {
+                        _isLoading = false;
+                      });
                     }
-                  },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF7C83FD),
-              foregroundColor: Colors.white,
-            ),
-            child: _isLoading
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  )
-                : const Text('Add Question'),
-          ),
-        ],
-      ),
+                  }
+                },
+          isLoading: _isLoading,
+        ),
+      ],
     );
   }
 
   void _showCreateVersionDialog() {
     final versionController = TextEditingController();
-    showDialog(
+    
+    ModernFormDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Create New Version',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF3A3A50),
-          ),
-        ),
-        content: TextField(
-          controller: versionController,
-          decoration: const InputDecoration(
-            labelText: 'Version Name',
-            hintText: 'e.g., Student Mental Health Questionnaire v2',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: GoogleFonts.poppins(color: Colors.grey[600]),
+      title: 'Create New Version',
+      subtitle: 'Create a new questionnaire version with optional question copying',
+      content: Form(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            FormSection(
+              title: 'Version Information',
+              icon: Icons.new_releases_outlined,
+              child: ModernTextFormField(
+                controller: versionController,
+                labelText: 'Version Name',
+                hintText: 'e.g., Student Mental Health Questionnaire v2',
+                prefixIcon: Icons.label_outline,
+                validator: (value) =>
+                    value?.isEmpty ?? true ? 'Please enter a version name' : null,
+              ),
             ),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (versionController.text.trim().isNotEmpty) {
-                try {
-                  // Create new version
-                  final versionResponse = await Supabase.instance.client
-                      .from('questionnaire_versions')
-                      .insert({
-                        'version_name': versionController.text.trim(),
-                        'is_active': true,
-                      })
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+      actions: [
+        const ModernActionButton(
+          text: 'Cancel',
+        ),
+        ModernActionButton(
+          text: 'Create Version',
+          isPrimary: true,
+          onPressed: () async {
+            if (versionController.text.trim().isNotEmpty) {
+              try {
+                // Create new version
+                final versionResponse = await Supabase.instance.client
+                    .from('questionnaire_versions')
+                    .insert({
+                      'version_name': versionController.text.trim(),
+                      'is_active': true,
+                    })
+                    .select()
+                    .single();
+
+                // Copy questions from current version to new version
+                if (_selectedVersionId != 0) {
+                  final questions = await Supabase.instance.client
+                      .from('questionnaire_questions')
                       .select()
-                      .single();
+                      .eq('version_id', _selectedVersionId);
 
-                  // Copy questions from current version to new version
-                  if (_selectedVersionId != 0) {
-                    final questions = await Supabase.instance.client
+                  for (var question in questions) {
+                    await Supabase.instance.client
                         .from('questionnaire_questions')
-                        .select()
-                        .eq('version_id', _selectedVersionId);
-
-                    for (var question in questions) {
-                      await Supabase.instance.client
-                          .from('questionnaire_questions')
-                          .insert({
-                        'version_id': versionResponse['version_id'],
-                        'question_id': question['question_id'],
-                        'question_order': question['question_order'],
-                      });
-                    }
-                  }
-
-                  if (mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('New version created successfully')),
-                    );
-                    _loadVersions();
-                  }
-                } catch (e) {
-                  print('Error creating version: $e');
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('Failed to create new version')),
-                    );
+                        .insert({
+                      'version_id': versionResponse['version_id'],
+                      'question_id': question['question_id'],
+                      'question_order': question['question_order'],
+                    });
                   }
                 }
+
+                if (mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('New version created successfully')),
+                  );
+                  _loadVersions();
+                }
+              } catch (e) {
+                print('Error creating version: $e');
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Failed to create new version')),
+                  );
+                }
               }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF7C83FD),
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Create Version'),
-          ),
-        ],
-      ),
+            }
+          },
+        ),
+      ],
     );
   }
 

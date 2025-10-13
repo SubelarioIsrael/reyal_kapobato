@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../components/modern_form_dialog.dart';
 
 class AdminUsers extends StatefulWidget {
   const AdminUsers({super.key});
@@ -13,12 +14,13 @@ class _AdminUsersState extends State<AdminUsers> {
   final _formKey = GlobalKey<FormState>();
   final _searchController = TextEditingController();
   final _emailController = TextEditingController();
-  final _nameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   String _selectedRole = 'counselor';
   String _selectedFilter = 'all';
   bool _isLoading = false;
+  bool _showPassword = false;
+  bool _showConfirmPassword = false;
   List<Map<String, dynamic>> _users = [];
   List<Map<String, dynamic>> _filteredUsers = [];
 
@@ -32,7 +34,6 @@ class _AdminUsersState extends State<AdminUsers> {
   void dispose() {
     _searchController.dispose();
     _emailController.dispose();
-    _nameController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -112,38 +113,222 @@ class _AdminUsersState extends State<AdminUsers> {
     }
   }
 
-  void _showAddUserDialog() {
-    showDialog(
+  Future<void> _deleteUserWithRelatedData(String userId) async {
+    // Show confirmation dialog first
+    final bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(
-          'Add New User',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF3A3A50),
-          ),
+        title: const Text('Confirm Deletion'),
+        content: const Text(
+          'Are you sure you want to delete this user? This action will permanently remove the user and all their related data. This cannot be undone.',
         ),
-        content: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Full Name',
-                  prefixIcon: Icon(Icons.person_outline),
-                ),
-                validator: (value) =>
-                    value?.isEmpty ?? true ? 'Please enter a name' : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      // Delete related data in proper order (from dependent to parent)
+      // 1. Delete user notifications
+      await Supabase.instance.client
+          .from('user_notifications')
+          .delete()
+          .eq('user_id', userId);
+
+      // 2. Delete questionnaire responses and answers
+      final responses = await Supabase.instance.client
+          .from('questionnaire_responses')
+          .select('response_id')
+          .eq('user_id', userId);
+      
+      for (var response in responses) {
+        await Supabase.instance.client
+            .from('questionnaire_answers')
+            .delete()
+            .eq('response_id', response['response_id']);
+      }
+      
+      await Supabase.instance.client
+          .from('questionnaire_responses')
+          .delete()
+          .eq('user_id', userId);
+
+      // 3. Delete activity completions
+      await Supabase.instance.client
+          .from('activity_completions')
+          .delete()
+          .eq('user_id', userId);
+
+      // 3b. Delete chat messages
+      await Supabase.instance.client
+          .from('chat_messages')
+          .delete()
+          .eq('user_id', userId);
+
+      // 3c. Delete intervention logs
+      await Supabase.instance.client
+          .from('intervention_logs')
+          .delete()
+          .eq('user_id', userId);
+
+      // 3d. Delete video calls (as student)
+      await Supabase.instance.client
+          .from('video_calls')
+          .delete()
+          .eq('student_user_id', userId);
+
+      // 3e. Delete messages (as sender and receiver)
+      await Supabase.instance.client
+          .from('messages')
+          .delete()
+          .eq('sender_id', userId);
+      
+      await Supabase.instance.client
+          .from('messages')
+          .delete()
+          .eq('receiver_id', userId);
+
+      // 3f. Delete counseling session notes
+      await Supabase.instance.client
+          .from('counseling_session_notes')
+          .delete()
+          .eq('student_user_id', userId);
+
+      // 4. Delete journal entries
+      await Supabase.instance.client
+          .from('journal_entries')
+          .delete()
+          .eq('user_id', userId);
+
+      // 5. Delete mood entries
+      await Supabase.instance.client
+          .from('mood_entries')
+          .delete()
+          .eq('user_id', userId);
+
+      // 6. Delete emergency contacts
+      await Supabase.instance.client
+          .from('emergency_contacts')
+          .delete()
+          .eq('user_id', userId);
+
+      // 7. Delete counseling appointments (as student)
+      await Supabase.instance.client
+          .from('counseling_appointments')
+          .delete()
+          .eq('user_id', userId);
+      
+      // 7b. Delete counseling appointments and related data where user is the counselor
+      // First get counselor_id for this user
+      final counselorResponse = await Supabase.instance.client
+          .from('counselors')
+          .select('counselor_id')
+          .eq('user_id', userId);
+      
+      if (counselorResponse.isNotEmpty) {
+        final counselorId = counselorResponse[0]['counselor_id'];
+        
+        // Delete counseling appointments as counselor
+        await Supabase.instance.client
+            .from('counseling_appointments')
+            .delete()
+            .eq('counselor_id', counselorId);
+            
+        // Delete video calls as counselor
+        await Supabase.instance.client
+            .from('video_calls')
+            .delete()
+            .eq('counselor_id', counselorId);
+            
+        // Delete counseling session notes as counselor
+        await Supabase.instance.client
+            .from('counseling_session_notes')
+            .delete()
+            .eq('counselor_id', counselorId);
+      }
+
+      // 8. Tables password_resets and user_profiles don't exist in updated schema
+      // Skipping deletion of these non-existent tables
+
+      // 9. Delete role-specific records
+      await Supabase.instance.client
+          .from('students')
+          .delete()
+          .eq('user_id', userId);
+      
+      await Supabase.instance.client
+          .from('counselors')
+          .delete()
+          .eq('user_id', userId);
+
+      // 10. Finally, delete the main user record
+      await Supabase.instance.client
+          .from('users')
+          .delete()
+          .eq('user_id', userId);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('User and all related data deleted successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _loadUsers();
+      }
+    } catch (e) {
+      print('Error deleting user with related data: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete user: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showAddUserDialog() {
+    _emailController.clear();
+    _passwordController.clear();
+    _confirmPasswordController.clear();
+    _selectedRole = 'counselor';
+    _showPassword = false;
+    _showConfirmPassword = false;
+    
+    ModernFormDialog.show(
+      context: context,
+      title: 'Add New User',
+      subtitle: 'Create a new user account for the system',
+      content: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            FormSection(
+              title: 'Account Information',
+              icon: Icons.person_outline,
+              child: ModernTextFormField(
                 controller: _emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Email Address',
-                  prefixIcon: Icon(Icons.email_outlined),
-                ),
+                labelText: 'Email Address',
+                hintText: 'Enter a valid email address',
+                prefixIcon: Icons.email,
+                keyboardType: TextInputType.emailAddress,
                 validator: (value) {
                   if (value?.isEmpty ?? true) {
                     return 'Please enter an email';
@@ -155,137 +340,268 @@ class _AdminUsersState extends State<AdminUsers> {
                   return null;
                 },
               ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: _selectedRole,
-                decoration: const InputDecoration(
-                  labelText: 'Role',
-                  prefixIcon: Icon(Icons.work_outline),
-                ),
-                items: const [
-                  DropdownMenuItem(
-                      value: 'counselor', child: Text('Counselor')),
-                  DropdownMenuItem(value: 'admin', child: Text('Admin')),
-                ],
-                onChanged: (value) {
-                  setState(() {
-                    _selectedRole = value!;
-                  });
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Password',
-                  prefixIcon: Icon(Icons.lock_outline),
-                ),
-                validator: (value) => value == null || value.isEmpty
-                    ? 'Please enter a password'
-                    : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _confirmPasswordController,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Confirm Password',
-                  prefixIcon: Icon(Icons.lock_outline),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please confirm your password';
-                  }
-                  if (value != _passwordController.text) {
-                    return 'Passwords do not match';
-                  }
-                  return null;
-                },
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: GoogleFonts.poppins(color: Colors.grey[600]),
             ),
-          ),
-          ElevatedButton(
-            onPressed: _isLoading
-                ? null
-                : () async {
-                    if (_formKey.currentState?.validate() ?? false) {
+            const SizedBox(height: 32),
+            FormSection(
+              title: 'Account Settings',
+              icon: Icons.settings,
+              child: Column(
+                children: [  
+                  ModernDropdownFormField<String>(
+                    value: _selectedRole,
+                    labelText: 'User Role',
+                    prefixIcon: Icons.badge,
+                    items: const [
+                      DropdownMenuItem(
+                          value: 'counselor', child: Text('Counselor')),
+                      DropdownMenuItem(value: 'admin', child: Text('Admin')),
+                    ],
+                    onChanged: (value) {
                       setState(() {
-                        _isLoading = true;
+                        _selectedRole = value!;
                       });
-
-                      try {
-                        final authResponse =
-                            await Supabase.instance.client.auth.signUp(
-                          email: _emailController.text.trim(),
-                          password: _passwordController.text.trim(),
-                        );
-
-                        if (authResponse.user != null) {
-                          await Supabase.instance.client.from('users').insert({
-                            'user_id': authResponse.user!.id,
-                            'email': _emailController.text.trim(),
-                            'user_type': _selectedRole,
-                            'status': 'active',
-                            'registration_date':
-                                DateTime.now().toIso8601String(),
-                          });
-
-                          if (mounted) {
-                            Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text('User created successfully')),
-                            );
-                            _loadUsers();
-                          }
-                        }
-                      } catch (e) {
-                        print('Error creating user: $e');
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Failed to create user')),
-                          );
-                        }
-                      } finally {
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  ModernTextFormField(
+                    controller: _passwordController,
+                    labelText: 'Password',
+                    hintText: 'Enter a secure password',
+                    prefixIcon: Icons.lock,
+                    obscureText: !_showPassword,
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _showPassword ? Icons.visibility : Icons.visibility_off,
+                        color: Colors.grey,
+                      ),
+                      onPressed: () {
                         setState(() {
-                          _isLoading = false;
-                          _emailController.clear();
-                          _nameController.clear();
-                          _passwordController.clear();
-                          _confirmPasswordController.clear();
-                          _selectedRole = 'counselor';
+                          _showPassword = !_showPassword;
                         });
-                      }
-                    }
-                  },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF7C83FD),
-              foregroundColor: Colors.white,
-            ),
-            child: _isLoading
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      },
                     ),
-                  )
-                : const Text('Add User'),
-          ),
-        ],
+                    validator: (value) => value == null || value.isEmpty
+                        ? 'Please enter a password'
+                        : null,
+                  ),
+                  const SizedBox(height: 20),
+                  ModernTextFormField(
+                    controller: _confirmPasswordController,
+                    labelText: 'Confirm Password',
+                    hintText: 'Re-enter the password',
+                    prefixIcon: Icons.lock_clock,
+                    obscureText: !_showConfirmPassword,
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _showConfirmPassword ? Icons.visibility : Icons.visibility_off,
+                        color: Colors.grey,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _showConfirmPassword = !_showConfirmPassword;
+                        });
+                      },
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please confirm your password';
+                      }
+                      if (value != _passwordController.text) {
+                        return 'Passwords do not match';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
       ),
+      actions: [
+        const ModernActionButton(
+          text: 'Cancel',
+        ),
+        ModernActionButton(
+          text: 'Add User',
+          isPrimary: true,
+          onPressed: _isLoading
+              ? null
+              : () async {
+                  if (_formKey.currentState?.validate() ?? false) {
+                    setState(() {
+                      _isLoading = true;
+                    });
+
+                    try {
+                      // For admin-created accounts, we'll create them and then manually confirm them
+                      final authResponse =
+                          await Supabase.instance.client.auth.signUp(
+                        email: _emailController.text.trim(),
+                        password: _passwordController.text.trim(),
+                      );
+
+                      if (authResponse.user != null) {
+                        // Insert user data into users table
+                        await Supabase.instance.client.from('users').insert({
+                          'user_id': authResponse.user!.id,
+                          'email': _emailController.text.trim(),
+                          'user_type': _selectedRole,
+                          'status': 'active',
+                          'registration_date':
+                              DateTime.now().toIso8601String(),
+                        });
+
+                        // Store values before clearing controllers
+                        final createdEmail = _emailController.text.trim();
+                        final createdPassword = _passwordController.text;
+                        final createdRole = _selectedRole;
+
+                        if (mounted) {
+                          Navigator.pop(context);
+                          
+                          // Show clean success dialog with account details
+                          showDialog(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (context) => AlertDialog(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              title: Column(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green.withOpacity(0.1),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.check_circle,
+                                      color: Colors.green,
+                                      size: 32,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'User Created Successfully!',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color(0xFF3A3A50),
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                              content: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.shade50,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: Colors.grey.shade200),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Account Details',
+                                          style: GoogleFonts.poppins(
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 14,
+                                            color: const Color(0xFF3A3A50),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        _buildDetailRow('Email', createdEmail),
+                                        const SizedBox(height: 8),
+                                        _buildDetailRow('Password', createdPassword),
+                                        const SizedBox(height: 8),
+                                        _buildDetailRow('Role', createdRole.toUpperCase()),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.info_outline, color: Colors.orange, size: 20),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            'An email verification has been sent to the user. They must verify before logging in.',
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 12,
+                                              color: Colors.orange.shade700,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              actions: [
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF7C83FD),
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      'Got it',
+                                      style: GoogleFonts.poppins(
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                          
+                          _loadUsers();
+                        }
+                      }
+                    } catch (e) {
+                      print('Error creating user: $e');
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Failed to create user')),
+                        );
+                      }
+                    } finally {
+                      setState(() {
+                        _isLoading = false;
+                        _emailController.clear();
+                        _passwordController.clear();
+                        _confirmPasswordController.clear();
+                        _selectedRole = 'counselor';
+                        _showPassword = false;
+                        _showConfirmPassword = false;
+                      });
+                    }
+                  }
+                },
+          isLoading: _isLoading,
+        ),
+      ],
     );
   }
 
@@ -505,31 +821,7 @@ class _AdminUsersState extends State<AdminUsers> {
                                       user['status'],
                                     );
                                   } else if (value == 'delete') {
-                                    try {
-                                      await Supabase.instance.client
-                                          .from('users')
-                                          .delete()
-                                          .eq('user_id', user['user_id']);
-                                      _loadUsers();
-                                      if (mounted) {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          const SnackBar(
-                                              content: Text(
-                                                  'User deleted successfully')),
-                                        );
-                                      }
-                                    } catch (e) {
-                                      print('Error deleting user: $e');
-                                      if (mounted) {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          const SnackBar(
-                                              content: Text(
-                                                  'Failed to delete user')),
-                                        );
-                                      }
-                                    }
+                                    await _deleteUserWithRelatedData(user['user_id']);
                                   }
                                 },
                               ),
@@ -569,6 +861,35 @@ class _AdminUsersState extends State<AdminUsers> {
           fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
         ),
       ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 70,
+          child: Text(
+            '$label:',
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey[600],
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF3A3A50),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

@@ -5,8 +5,10 @@ import 'widgets/auth_guard.dart';
 
 import 'pages/login_page.dart';
 import 'pages/signup_page.dart';
+import 'pages/reset_password_page.dart';
 
 import 'pages/counselor/counselor_profile_setup.dart';
+import 'pages/counselor/counselor_profile_first_setup.dart';
 
 //student
 import 'pages/student/student_home.dart';
@@ -35,19 +37,18 @@ import 'pages/admin/admin_users.dart';
 import 'pages/admin/admin_resources.dart';
 import 'pages/admin/admin_exercises.dart';
 import 'pages/admin/admin_notifications.dart';
-import 'pages/admin/admin_settings.dart';
 import 'pages/admin/admin_profile.dart';
 import 'pages/admin/admin_questionnaire.dart';
 import 'pages/admin/admin_hotlines.dart';
 import 'pages/counselor/counselor_home.dart';
 import 'pages/counselor/counselor_settings.dart';
-import 'pages/counselor/student_history.dart';
 import 'pages/counselor/student_overview.dart';
 
 // page routes
 final Map<String, WidgetBuilder> appRoutes = {
   '/login': (context) => const LoginPage(),
   '/signup': (context) => const SignUpPage(),
+  '/reset-password': (context) => const ResetPasswordPage(),
 
   //home page routes
   'student-home': (context) => const AuthGuard(child: StudentHome()),
@@ -109,7 +110,6 @@ final Map<String, WidgetBuilder> appRoutes = {
     final counselorName = args['counselorName'] as String?;
 
     if (appointmentId == null ||
-        counselorName == null ||
         counselorName == null ||
         counselorName.isEmpty) {
       return const Scaffold(
@@ -174,7 +174,6 @@ final Map<String, WidgetBuilder> appRoutes = {
   'admin-exercises': (context) => const AuthGuard(child: AdminExercises()),
   'admin-notifications': (context) =>
       const AuthGuard(child: AdminNotifications()),
-  'admin-settings': (context) => const AuthGuard(child: AdminSettings()),
   'admin-profile': (context) => const AuthGuard(child: AdminProfile()),
   '/admin-questionnaire': (context) =>
       const AuthGuard(child: AdminQuestionnaire()),
@@ -185,10 +184,12 @@ final Map<String, WidgetBuilder> appRoutes = {
       const AuthGuard(child: CounselorProfileSetup()),
   '/counselor-profile-setup': (context) =>
       const AuthGuard(child: CounselorProfileSetup()),
+  '/counselor-profile-first-setup': (context) =>
+      const AuthGuard(child: CounselorProfileFirstSetup()),
   'counselor-settings': (context) =>
       const AuthGuard(child: CounselorSettings()),
-  '/student-history': (context) => AuthGuard(
-        child: StudentHistory(
+  '/student-overview': (context) => AuthGuard(
+        child: StudentOverview(
           userId: (ModalRoute.of(context)?.settings.arguments
               as Map<String, dynamic>)['userId'] as String,
           studentName: (ModalRoute.of(context)?.settings.arguments

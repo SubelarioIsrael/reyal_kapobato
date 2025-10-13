@@ -5,9 +5,10 @@ import '../../models/appointment.dart';
 import '../chat/appointment_chat.dart';
 import 'all_appointments.dart';
 import 'student_history_list.dart';
+import 'student_overview.dart';
 import 'counselor_chat_list.dart';
 import 'video_call_dialog.dart';
-import '../debug/chat_debug_page.dart';
+import '../../widgets/student_avatar.dart';
 
 class CounselorHome extends StatefulWidget {
   const CounselorHome({super.key});
@@ -68,7 +69,7 @@ class _CounselorHomeState extends State<CounselorHome> {
       if (counselorProfile == null) {
         // No counselor profile exists, redirect to setup
         if (mounted) {
-          Navigator.pushReplacementNamed(context, '/counselor-profile-setup');
+          Navigator.pushReplacementNamed(context, '/counselor-profile-first-setup');
         }
         return;
       }
@@ -524,7 +525,7 @@ class _CounselorHomeState extends State<CounselorHome> {
         const SizedBox(width: 16),
         Expanded(
           child: _buildStatCard(
-            'Upcoming',
+            'Upcoming Sessions',
             _upcomingSessions.toString(),
             Icons.schedule,
             Colors.orange,
@@ -540,7 +541,7 @@ class _CounselorHomeState extends State<CounselorHome> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       elevation: 2,
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           gradient: LinearGradient(
@@ -657,64 +658,148 @@ class _CounselorHomeState extends State<CounselorHome> {
   Widget _buildPendingAppointmentCard(Appointment appt) {
     final studentInfo = _studentInfo[appt.userId.toString().trim()] ?? {};
     final studentName = studentInfo['student_name'] ?? 'Unknown Student';
+    final studentCode = studentInfo['student_id'] ?? '';
 
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: const Color(0xFF7C83FD).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: const Icon(
-                Icons.person,
-                color: Color(0xFF7C83FD),
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    studentName,
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF3A3A50),
-                    ),
-                  ),
-                  Text(
-                    '${appt.appointmentDate.toString().split(' ')[0]} • ${TimeOfDay.fromDateTime(appt.startTime).format(context)}',
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      color: const Color(0xFF5D5D72),
-                    ),
-                  ),
-                ],
-              ),
-            ),
             Row(
               children: [
-                IconButton(
-                  onPressed: () =>
-                      _updateAppointmentStatusWithMessage(appt, 'accepted'),
-                  icon: const Icon(Icons.check_circle,
-                      color: Colors.green, size: 28),
-                  tooltip: 'Accept',
+                StudentAvatar(
+                  userId: appt.userId,
+                  radius: 28,
+                  fallbackName: studentName,
                 ),
-                IconButton(
-                  onPressed: () =>
-                      _updateAppointmentStatusWithMessage(appt, 'rejected'),
-                  icon: const Icon(Icons.cancel, color: Colors.red, size: 28),
-                  tooltip: 'Reject',
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        studentName,
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF3A3A50),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${appt.appointmentDate.toString().split(' ')[0]} • ${TimeOfDay.fromDateTime(appt.startTime).format(context)}',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.orange[700],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF7C83FD).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => StudentOverview(
+                            userId: appt.userId,
+                            studentName: studentName,
+                            studentId: studentCode,
+                          ),
+                        ),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(10),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.visibility,
+                          size: 16,
+                          color: Color(0xFF7C83FD),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'View',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF7C83FD),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () =>
+                        _updateAppointmentStatusWithMessage(appt, 'accepted'),
+                    icon: const Icon(Icons.check_circle, size: 18),
+                    label: Text(
+                      'Accept',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () =>
+                        _updateAppointmentStatusWithMessage(appt, 'rejected'),
+                    icon: const Icon(Icons.cancel, size: 18),
+                    label: Text(
+                      'Reject',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -787,18 +872,10 @@ class _CounselorHomeState extends State<CounselorHome> {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: const Icon(
-                Icons.person,
-                color: Colors.green,
-                size: 24,
-              ),
+            StudentAvatar(
+              userId: appt.userId,
+              radius: 24,
+              fallbackName: studentName,
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -1016,7 +1093,7 @@ class _CounselorHomeState extends State<CounselorHome> {
               onPressed: () {
                 Navigator.pop(ctx);
                 Navigator.pushReplacementNamed(
-                    context, '/counselor-profile-setup');
+                    context, '/counselor-profile-first-setup');
               },
               style: TextButton.styleFrom(
                 backgroundColor: const Color(0xFF7C83FD),

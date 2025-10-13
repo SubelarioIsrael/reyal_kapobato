@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/appointment.dart';
 import '../chat/appointment_chat.dart';
+import '../../widgets/student_avatar.dart';
 
 class CounselorChatList extends StatefulWidget {
   const CounselorChatList({super.key});
@@ -247,7 +248,6 @@ class _CounselorChatListState extends State<CounselorChatList> {
     final lastMessage = appointmentData['last_message'] as String?;
     final lastMessageTime = appointmentData['last_message_time'] as DateTime?;
     final userName = appointmentData['user_name'] as String;
-    final userInitials = appointmentData['user_initials'] as String;
     final hasUnread = unreadCount > 0;
 
     return Container(
@@ -277,11 +277,6 @@ class _CounselorChatListState extends State<CounselorChatList> {
                     width: 60,
                     height: 60,
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF7C83FD), Color(0xFF9B59B6)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
                       borderRadius: BorderRadius.circular(18),
                       boxShadow: [
                         BoxShadow(
@@ -291,14 +286,12 @@ class _CounselorChatListState extends State<CounselorChatList> {
                         ),
                       ],
                     ),
-                    child: Center(
-                      child: Text(
-                        userInitials,
-                        style: GoogleFonts.inter(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: StudentAvatar(
+                        userId: appointmentData['appointment']['user_id'],
+                        radius: 30,
+                        fallbackName: userName,
                       ),
                     ),
                   ),

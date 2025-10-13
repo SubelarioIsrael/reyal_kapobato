@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/appointment.dart';
+import '../../services/counselor_service.dart';
 import '../chat/appointment_chat.dart';
 import 'video_call_dialog.dart';
 import 'student_overview.dart';
+import '../../widgets/student_avatar.dart';
 
 class AllAppointments extends StatefulWidget {
   const AllAppointments({super.key});
@@ -252,19 +254,22 @@ class _AllAppointmentsState extends State<AllAppointments> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+              Row(
               children: [
                 Container(
                   width: 50,
                   height: 50,
                   decoration: BoxDecoration(
-                    color: _getStatusColor(appointment.status).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(25),
+                    border: Border.all(
+                      color: _getStatusColor(appointment.status).withOpacity(0.3),
+                      width: 2,
+                    ),
                   ),
-                  child: Icon(
-                    Icons.person,
-                    color: _getStatusColor(appointment.status),
-                    size: 24,
+                  child: StudentAvatar(
+                    userId: appointment.userId,
+                    radius: 23,
+                    fallbackName: displayName,
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -386,6 +391,58 @@ class _AllAppointmentsState extends State<AllAppointments> {
                     ),
                   ),
                 ),
+                const SizedBox(width: 8),
+                PopupMenuButton<String>(
+                  onSelected: (String value) => _updateAppointmentStatus(appointment, value),
+                  icon: const Icon(Icons.more_vert, color: Color(0xFF5D5D72)),
+                  tooltip: 'Update Status',
+                  itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                    if (appointment.status.toLowerCase() != 'completed')
+                      const PopupMenuItem<String>(
+                        value: 'completed',
+                        child: Row(
+                          children: [
+                            Icon(Icons.check_circle, color: Colors.green, size: 20),
+                            SizedBox(width: 8),
+                            Text('Mark as Completed'),
+                          ],
+                        ),
+                      ),
+                    if (appointment.status.toLowerCase() != 'cancelled')
+                      const PopupMenuItem<String>(
+                        value: 'cancelled',
+                        child: Row(
+                          children: [
+                            Icon(Icons.cancel, color: Colors.red, size: 20),
+                            SizedBox(width: 8),
+                            Text('Mark as Cancelled'),
+                          ],
+                        ),
+                      ),
+                    if (appointment.status.toLowerCase() == 'pending')
+                      const PopupMenuItem<String>(
+                        value: 'accepted',
+                        child: Row(
+                          children: [
+                            Icon(Icons.check, color: Colors.blue, size: 20),
+                            SizedBox(width: 8),
+                            Text('Accept Appointment'),
+                          ],
+                        ),
+                      ),
+                    if (appointment.status.toLowerCase() == 'pending')
+                      const PopupMenuItem<String>(
+                        value: 'rejected',
+                        child: Row(
+                          children: [
+                            Icon(Icons.close, color: Colors.orange, size: 20),
+                            SizedBox(width: 8),
+                            Text('Reject Appointment'),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
               ],
             ),
           ],
@@ -414,5 +471,147 @@ class _AllAppointmentsState extends State<AllAppointments> {
       context: context,
       builder: (context) => const VideoCallDialog(),
     );
+  }
+
+  Future<void> _updateAppointmentStatus(Appointment appointment, String newStatus) async {
+    // Show confirmation dialog with optional message
+    String? statusMessage;
+    bool confirmed = false;
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        final messageController = TextEditingController();
+        return AlertDialog(
+          title: Text('Update Status to ${newStatus.toUpperCase()}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Are you sure you want to mark this appointment as $newStatus?'),
+              const SizedBox(height: 16),
+              TextField(
+                controller: messageController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Message (optional)',
+                  hintText: 'Add a note for this status change',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                statusMessage = messageController.text.trim();
+                confirmed = true;
+                Navigator.pop(context);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _getStatusColor(newStatus),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Update'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!confirmed) return;
+
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      // Update appointment status using the service
+      final counselorService = CounselorService();
+      await counselorService.updateAppointmentStatus(
+        appointment.id,
+        newStatus,
+        statusMessage: statusMessage,
+      );
+
+      // Send notification to student
+      await _sendStatusUpdateNotification(appointment, newStatus, statusMessage);
+
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Appointment status updated to ${newStatus.toUpperCase()}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+
+      // Reload appointments to reflect changes
+      await _loadAppointments();
+    } catch (e) {
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
+
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating appointment status: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _sendStatusUpdateNotification(Appointment appointment, String newStatus, String? message) async {
+    try {
+      // Create notification content
+      final notificationContent = 'Your appointment on ${appointment.appointmentDate.toString().split(' ')[0]} has been ${newStatus.toUpperCase()}.'
+          '${message != null && message.isNotEmpty ? ' Message: $message' : ''}';
+
+      // Insert notification into database
+      await Supabase.instance.client.from('user_notifications').insert({
+        'user_id': appointment.userId,
+        'notification_type': 'Appointment Status Update',
+        'content': notificationContent,
+        'action_url': '/appointments'
+      });
+
+      // Try to send push notification via Edge Function
+      try {
+        await Supabase.instance.client.functions.invoke(
+          'send-notification',
+          body: {
+            'user_id': appointment.userId,
+            'title': 'Appointment Status Update',
+            'body': notificationContent,
+            'data': {
+              'action': 'appointment_status_changed',
+              'appointment_id': appointment.id,
+              'route': '/appointments'
+            }
+          },
+        );
+      } catch (pushError) {
+        print('Push notification failed: $pushError');
+        // Continue even if push notification fails
+      }
+    } catch (e) {
+      print('Error sending notification: $e');
+      // Don't throw error - notification failure shouldn't block status update
+    }
   }
 }

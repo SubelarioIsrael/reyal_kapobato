@@ -70,7 +70,17 @@ class _CounselorProfileSetupState extends State<CounselorProfileSetup> {
         _selectedSpecialization = result['specialization'] ?? 'General Counseling';
         _bioController.text = result['bio'] ?? '';
         _availability = result['availability_status'] ?? 'available';
-        _profileImageUrl = result['profile_picture'];
+      }
+
+      // Load profile picture from users table (consistent with ProfileImageService)
+      final userResult = await Supabase.instance.client
+          .from('users')
+          .select('profile_picture')
+          .eq('user_id', user.id)
+          .maybeSingle();
+      
+      if (userResult != null) {
+        _profileImageUrl = userResult['profile_picture'];
       }
     } catch (e) {
       print('Error loading existing profile: $e');
@@ -113,7 +123,8 @@ class _CounselorProfileSetupState extends State<CounselorProfileSetup> {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) return null;
 
-      // Update counselor profile with base64 image data
+      // Update counselor profile with base64 image data via ProfileImageService
+      // This saves to users.profile_picture table
       final success = await ProfileImageService.updateCounselorProfileImage(
         _selectedImageBase64!,
         user.id,
@@ -146,8 +157,8 @@ class _CounselorProfileSetupState extends State<CounselorProfileSetup> {
     });
 
     try {
-      // Upload profile image if selected
-      String? imageUrl = await _uploadProfileImage();
+      // Upload profile image if selected (saves to users table via ProfileImageService)
+      await _uploadProfileImage();
 
       final payload = {
         'first_name': _firstNameController.text.trim(),
@@ -156,7 +167,6 @@ class _CounselorProfileSetupState extends State<CounselorProfileSetup> {
         'specialization': _selectedSpecialization,
         'availability_status': _availability,
         'bio': _bioController.text.trim(),
-        'profile_picture': imageUrl,
         'user_id': user.id,
       };
 

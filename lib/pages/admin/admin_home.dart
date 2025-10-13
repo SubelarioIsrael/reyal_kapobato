@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:pdf/pdf.dart';
+
 import 'package:pdf/widgets.dart' as pw;
+import 'package:pdf/pdf.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 
@@ -14,9 +15,10 @@ class AdminHome extends StatefulWidget {
 }
 
 class _AdminHomeState extends State<AdminHome> {
-  final int _selectedIndex = 0;
+
   int totalUsers = 0;
   int activeUsers = 0;
+  int completedAppointments = 0;
   List<Map<String, dynamic>> recentRegistrations = [];
 
   @override
@@ -43,6 +45,13 @@ class _AdminHomeState extends State<AdminHome> {
                   .subtract(const Duration(hours: 24))
                   .toIso8601String());
       final activeUsersCount = activeUsersResponse.length;
+
+      // Get completed appointments count
+      final completedAppointmentsResponse = await supabase
+          .from('counseling_appointments')
+          .select('appointment_id')
+          .eq('status', 'completed');
+      final completedAppointmentsCount = completedAppointmentsResponse.length;
 
       // Get recent user registrations (last 5) with email instead of username
       final recentRegistrationsResponse = await supabase
@@ -75,6 +84,7 @@ class _AdminHomeState extends State<AdminHome> {
         setState(() {
           totalUsers = totalUsersCount;
           activeUsers = activeUsersCount;
+          completedAppointments = completedAppointmentsCount;
           recentRegistrations = recentRegistrationsList;
         });
       }
@@ -99,37 +109,26 @@ class _AdminHomeState extends State<AdminHome> {
           padding: EdgeInsets.zero,
           children: [
             DrawerHeader(
-              decoration: const BoxDecoration(
-                color: Color(0xFF7C83FD),
-              ),
+              decoration: const BoxDecoration(color: Color(0xFF7C83FD)),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.admin_panel_settings,
-                      color: Colors.white, size: 40),
-                  const SizedBox(height: 12),
+                  const Icon(Icons.admin_panel_settings, size: 60, color: Colors.white),
+                  const SizedBox(height: 8),
                   Text(
-                    'Admin Menu',
+                    'Admin',
                     style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
                       color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
               ),
             ),
             ListTile(
-              leading: const Icon(Icons.settings, color: Color(0xFF7C83FD)),
-              title: const Text('Settings'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, 'admin-settings');
-              },
-            ),
-            ListTile(
               leading: const Icon(Icons.logout, color: Color(0xFF7C83FD)),
-              title: const Text('Logout'),
+              title: Text('Logout', style: GoogleFonts.poppins()),
               onTap: () async {
                 await Supabase.instance.client.auth.signOut();
                 if (context.mounted) {
@@ -142,27 +141,24 @@ class _AdminHomeState extends State<AdminHome> {
         ),
       ),
       appBar: AppBar(
-        title: Text(
-          "Dashboard",
-          style: GoogleFonts.poppins(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
+        backgroundColor: const Color.fromARGB(255, 242, 241, 248),
+        elevation: 0,
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu, color: Color(0xFF5D5D72)),
+            onPressed: () => Scaffold.of(context).openDrawer(),
           ),
         ),
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF3A3A50),
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.download),
-            onPressed: () => _showDownloadConfirmation(
-                'Analytics Report',
-                'Do you want to download the Admin Analytics Report?',
-                _generateAnalyticsReportPdf),
-            tooltip: 'Download Analytics Report',
+        title: Text(
+          "BreatheBetter",
+          style: GoogleFonts.poppins(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFF3A3A50),
           ),
-        ],
-        // The burger menu icon is shown automatically when a Drawer is present
+        ),
+        centerTitle: true,
+        actions: const [],
       ),
       backgroundColor: const Color.fromARGB(255, 242, 241, 248),
       body: SafeArea(
@@ -171,113 +167,17 @@ class _AdminHomeState extends State<AdminHome> {
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+              padding: const EdgeInsets.all(20.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+                children: [                  
+                  _buildWelcomeSection(),
                   const SizedBox(height: 20),
-                  Text(
-                    "Admin Dashboard",
-                    style: GoogleFonts.poppins(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF3A3A50),
-                    ),
-                  ),
-                  const SizedBox(height: 30),
-                  // KPI Section
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildKPICard(
-                          title: "Total Users",
-                          value: totalUsers.toString(),
-                          icon: Icons.people,
-                          color: const Color(0xFF7C83FD),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: _buildKPICard(
-                          title: "Active Users",
-                          value: activeUsers.toString(),
-                          icon: Icons.person,
-                          color: const Color(0xFF81C784),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 30),
-                  Text(
-                    "Quick Actions",
-                    style: GoogleFonts.poppins(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF3A3A50),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  GridView.count(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    childAspectRatio: 1.1,
-                    children: [
-                      _buildDashboardCard(
-                        icon: Icons.people,
-                        title: "User Management",
-                        description: "Manage all user accounts",
-                        onTap: () =>
-                            Navigator.pushNamed(context, 'admin-users'),
-                        color: const Color(0xFF7C83FD),
-                      ),
-                      _buildDashboardCard(
-                        icon: Icons.psychology,
-                        title: "Mental Health Resources",
-                        description: "Add/Edit resources",
-                        onTap: () =>
-                            Navigator.pushNamed(context, 'admin-resources'),
-                        color: const Color(0xFF4F646F),
-                      ),
-                      _buildDashboardCard(
-                        icon: Icons.self_improvement,
-                        title: "Breathing Exercises",
-                        description: "Manage breathing exercises",
-                        onTap: () =>
-                            Navigator.pushNamed(context, 'admin-exercises'),
-                        color: const Color(0xFFBFDCE5),
-                      ),
-                      _buildDashboardCard(
-                        icon: Icons.quiz,
-                        title: "Questionnaire",
-                        description: "Manage assessment questions",
-                        onTap: () => Navigator.pushNamed(
-                            context, '/admin-questionnaire'),
-                        color: const Color(0xFFE57373),
-                      ),
-                      _buildDashboardCard(
-                        icon: Icons.support_agent,
-                        title: "Manage Hotlines",
-                        description: "Manage emergency hotlines",
-                        onTap: () =>
-                            Navigator.pushNamed(context, 'admin-hotlines'),
-                        color: const Color(0xFF4DB6AC),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 30),
-                  Text(
-                    "Recent Activity",
-                    style: GoogleFonts.poppins(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF3A3A50),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildRecentActivityCard(),
+                  _buildStatsCards(),
+                  const SizedBox(height: 20),
+                  _buildQuickActionsSection(),
+                  const SizedBox(height: 20),
+                  _buildRecentActivitySection(),
                   const SizedBox(height: 20),
                 ],
               ),
@@ -288,61 +188,247 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
-  Widget _buildKPICard({
-    required String title,
-    required String value,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(13),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withAlpha(26),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: color, size: 20),
+  Widget _buildWelcomeSection() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        
+            Text(
+              "Dashboard",
+              style: GoogleFonts.poppins(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFF3A3A50),
               ),
-              const SizedBox(width: 8),
+            ),
+            
+         
+        ElevatedButton(
+          onPressed: () => _showDownloadConfirmation(
+              'Analytics Report',
+              'Do you want to download the Admin Analytics Report?',
+              _generateAnalyticsReportPdf),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF7C83FD),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.all(10),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            elevation: 2,
+            minimumSize: const Size(40, 40),
+          ),
+          child: const Icon(Icons.download, size: 20),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatsCards() {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildStatCard(
+            'Total Users',
+            totalUsers.toString(),
+            Icons.people,
+            Colors.blue,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildStatCard(
+            'Active Users',
+            activeUsers.toString(),
+            Icons.person,
+            Colors.green,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildStatCard(
+            'Completed',
+            completedAppointments.toString(),
+            Icons.check_circle,
+            Colors.orange,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatCard(
+      String title, String value, IconData icon, Color color) {
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 2,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: color, size: 32),
+            const SizedBox(height: 12),
+            Text(
+              value,
+              style: GoogleFonts.poppins(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFF3A3A50),
+              ),
+            ),
+            Text(
+              title,
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                color: const Color(0xFF5D5D72),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickActionsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Quick Actions',
+          style: GoogleFonts.poppins(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: const Color(0xFF3A3A50),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildQuickActionCard(
+                'User Management',
+                Icons.people,
+                Colors.blue,
+                () => Navigator.pushNamed(context, 'admin-users'),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildQuickActionCard(
+                'Mental Health Resources',
+                Icons.psychology,
+                Colors.purple,
+                () => Navigator.pushNamed(context, 'admin-resources'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildQuickActionCard(
+                'Breathing Exercises',
+                Icons.self_improvement,
+                Colors.green,
+                () => Navigator.pushNamed(context, 'admin-exercises'),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildQuickActionCard(
+                'Bi-Weekly Questionnaire',
+                Icons.quiz,
+                Colors.orange,
+                () => Navigator.pushNamed(context, '/admin-questionnaire'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildQuickActionCard(
+                'Manage Hotlines',
+                Icons.support_agent,
+                Colors.red,
+                () => Navigator.pushNamed(context, 'admin-hotlines'),
+              ),
+            ),
+            const SizedBox(width: 16),
+            const Expanded(child: SizedBox()), // Empty space for symmetry
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickActionCard(
+      String title, IconData icon, Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Card(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        elevation: 2,
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: LinearGradient(
+              colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: color, size: 32),
+              const SizedBox(height: 12),
               Text(
                 title,
+                textAlign: TextAlign.center,
                 style: GoogleFonts.poppins(
                   fontSize: 14,
-                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF3A3A50),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: GoogleFonts.poppins(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: const Color(0xFF3A3A50),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
+
+  Widget _buildRecentActivitySection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Recent Activity',
+          style: GoogleFonts.poppins(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: const Color(0xFF3A3A50),
+          ),
+        ),
+        const SizedBox(height: 16),
+        _buildRecentActivityCard(),
+      ],
+    );
+  }
+
+
 
   Widget _buildRecentActivityCard() {
     return Container(
@@ -410,147 +496,401 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
-  Widget _buildDashboardCard({
-    required IconData icon,
-    required String title,
-    required String description,
-    required VoidCallback onTap,
-    required Color color,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withAlpha(13),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withAlpha(26),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  icon,
-                  color: color,
-                  size: 28,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                title,
-                style: GoogleFonts.poppins(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF3A3A50),
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                description,
-                style: GoogleFonts.poppins(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+
 
   Future<void> _generateAnalyticsReportPdf() async {
     try {
       final supabase = Supabase.instance.client;
+      
+      // Fetch analytics data
+      final totalUsersResult = await supabase
+          .from('users')
+          .select('user_id')
+          .count(CountOption.exact);
+      
+      final activeUsersResult = await supabase
+          .from('users')
+          .select('user_id')
+          .eq('status', 'active')
+          .count(CountOption.exact);
+      
+      final completedSessionsResult = await supabase
+          .from('counseling_appointments')
+          .select('appointment_id')
+          .eq('status', 'completed')
+          .count(CountOption.exact);
+      
+      final recentRegistrationsResult = await supabase
+          .from('users')
+          .select('user_id, email, registration_date')
+          .gte('registration_date', DateTime.now().subtract(const Duration(days: 30)).toIso8601String())
+          .order('registration_date', ascending: false)
+          .limit(10);
 
-      // Generate PDF content
+      final totalUsers = totalUsersResult.count;
+      final activeUsers = activeUsersResult.count;
+      final completedSessions = completedSessionsResult.count;
+      final recentRegistrations = recentRegistrationsResult as List<dynamic>;
+
       final pdf = pw.Document();
 
       pdf.addPage(
         pw.MultiPage(
-          build: (context) => [
-            pw.Header(level: 0, text: 'BreatheBetter Admin Analytics Report'),
-            pw.SizedBox(height: 20),
-            pw.Header(level: 1, text: 'User Statistics'),
-            pw.Text('Total Users: $totalUsers'),
-            pw.Text('Active Users (last 24h): $activeUsers'),
-            pw.SizedBox(height: 20),
-            pw.Header(level: 1, text: 'Recent Registrations'),
-            if (recentRegistrations.isEmpty)
-              pw.Text('No recent registrations.')
-            else
-              pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: recentRegistrations.map((user) {
-                  return pw.Padding(
-                    padding: const pw.EdgeInsets.only(bottom: 5),
-                    child: pw.Text('- ${user['name']} (${user['time']})'),
-                  );
-                }).toList(),
+          build: (pw.Context context) {
+            return [
+              // Header
+              pw.Container(
+                alignment: pw.Alignment.center,
+                padding: const pw.EdgeInsets.only(bottom: 30),
+                child: pw.Column(
+                  children: [
+                    pw.Text(
+                      'BREATHE BETTER',
+                      style: pw.TextStyle(
+                        fontSize: 28,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.indigo,
+                      ),
+                    ),
+                    pw.SizedBox(height: 8),
+                    pw.Text(
+                      'Admin Analytics Report',
+                      style: pw.TextStyle(
+                        fontSize: 20,
+                        fontWeight: pw.FontWeight.normal,
+                        color: PdfColors.grey700,
+                      ),
+                    ),
+                    pw.SizedBox(height: 4),
+                    pw.Text(
+                      'Generated on ${DateTime.now().toString().split('.')[0]}',
+                      style: pw.TextStyle(
+                        fontSize: 12,
+                        color: PdfColors.grey600,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-          ],
+              
+              // Divider line
+              pw.Container(
+                height: 2,
+                color: PdfColors.indigo,
+                margin: const pw.EdgeInsets.only(bottom: 30),
+              ),
+              
+              // Analytics Summary Section
+              pw.Container(
+                padding: const pw.EdgeInsets.all(20),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: PdfColors.grey300),
+                  borderRadius: pw.BorderRadius.circular(8),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      'System Overview',
+                      style: pw.TextStyle(
+                        fontSize: 18,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.indigo,
+                      ),
+                    ),
+                    pw.SizedBox(height: 20),
+                    
+                    // Statistics Grid
+                    pw.Row(
+                      children: [
+                        pw.Expanded(
+                          child: _buildPdfStatCard('Total Users', totalUsers.toString(), PdfColors.blue),
+                        ),
+                        pw.SizedBox(width: 20),
+                        pw.Expanded(
+                          child: _buildPdfStatCard('Active Users (30 days)', activeUsers.toString(), PdfColors.green),
+                        ),
+                      ],
+                    ),
+                    pw.SizedBox(height: 15),
+                    pw.Row(
+                      children: [
+                        pw.Expanded(
+                          child: _buildPdfStatCard('Completed Sessions', completedSessions.toString(), PdfColors.orange),
+                        ),
+                        pw.SizedBox(width: 20),
+                        pw.Expanded(
+                          child: _buildPdfStatCard('Recent Registrations (30 days)', recentRegistrations.length.toString(), PdfColors.purple),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              
+              pw.SizedBox(height: 30),
+              
+              // Recent Registrations Details
+              if (recentRegistrations.isNotEmpty) ...[
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(20),
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: PdfColors.grey300),
+                    borderRadius: pw.BorderRadius.circular(8),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        'Recent Registrations Details',
+                        style: pw.TextStyle(
+                          fontSize: 18,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.indigo,
+                        ),
+                      ),
+                      pw.SizedBox(height: 15),
+                      ...recentRegistrations.take(5).map((user) {
+                        final registrationDate = DateTime.parse(user['registration_date']);
+                        final formattedDate = '${registrationDate.day}/${registrationDate.month}/${registrationDate.year}';
+                        return pw.Padding(
+                          padding: const pw.EdgeInsets.only(bottom: 8),
+                          child: pw.Row(
+                            children: [
+                              pw.Container(
+                                width: 4,
+                                height: 4,
+                                decoration: pw.BoxDecoration(
+                                  color: PdfColors.indigo,
+                                  shape: pw.BoxShape.circle,
+                                ),
+                                margin: const pw.EdgeInsets.only(right: 8, top: 4),
+                              ),
+                              pw.Expanded(
+                                flex: 3,
+                                child: pw.Text(
+                                  user['email'] ?? 'Unknown User',
+                                  style: pw.TextStyle(
+                                    fontSize: 12,
+                                    color: PdfColors.grey800,
+                                  ),
+                                ),
+                              ),
+                              pw.Expanded(
+                                flex: 2,
+                                child: pw.Text(
+                                  formattedDate,
+                                  style: pw.TextStyle(
+                                    fontSize: 12,
+                                    color: PdfColors.grey600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ],
+                  ),
+                ),
+                pw.SizedBox(height: 30),
+              ],
+              
+              // Additional Information Section
+              pw.Container(
+                padding: const pw.EdgeInsets.all(20),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: PdfColors.grey300),
+                  borderRadius: pw.BorderRadius.circular(8),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      'Report Details',
+                      style: pw.TextStyle(
+                        fontSize: 18,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.indigo,
+                      ),
+                    ),
+                    pw.SizedBox(height: 15),
+                    _buildPdfDetailRow('Report Type', 'Administrative Analytics'),
+                    _buildPdfDetailRow('Data Period', 'All time (with 30-day filters for specific metrics)'),
+                    _buildPdfDetailRow('Generated By', 'System Administrator'),
+                    _buildPdfDetailRow('Status', 'Active'),
+                  ],
+                ),
+              ),
+              
+              // Footer
+              pw.Spacer(),
+              pw.Container(
+                alignment: pw.Alignment.center,
+                child: pw.Text(
+                  '© 2024 Breathe Better - Confidential Administrative Report',
+                  style: pw.TextStyle(
+                    fontSize: 10,
+                    color: PdfColors.grey600,
+                  ),
+                ),
+              ),
+            ];
+          },
         ),
       );
 
-      // Save PDF to file
-      final directory =
-          await getExternalStorageDirectory(); // This typically points to .../Android/data/com.example.breathe_better/files
-      if (directory == null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not access external storage.')),
-          );
+      // Save PDF to file - try multiple locations
+      String? savedPath;
+      final timestamp = DateTime.now().toIso8601String().split('.')[0].replaceAll(':', '-');
+      final fileName = 'breathe_better_analytics_report_$timestamp.pdf';
+      
+      // Try different locations in order of preference
+      final locations = [
+        '/storage/emulated/0/Download',
+        '/storage/emulated/0/Downloads', 
+        '/sdcard/Download',
+        '/sdcard/Downloads',
+      ];
+      
+      // Also try using path_provider
+      try {
+        final extDir = await getExternalStorageDirectory();
+        if (extDir != null) {
+          locations.add('${extDir.path}/Download');
+          locations.add(extDir.path);
         }
-        print('Error: Could not access external storage.');
-        return;
+      } catch (e) {
+        print('Could not get external storage directory: $e');
       }
-
-      final customDownloadsPath = '${directory.path}/downloads';
-      final customDownloadsDir = Directory(customDownloadsPath);
-
-      if (!await customDownloadsDir.exists()) {
-        await customDownloadsDir.create(recursive: true);
+      
+      for (String path in locations) {
+        try {
+          final directory = Directory(path);
+          
+          // Try to create directory if it doesn't exist
+          if (!await directory.exists()) {
+            try {
+              await directory.create(recursive: true);
+            } catch (e) {
+              continue; // Try next location
+            }
+          }
+          
+          final file = File('$path/$fileName');
+          await file.writeAsBytes(await pdf.save());
+          savedPath = file.path;
+          break; // Success! Exit the loop
+        } catch (e) {
+          print('Failed to save to $path: $e');
+          continue; // Try next location
+        }
       }
-
-      final file = File(
-          '$customDownloadsPath/breathe_better_analytics_report_${DateTime.now().toIso8601String().split('.')[0].replaceAll(':', '-')}.pdf');
-      await file.writeAsBytes(await pdf.save());
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Report saved to Downloads: ${file.path}')),
-        );
+        if (savedPath != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('PDF saved successfully!'),
+                  SizedBox(height: 4),
+                  Text(
+                    'Location: $savedPath',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
+              backgroundColor: const Color(0xFF7C83FD),
+              duration: Duration(seconds: 5),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to save PDF to any location. Please check storage permissions.'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 5),
+            ),
+          );
+        }
       }
-      print('Report saved to Downloads: ${file.path}');
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error generating PDF: $e')),
+          SnackBar(
+            content: Text('Error generating PDF: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
-      print('Error generating PDF: $e');
     }
+  }
+
+  pw.Widget _buildPdfStatCard(String title, String value, PdfColor color) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(15),
+      decoration: pw.BoxDecoration(
+        color: color.shade(0.1),
+        border: pw.Border.all(color: color, width: 1),
+        borderRadius: pw.BorderRadius.circular(8),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(
+            title,
+            style: pw.TextStyle(
+              fontSize: 12,
+              color: PdfColors.grey700,
+              fontWeight: pw.FontWeight.normal,
+            ),
+          ),
+          pw.SizedBox(height: 8),
+          pw.Text(
+            value,
+            style: pw.TextStyle(
+              fontSize: 24,
+              fontWeight: pw.FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  pw.Widget _buildPdfDetailRow(String label, String value) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.only(bottom: 8),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.SizedBox(
+            width: 120,
+            child: pw.Text(
+              '$label:',
+              style: pw.TextStyle(
+                fontSize: 12,
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColors.grey700,
+              ),
+            ),
+          ),
+          pw.Expanded(
+            child: pw.Text(
+              value,
+              style: pw.TextStyle(
+                fontSize: 12,
+                color: PdfColors.grey800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showDownloadConfirmation(

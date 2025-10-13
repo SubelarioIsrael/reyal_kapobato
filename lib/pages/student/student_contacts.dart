@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../components/student_drawer.dart';
 import '../../components/student_notification_button.dart';
+import '../../widgets/hotline_avatar.dart';
 
 class StudentContactsPage extends StatefulWidget {
   const StudentContactsPage({super.key});
@@ -234,8 +235,8 @@ class _StudentContactsPageState extends State<StudentContactsPage> {
             child: Row(
               children: [
                 Container(
-                  width: 50,
-                  height: 50,
+                  width: 60,
+                  height: 60,
                   decoration: BoxDecoration(
                     color: const Color(0xFF81C784).withOpacity(0.1),
                     shape: BoxShape.circle,
@@ -325,20 +326,10 @@ class _StudentContactsPageState extends State<StudentContactsPage> {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: isEmergency
-                        ? Colors.red.withOpacity(0.1)
-                        : const Color(0xFF81C784).withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    isEmergency ? Icons.local_phone : Icons.person,
-                    color: isEmergency ? Colors.red : const Color(0xFF81C784),
-                    size: 30,
-                  ),
+                HotlineAvatar(
+                  profilePictureUrl: contact['profile_picture'],
+                  size: 60,
+                  isEmergency: isEmergency,
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -472,7 +463,7 @@ class _StudentContactsPageState extends State<StudentContactsPage> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          "Emergency Contacts",
+          "BreatheBetter",
           style: GoogleFonts.poppins(
             fontSize: 20,
             fontWeight: FontWeight.bold,

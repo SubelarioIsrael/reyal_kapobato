@@ -198,7 +198,7 @@ class _VideoCallDialogState extends State<VideoCallDialog> {
         _showGeneratedCodeDialog(callCode);
       } else {
         // Enter existing code
-        final callCode = _codeController.text.trim();
+        final callCode = _codeController.text.trim().toLowerCase();
         if (callCode.isEmpty) {
           _showErrorSnackBar('Please enter a call code');
           return;

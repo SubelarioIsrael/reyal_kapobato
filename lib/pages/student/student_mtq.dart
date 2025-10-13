@@ -19,11 +19,83 @@ class _StudentMtqState extends State<StudentMtq> {
   bool isLoading = true;
   bool showIntroduction = true;
   int? currentVersionId;
+  
+  // Bi-weekly restriction variables
+  bool canTakeQuestionnaire = true;
+  DateTime? lastSubmissionDate;
+  DateTime? nextAvailableDate;
 
   @override
   void initState() {
     super.initState();
-    _loadActiveQuestionnaire();
+    _checkBiWeeklyRestriction();
+  }
+
+  Future<void> _checkBiWeeklyRestriction() async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) {
+        setState(() {
+          isLoading = false;
+          canTakeQuestionnaire = false;
+        });
+        return;
+      }
+
+      // Get the user's most recent questionnaire submission
+      final lastResponse = await Supabase.instance.client
+          .from('questionnaire_responses')
+          .select('submission_timestamp')
+          .eq('user_id', user.id)
+          .order('submission_timestamp', ascending: false)
+          .limit(1)
+          .maybeSingle();
+
+      if (lastResponse != null) {
+        final lastSubmissionStr = lastResponse['submission_timestamp'] as String;
+        lastSubmissionDate = DateTime.parse(lastSubmissionStr);
+        
+        // Calculate if 2 weeks (14 days) have passed
+        final daysSinceLastSubmission = DateTime.now().difference(lastSubmissionDate!).inDays;
+        final canTake = daysSinceLastSubmission >= 14;
+        
+        if (!canTake) {
+          // Calculate next available date (14 days from last submission)
+          nextAvailableDate = lastSubmissionDate!.add(const Duration(days: 14));
+        }
+
+        setState(() {
+          canTakeQuestionnaire = canTake;
+        });
+        
+        print('Last submission: $lastSubmissionDate');
+        print('Days since last submission: $daysSinceLastSubmission');
+        print('Can take questionnaire: $canTake');
+        print('Next available date: $nextAvailableDate');
+      } else {
+        // No previous submissions, user can take the questionnaire
+        setState(() {
+          canTakeQuestionnaire = true;
+        });
+        print('No previous submissions found, user can take questionnaire');
+      }
+      
+      // If user can take the questionnaire, load it
+      if (canTakeQuestionnaire) {
+        await _loadActiveQuestionnaire();
+      } else {
+        setState(() {
+          isLoading = false;
+        });
+      }
+      
+    } catch (e) {
+      print('Error checking bi-weekly restriction: $e');
+      setState(() {
+        isLoading = false;
+        canTakeQuestionnaire = false;
+      });
+    }
   }
 
   Future<void> _loadActiveQuestionnaire() async {
@@ -170,6 +242,11 @@ class _StudentMtqState extends State<StudentMtq> {
         backgroundColor: pastelBlue,
         body: const Center(child: CircularProgressIndicator()),
       );
+    }
+
+    // Show restriction screen if user cannot take questionnaire
+    if (!canTakeQuestionnaire) {
+      return _buildRestrictionScreen(pastelBlue);
     }
 
     if (questions.isEmpty) {
@@ -559,6 +636,327 @@ class _StudentMtqState extends State<StudentMtq> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildRestrictionScreen(Color pastelBlue) {
+    const pastelPurple = Color(0xFFE0D4FD);
+    
+    // Format dates for display
+    String formatDate(DateTime date) {
+      const months = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      return '${months[date.month - 1]} ${date.day}, ${date.year}';
+    }
+
+    // Calculate days remaining
+    int daysRemaining = 0;
+    if (nextAvailableDate != null) {
+      daysRemaining = nextAvailableDate!.difference(DateTime.now()).inDays + 1;
+      if (daysRemaining < 0) daysRemaining = 0;
+    }
+
+    return Scaffold(
+      backgroundColor: pastelBlue,
+      appBar: AppBar(
+        backgroundColor: pastelBlue,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              color: Color(0xFF5D5D72)),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text(
+          "BreatheBetter",
+          style: GoogleFonts.poppins(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFF3A3A50),
+          ),
+        ),
+        centerTitle: true,
+        actions: [
+          const StudentNotificationButton(),
+        ],
+      ),
+      drawer: const StudentDrawer(),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const SizedBox(height: 10),
+                
+                // Calendar Icon
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: pastelPurple.withOpacity(0.3),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.schedule_rounded,
+                    size: 60,
+                    color: Color(0xFF7C83FD),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Title
+                Text(
+                  'Questionnaire Not Available',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF3A3A50),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Explanation
+                Text(
+                  'The Mental Health Questionnaire can only be taken once every 2 weeks to ensure meaningful assessment and prevent survey fatigue.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    color: const Color(0xFF5D5D72),
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                // Info Card
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      if (lastSubmissionDate != null) ...[
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.history_rounded,
+                              color: Color(0xFF7C83FD),
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Last completed:',
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: const Color(0xFF5D5D72),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          formatDate(lastSubmissionDate!),
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF3A3A50),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      
+                      if (nextAvailableDate != null) ...[
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.event_available_rounded,
+                              color: Color(0xFF4CAF50),
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Next available:',
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: const Color(0xFF5D5D72),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          formatDate(nextAvailableDate!),
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF3A3A50),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        
+                        // Days remaining
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF7C83FD).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            daysRemaining == 1 
+                                ? '1 day remaining'
+                                : '$daysRemaining days remaining',
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: const Color(0xFF7C83FD),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                // Alternative Actions
+                Text(
+                  'In the meantime, you can:',
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF3A3A50),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Action Buttons
+                _buildActionButton(
+                  icon: Icons.history_rounded,
+                  title: 'View Previous Summaries',
+                  subtitle: 'Review your past questionnaire results',
+                  onTap: () => Navigator.pushNamed(context, 'questionnaire-history'),
+                ),
+                const SizedBox(height: 12),
+                _buildActionButton(
+                  icon: Icons.spa_rounded,
+                  title: 'Try Breathing Exercises',
+                  subtitle: 'Practice mindfulness and relaxation',
+                  onTap: () => Navigator.pushNamed(context, 'breathing-exercises'),
+                ),
+                const SizedBox(height: 12),
+                _buildActionButton(
+                  icon: Icons.book_rounded,
+                  title: 'Mood Journal',
+                  subtitle: 'Track your daily emotions and thoughts',
+                  onTap: () => Navigator.pushNamed(context, 'journal'),
+                ),
+                
+                const SizedBox(height: 32),
+                
+                // Go back button
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF7C83FD),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 16,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(
+                    'Back to Home',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF7C83FD).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                icon,
+                color: const Color(0xFF7C83FD),
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF3A3A50),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: const Color(0xFF5D5D72),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              color: Color(0xFF5D5D72),
+              size: 16,
+            ),
+          ],
+        ),
       ),
     );
   }
