@@ -88,18 +88,7 @@ class _StudentDrawerState extends State<StudentDrawer> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.spa,
-                        color: Color(0xFF81C784),
-                        size: 24,
-                      ),
-                    ),
+                    
                     const SizedBox(width: 12),
                     Text(
                       'BreatheBetter',

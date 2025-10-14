@@ -14,8 +14,17 @@ class VideoCallDialog extends StatefulWidget {
 
 class _VideoCallDialogState extends State<VideoCallDialog> {
   final TextEditingController _codeController = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
   bool _isLoading = false;
   String _selectedOption = 'generate'; // 'generate' or 'enter'
+
+  @override
+  void initState() {
+    super.initState();
+    _codeController.addListener(() {
+      print('Code controller text changed: "${_codeController.text}"');
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,10 +44,13 @@ class _VideoCallDialogState extends State<VideoCallDialog> {
           ),
         ],
       ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      content: SizedBox(
+        width: double.maxFinite,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
           Text(
             'Choose an option to start a video call:',
             style: GoogleFonts.poppins(
@@ -83,6 +95,12 @@ class _VideoCallDialogState extends State<VideoCallDialog> {
               setState(() {
                 _selectedOption = value!;
               });
+              // Focus the TextField when the option is selected
+              if (value == 'enter') {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _focusNode.requestFocus();
+                });
+              }
             },
             title: Text(
               'Enter Call Code',
@@ -103,26 +121,67 @@ class _VideoCallDialogState extends State<VideoCallDialog> {
           
           if (_selectedOption == 'enter') ...[
             const SizedBox(height: 16),
-            TextField(
-              controller: _codeController,
-              decoration: InputDecoration(
-                hintText: 'Enter call code (e.g., abc-def-ghi)',
-                hintStyle: GoogleFonts.poppins(color: Colors.grey.shade500),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Color(0xFF7C83FD), width: 2),
-                ),
-                filled: true,
-                fillColor: Colors.grey.shade50,
+            Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.blue, width: 2),
+                borderRadius: BorderRadius.circular(8),
               ),
-              style: GoogleFonts.poppins(),
+              child: TextField(
+                controller: _codeController,
+                focusNode: _focusNode,
+                autofocus: true,
+                keyboardType: TextInputType.text,
+                textInputAction: TextInputAction.done,
+                enabled: !_isLoading,
+                decoration: InputDecoration(
+                  labelText: 'Call Code',
+                  hintText: 'Enter call code (e.g., abc-def-ghi)',
+                  hintStyle: GoogleFonts.poppins(color: Colors.grey.shade500),
+                  labelStyle: GoogleFonts.poppins(
+                    color: const Color(0xFF5D5D72),
+                    fontSize: 14,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFF7C83FD), width: 2),
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                ),
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  color: const Color(0xFF3A3A50),
+                ),
+                textCapitalization: TextCapitalization.none,
+                autocorrect: false,
+                onSubmitted: (value) {
+                  print('TextField onSubmitted called with: "$value"');
+                  if (value.isNotEmpty && !_isLoading) {
+                    _handleVideoCall();
+                  }
+                },
+                onChanged: (value) {
+                  print('TextField onChanged called with: "$value"');
+                },
+                onTap: () {
+                  print('TextField onTap called');
+                },
+              ),
             ),
+            const SizedBox(height: 4),
           ],
-        ],
+            ],
+          ),
+        ),
       ),
       actions: [
         TextButton(
@@ -199,23 +258,36 @@ class _VideoCallDialogState extends State<VideoCallDialog> {
       } else {
         // Enter existing code
         final callCode = _codeController.text.trim().toLowerCase();
+        print('Counselor entering call code: "$callCode"');
+        
         if (callCode.isEmpty) {
           _showErrorSnackBar('Please enter a call code');
           return;
         }
 
+        if (callCode.length < 3) {
+          _showErrorSnackBar('Call code is too short');
+          return;
+        }
+
+        print('Searching for call code in database...');
+
         // Check if code exists and is active
         final existingCall = await Supabase.instance.client
             .from('video_calls')
-            .select()
+            .select('*')
             .eq('call_code', callCode)
             .eq('status', 'active')
             .maybeSingle();
+
+        print('Database response: $existingCall');
 
         if (existingCall == null) {
           _showErrorSnackBar('Call code does not exist or has expired');
           return;
         }
+
+        print('Call found, updating with counselor info...');
 
         // Update the call to include counselor
         await Supabase.instance.client
@@ -226,6 +298,7 @@ class _VideoCallDialogState extends State<VideoCallDialog> {
             })
             .eq('call_code', callCode);
 
+        print('Joining video call...');
         Navigator.pop(context);
         _joinVideoCall(callCode);
       }
@@ -354,22 +427,86 @@ class _VideoCallDialogState extends State<VideoCallDialog> {
     if (user != null) {
       // Try to get counselor info first, fallback to user email
       String userName = user.email ?? 'Counselor';
+      int? appointmentId;
+      String? studentUserId;
+      int? counselorId;
+      
       try {
+        print('DEBUG: Fetching counselor data...');
         final counselorData = await Supabase.instance.client
             .from('counselors')
-            .select('first_name, last_name')
+            .select('first_name, last_name, counselor_id')
             .eq('user_id', user.id)
             .maybeSingle();
         
-        if (counselorData != null && 
-            counselorData['first_name'] != null && 
-            counselorData['last_name'] != null) {
-          userName = '${counselorData['first_name']} ${counselorData['last_name']}';
+        print('DEBUG: Counselor data received: $counselorData');
+        if (!mounted) {
+          print('DEBUG: Widget unmounted after counselor data fetch');
+          return;
+        }
+        
+        if (counselorData != null) {
+          counselorId = counselorData['counselor_id'];
+          if (counselorData['first_name'] != null && 
+              counselorData['last_name'] != null) {
+            userName = '${counselorData['first_name']} ${counselorData['last_name']}';
+          }
+        }
+
+        // Try to get video call details to find associated appointment and student
+        final videoCallData = await Supabase.instance.client
+            .from('video_calls')
+            .select('student_user_id')
+            .eq('call_code', callCode)
+            .maybeSingle();
+
+        if (!mounted) return;
+
+        if (videoCallData != null) {
+          studentUserId = videoCallData['student_user_id'];
+          
+          // Try to find today's appointment with this student
+          if (studentUserId != null && counselorId != null) {
+            final today = DateTime.now();
+            final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+            
+            final appointmentData = await Supabase.instance.client
+                .from('counseling_appointments')
+                .select('appointment_id')
+                .eq('counselor_id', counselorId)
+                .eq('user_id', studentUserId)
+                .eq('appointment_date', todayStr)
+                .eq('status', 'accepted')
+                .maybeSingle();
+
+            if (!mounted) return;
+
+            if (appointmentData != null) {
+              appointmentId = appointmentData['appointment_id'];
+            }
+          }
         }
       } catch (e) {
         // Fallback to email if counselor data fetch fails
         userName = user.email ?? 'Counselor';
+        print('Error fetching call details: $e');
       }
+      
+      // Check if widget is still mounted before navigating
+      print('DEBUG: Checking if widget is mounted: $mounted');
+      if (!mounted) {
+        print('DEBUG: Widget is not mounted, returning early');
+        return;
+      }
+      
+      print('DEBUG: Widget is mounted, proceeding with navigation');
+      print('DEBUG: About to navigate to CallPage with:');
+      print('  callID: $callCode');
+      print('  userID: ${user.id}');
+      print('  userName: $userName');
+      print('  appointmentId: $appointmentId');
+      print('  studentUserId: $studentUserId');
+      print('  counselorId: $counselorId');
       
       Navigator.of(context).push(
         MaterialPageRoute(
@@ -377,9 +514,16 @@ class _VideoCallDialogState extends State<VideoCallDialog> {
             callID: callCode,
             userID: user.id,
             userName: userName,
+            appointmentId: appointmentId,
+            studentUserId: studentUserId,
+            counselorId: counselorId,
           ),
         ),
-      );
+      ).then((_) {
+        print('DEBUG: Navigation completed/returned from CallPage');
+      }).catchError((error) {
+        print('DEBUG: Navigation error: $error');
+      });
     }
   }
 
@@ -395,6 +539,7 @@ class _VideoCallDialogState extends State<VideoCallDialog> {
   @override
   void dispose() {
     _codeController.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 }

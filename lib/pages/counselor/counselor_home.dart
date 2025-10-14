@@ -3,8 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/appointment.dart';
 import '../chat/appointment_chat.dart';
-import 'student_overview.dart';
-import 'video_call_dialog.dart';
+import 'all_appointments.dart';
 
 import '../../widgets/student_avatar.dart';
 import '../../components/counselor_drawer.dart';
@@ -166,31 +165,50 @@ class _CounselorHomeState extends State<CounselorHome> {
     }
   }
 
-  Future<int?> _getCounselorIdForUser(String userId) async {
-    final result = await Supabase.instance.client
-        .from('counselors')
-        .select('counselor_id')
-        .eq('user_id', userId)
-        .maybeSingle();
-    return result != null ? result['counselor_id'] as int : null;
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return Colors.orange;
+      case 'accepted':
+        return Colors.blue;
+      case 'completed':
+        return Colors.green;
+      case 'rejected':
+        return Colors.red;
+      case 'cancelled':
+        return Colors.grey[600]!;
+      default:
+        return Colors.grey;
+    }
   }
 
   Future<void> _updateAppointmentStatusWithMessage(
       Appointment appt, String newStatus) async {
-    String? message;
+    // Show confirmation dialog with optional message (matching all_appointments.dart style)
+    String? statusMessage;
+    bool confirmed = false;
+
     await showDialog(
       context: context,
       builder: (context) {
-        final controller = TextEditingController();
+        final messageController = TextEditingController();
         return AlertDialog(
-          title: Text('Change Status to ${newStatus.toUpperCase()}'),
-          content: TextField(
-            controller: controller,
-            maxLines: 3,
-            decoration: const InputDecoration(
-              labelText: 'Message (optional)',
-              hintText: 'Add a reason or note for this status change',
-            ),
+          title: Text('Update Status to ${newStatus.toUpperCase()}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Are you sure you want to mark this appointment as $newStatus?'),
+              const SizedBox(height: 16),
+              TextField(
+                controller: messageController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Message (optional)',
+                  hintText: 'Add a note for this status change',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
           ),
           actions: [
             TextButton(
@@ -199,22 +217,37 @@ class _CounselorHomeState extends State<CounselorHome> {
             ),
             ElevatedButton(
               onPressed: () {
-                message = controller.text.trim();
+                statusMessage = messageController.text.trim();
+                confirmed = true;
                 Navigator.pop(context);
               },
-              child: const Text('Save'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _getStatusColor(newStatus),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Update'),
             ),
           ],
         );
       },
     );
-    if (message == null) return; // Cancelled
+
+    if (!confirmed) return;
 
     try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
       // Update appointment status
       await Supabase.instance.client
           .from('counseling_appointments')
-          .update({'status': newStatus, 'status_message': message}).eq(
+          .update({'status': newStatus, 'status_message': statusMessage}).eq(
               'appointment_id', appt.id);
 
       // Check if notifications are enabled before sending
@@ -224,7 +257,7 @@ class _CounselorHomeState extends State<CounselorHome> {
           'user_id': appt.userId,
           'notification_type': 'Appointment Status Update',
           'content':
-              'Your appointment on ${appt.appointmentDate.toString().split(' ')[0]} from ${appt.startTime.toString().split(' ')[1].substring(0, 5)} to ${appt.endTime.toString().split(' ')[1].substring(0, 5)} has been changed to ${newStatus.toUpperCase()}. ${message?.isNotEmpty == true ? "Message: $message" : ""}',
+              'Your appointment on ${appt.appointmentDate.toString().split(' ')[0]} from ${appt.startTime.toString().split(' ')[1].substring(0, 5)} to ${appt.endTime.toString().split(' ')[1].substring(0, 5)} has been changed to ${newStatus.toUpperCase()}. ${statusMessage?.isNotEmpty == true ? "Message: $statusMessage" : ""}',
           'action_url': '/appointments'
         });
 
@@ -241,121 +274,137 @@ class _CounselorHomeState extends State<CounselorHome> {
         );
       }
 
-      // If status is completed, show session notes dialog
-      if (newStatus.toLowerCase() == 'completed') {
-        await _showSessionNotesDialog(appt);
-      }
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
 
-      await _loadAppointments();
-    } catch (e) {
+      // Show success message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error updating appointment status')),
+          SnackBar(
+            content: Text('Appointment status updated to ${newStatus.toUpperCase()}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+
+      // Reload appointments to reflect changes
+      await _loadAppointments();
+    } catch (e) {
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
+
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating appointment status: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
   }
 
-  Future<void> _showSessionNotesDialog(Appointment appt) async {
-    final summaryController = TextEditingController();
-    final topicsController = TextEditingController();
-    final recommendationsController = TextEditingController();
-    bool? dialogResult;
 
-    await showDialog(
+
+
+
+  void _showStudentNoteDialog(Appointment appointment) {
+    final hasNote = appointment.notes != null && appointment.notes!.trim().isNotEmpty;
+    
+    showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Session Notes'),
-          content: SingleChildScrollView(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            'Student Note',
+            style: GoogleFonts.poppins(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF3A3A50),
+            ),
+          ),
+          content: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: 400,
+              maxHeight: MediaQuery.of(context).size.height * 0.5,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                TextField(
-                  controller: summaryController,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'Session Summary *',
-                    hintText: 'Brief summary of the counseling session',
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: hasNote 
+                        ? const Color(0xFF7C83FD).withOpacity(0.05)
+                        : Colors.grey[100],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: hasNote 
+                          ? const Color(0xFF7C83FD).withOpacity(0.2)
+                          : Colors.grey[300]!,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: topicsController,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'Topics Discussed',
-                    hintText: 'Key topics covered during the session',
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: recommendationsController,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'Recommendations',
-                    hintText: 'Recommendations or next steps for the student',
-                  ),
+                  child: hasNote
+                      ? Text(
+                          appointment.notes!.trim(),
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            color: const Color(0xFF3A3A50),
+                            height: 1.5,
+                          ),
+                        )
+                      : Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              size: 20,
+                              color: Colors.grey[600],
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Student didn\'t attach a note',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 14,
+                                  color: Colors.grey[600],
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                 ),
               ],
             ),
           ),
           actions: [
             TextButton(
-              onPressed: () {
-                dialogResult = false;
-                Navigator.pop(context);
-              },
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (summaryController.text.trim().isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Summary is required')),
-                  );
-                  return;
-                }
-                dialogResult = true;
-                Navigator.pop(context);
-              },
-              child: const Text('Save Notes'),
+              onPressed: () => Navigator.pop(context),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: Text(
+                'Close',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF7C83FD),
+                ),
+              ),
             ),
           ],
         );
       },
     );
-
-    if (dialogResult == true) {
-      try {
-        final user = Supabase.instance.client.auth.currentUser;
-        if (user == null) throw Exception('Not logged in');
-
-        final counselorId = await _getCounselorIdForUser(user.id);
-        if (counselorId == null) throw Exception('Counselor profile not found');
-
-        await Supabase.instance.client.from('counseling_session_notes').insert({
-          'appointment_id': appt.id,
-          'counselor_id': counselorId,
-          'student_user_id': appt.userId,
-          'summary': summaryController.text.trim(),
-          'topics_discussed': topicsController.text.trim(),
-          'recommendations': recommendationsController.text.trim(),
-        });
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Session notes saved successfully')),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Error saving session notes')),
-          );
-        }
-      }
-    }
   }
 
   @override
@@ -605,7 +654,6 @@ class _CounselorHomeState extends State<CounselorHome> {
   Widget _buildPendingAppointmentCard(Appointment appt) {
     final studentInfo = _studentInfo[appt.userId.toString().trim()] ?? {};
     final studentName = studentInfo['student_name'] ?? 'Unknown Student';
-    final studentCode = studentInfo['student_id'] ?? '';
 
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -664,30 +712,19 @@ class _CounselorHomeState extends State<CounselorHome> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: InkWell(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => StudentOverview(
-                            userId: appt.userId,
-                            studentName: studentName,
-                            studentId: studentCode,
-                          ),
-                        ),
-                      );
-                    },
+                    onTap: () => _showStudentNoteDialog(appt),
                     borderRadius: BorderRadius.circular(10),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(
-                          Icons.visibility,
+                          Icons.note,
                           size: 16,
                           color: Color(0xFF7C83FD),
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          'View',
+                          'Note',
                           style: GoogleFonts.poppins(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -847,32 +884,21 @@ class _CounselorHomeState extends State<CounselorHome> {
                 ],
               ),
             ),
-            Row(
-              children: [
-                IconButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => AppointmentChat(
-                          appointment: appt,
-                          isCounselor: true,
-                        ),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.chat_bubble_outline,
-                      color: Color(0xFF7C83FD)),
-                  tooltip: 'Chat',
-                ),
-                IconButton(
-                  onPressed: () =>
-                      _updateAppointmentStatusWithMessage(appt, 'completed'),
-                  icon: const Icon(Icons.check_circle_outline,
-                      color: Colors.green),
-                  tooltip: 'Mark Complete',
-                ),
-              ],
+            IconButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AppointmentChat(
+                      appointment: appt,
+                      isCounselor: true,
+                    ),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.chat,
+                  color: Color(0xFF7C83FD)),
+              tooltip: 'Chat',
             ),
           ],
         ),
@@ -897,7 +923,7 @@ class _CounselorHomeState extends State<CounselorHome> {
           children: [
             Expanded(
               child: _buildQuickActionCard(
-                'View All Appointments',
+                'All Appointments',
                 Icons.calendar_today,
                 Colors.blue,
                 () {
@@ -924,7 +950,7 @@ class _CounselorHomeState extends State<CounselorHome> {
             Expanded(
               child: _buildQuickActionCard(
                 'Student Chats',
-                Icons.chat_bubble_outline,
+                Icons.chat,
                 Colors.green,
                 () {
                   Navigator.pushNamed(context, '/counselor-chat-list');
@@ -938,9 +964,11 @@ class _CounselorHomeState extends State<CounselorHome> {
                 Icons.video_call,
                 Colors.orange,
                 () {
-                  showDialog(
-                    context: context,
-                    builder: (context) => const VideoCallDialog(),
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AllAppointments(),
+                    ),
                   );
                 },
               ),

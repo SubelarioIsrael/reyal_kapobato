@@ -31,7 +31,7 @@ class _SettingsPageState extends State<SettingsPage> {
       final userResponse = await _supabase
           .from('users')
           .select('user_type')
-          .eq('id', user.id)
+          .eq('user_id', user.id)
           .single();
 
       setState(() {
@@ -77,7 +77,7 @@ class _SettingsPageState extends State<SettingsPage> {
           await _supabase
               .from('users')
               .update({'notifications_enabled': value})
-              .eq('id', user.id);
+              .eq('user_id', user.id);
         }
       }
 

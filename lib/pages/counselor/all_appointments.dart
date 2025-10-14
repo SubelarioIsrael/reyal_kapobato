@@ -3,8 +3,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/appointment.dart';
 import '../../services/counselor_service.dart';
-import 'video_call_dialog.dart';
 import '../../widgets/student_avatar.dart';
+import '../call/call.dart';
+import 'dart:math';
 
 class AllAppointments extends StatefulWidget {
   const AllAppointments({super.key});
@@ -116,11 +117,11 @@ class _AllAppointmentsState extends State<AllAppointments> {
           'All Appointments',
           style: GoogleFonts.poppins(
             fontSize: 20,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w600,
             color: const Color(0xFF3A3A50),
           ),
         ),
-        centerTitle: true,
+        
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: const Color(0xFF7C83FD),
@@ -162,6 +163,7 @@ class _AllAppointmentsState extends State<AllAppointments> {
       {'key': 'pending', 'label': 'Pending'},
       {'key': 'accepted', 'label': 'Accepted'},
       {'key': 'completed', 'label': 'Completed'},
+      {'key': 'cancelled', 'label': 'Cancelled'},
       {'key': 'rejected', 'label': 'Rejected'},
     ];
 
@@ -452,14 +454,516 @@ class _AllAppointmentsState extends State<AllAppointments> {
   }
 
   void _showVideoCallDialog() {
+    final callIdController = TextEditingController();
+    bool isGeneratingCode = false;
+    bool isJoiningCall = false;
+    String selectedOption = 'generate'; // 'generate' or 'enter'
+    String? generatedCallCode;
+    
     showDialog(
       context: context,
-      builder: (context) => const VideoCallDialog(),
+      barrierDismissible: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF7C83FD).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.video_call, 
+                  color: Color(0xFF7C83FD), 
+                  size: 28
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Video Call',
+                      style: GoogleFonts.poppins(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF3A3A50),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Choose an option to start your session',
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        color: const Color(0xFF5D5D72),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 16),
+                  
+                  // Option 1: Generate New Code
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: selectedOption == 'generate' 
+                            ? const Color(0xFF7C83FD) 
+                            : Colors.grey.shade300,
+                        width: selectedOption == 'generate' ? 2 : 1,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: RadioListTile<String>(
+                      value: 'generate',
+                      groupValue: selectedOption,
+                      onChanged: (value) {
+                        setState(() {
+                          selectedOption = value!;
+                          callIdController.clear();
+                          generatedCallCode = null;
+                        });
+                      },
+                      title: Text(
+                        'Generate New Call Code',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF3A3A50),
+                        ),
+                      ),
+                      subtitle: Text(
+                        'Create a new room for students to join',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          color: const Color(0xFF5D5D72),
+                        ),
+                      ),
+                      activeColor: const Color(0xFF7C83FD),
+                    ),
+                  ),
+                  
+                  if (selectedOption == 'generate') ...[
+                    const SizedBox(height: 16),
+                    if (generatedCallCode != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF7C83FD).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFF7C83FD).withOpacity(0.3)),
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.code, color: Color(0xFF7C83FD)),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Your Call Code:',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFF3A3A50),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.grey.shade300),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    generatedCallCode!,
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 2,
+                                      color: const Color(0xFF7C83FD),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  InkWell(
+                                    onTap: () {
+                                      // Copy to clipboard logic here
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Call code copied to clipboard!'),
+                                          backgroundColor: const Color(0xFF7C83FD),
+                                        ),
+                                      );
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF7C83FD).withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: const Icon(Icons.copy, size: 16, color: Color(0xFF7C83FD)),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Share this code with your student to join the call',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                color: const Color(0xFF5D5D72),
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ] else ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: isGeneratingCode ? null : () async {
+                            setState(() {
+                              isGeneratingCode = true;
+                            });
+                            
+                            try {
+                              // Generate call code
+                              final code = await _generateCallCode();
+                              setState(() {
+                                generatedCallCode = code;
+                                isGeneratingCode = false;
+                              });
+                            } catch (e) {
+                              setState(() {
+                                isGeneratingCode = false;
+                              });
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Error generating code: $e'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF7C83FD),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          icon: isGeneratingCode 
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  ),
+                                )
+                              : const Icon(Icons.refresh),
+                          label: Text(
+                            isGeneratingCode ? 'Generating...' : 'Generate Call Code',
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                  
+                  const SizedBox(height: 24),
+                  
+                  // Option 2: Enter Existing Code
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: selectedOption == 'enter' 
+                            ? const Color(0xFF7C83FD) 
+                            : Colors.grey.shade300,
+                        width: selectedOption == 'enter' ? 2 : 1,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: RadioListTile<String>(
+                      value: 'enter',
+                      groupValue: selectedOption,
+                      onChanged: (value) {
+                        setState(() {
+                          selectedOption = value!;
+                          generatedCallCode = null;
+                        });
+                      },
+                      title: Text(
+                        'Join Existing Call',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF3A3A50),
+                        ),
+                      ),
+                      subtitle: Text(
+                        'Enter a call code to join an existing room',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          color: const Color(0xFF5D5D72),
+                        ),
+                      ),
+                      activeColor: const Color(0xFF7C83FD),
+                    ),
+                  ),
+                  
+                  if (selectedOption == 'enter') ...[
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: callIdController,
+                      decoration: InputDecoration(
+                        hintText: 'Enter call code (abc-def-ghi)',
+                        hintStyle: GoogleFonts.poppins(
+                          color: Colors.grey.shade500,
+                          fontSize: 16,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Color(0xFF7C83FD), width: 2),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey.shade50,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                        prefixIcon: Icon(
+                          Icons.code,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 1.5,
+                      ),
+                      textCapitalization: TextCapitalization.none,
+                      autocorrect: false,
+                      onSubmitted: (value) {
+                        if (value.isNotEmpty && !isJoiningCall) {
+                          _joinVideoCall(value.trim());
+                        }
+                      },
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.poppins(
+                  color: const Color(0xFF5D5D72),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: (isGeneratingCode || isJoiningCall) ? null : () async {
+                if (selectedOption == 'generate' && generatedCallCode != null) {
+                  // Join the generated call
+                  await _joinVideoCall(generatedCallCode!);
+                } else if (selectedOption == 'enter' && callIdController.text.isNotEmpty) {
+                  // Join the entered call code
+                  await _joinVideoCall(callIdController.text.trim());
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        selectedOption == 'generate' 
+                            ? 'Please generate a call code first'
+                            : 'Please enter a call code',
+                      ),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF7C83FD),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: isJoiningCall
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : Text(
+                      'Start Call',
+                      style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
+  String _generateRandomCode() {
+    const chars = 'abcdefghijklmnopqrstuvwxyz';
+    final random = Random();
+    
+    String generateGroup() {
+      return String.fromCharCodes(
+        Iterable.generate(3, (_) => chars.codeUnitAt(random.nextInt(chars.length)))
+      );
+    }
+    
+    return '${generateGroup()}-${generateGroup()}-${generateGroup()}';
+  }
+
+  Future<String> _generateCallCode() async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) throw Exception('Not logged in');
+
+      // Get counselor info
+      final counselorData = await Supabase.instance.client
+          .from('counselors')
+          .select('counselor_id')
+          .eq('user_id', user.id)
+          .single();
+
+      final counselorId = counselorData['counselor_id'] as int;
+      final callCode = _generateRandomCode();
+
+      // Insert video call record
+      await Supabase.instance.client.from('video_calls').insert({
+        'call_code': callCode,
+        'counselor_id': counselorId,
+        'created_by': 'counselor',
+        'status': 'active',
+        'counselor_joined_at': DateTime.now().toIso8601String(),
+      });
+
+      return callCode;
+    } catch (e) {
+      throw Exception('Failed to generate call code: $e');
+    }
+  }
+
+  Future<void> _joinVideoCall(String callCode) async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) throw Exception('Not logged in');
+
+      // Get counselor data
+      final counselorData = await Supabase.instance.client
+          .from('counselors')
+          .select('first_name, last_name, counselor_id')
+          .eq('user_id', user.id)
+          .single();
+
+      final counselorId = counselorData['counselor_id'] as int;
+      String userName = user.email ?? 'Counselor';
+
+      if (counselorData['first_name'] != null && counselorData['last_name'] != null) {
+        userName = '${counselorData['first_name']} ${counselorData['last_name']}';
+      }
+
+      // Check if call exists and update counselor info
+      final videoCallData = await Supabase.instance.client
+          .from('video_calls')
+          .select('*')
+          .eq('call_code', callCode)
+          .eq('status', 'active')
+          .single();
+
+      // Update counselor joined time
+      await Supabase.instance.client
+          .from('video_calls')
+          .update({
+            'counselor_joined_at': DateTime.now().toIso8601String(),
+          })
+          .eq('call_code', callCode);
+
+      // Close dialog
+      if (mounted) Navigator.pop(context);
+
+      // Navigate to call page
+      if (mounted) {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CallPage(
+              callID: callCode,
+              userID: user.id,
+              userName: userName,
+              counselorId: counselorId,
+              studentUserId: videoCallData['student_user_id'],
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error joining call: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+
+
+
   Future<void> _updateAppointmentStatus(Appointment appointment, String newStatus) async {
-    // Show confirmation dialog with optional message
+    // If status is completed, show session notes dialog
+    if (newStatus.toLowerCase() == 'completed') {
+      await _updateAppointmentStatusCompleted(appointment);
+      return;
+    }
+
+    // Show confirmation dialog with optional message for other statuses
     String? statusMessage;
     bool confirmed = false;
 
@@ -559,6 +1063,416 @@ class _AllAppointmentsState extends State<AllAppointments> {
         );
       }
     }
+  }
+
+  Future<void> _updateAppointmentStatusCompleted(Appointment appointment) async {
+    // Show session notes modal bottom sheet for completed appointments
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (modalContext) {
+        final messageController = TextEditingController();
+        final summaryController = TextEditingController();
+        final topicsController = TextEditingController();
+        final recommendationsController = TextEditingController();
+        bool isSaving = false;
+
+        return StatefulBuilder(
+          builder: (builderContext, setModalState) {
+            return Container(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(builderContext).size.height * 0.9,
+                minHeight: MediaQuery.of(builderContext).size.height * 0.5,
+              ),
+              width: MediaQuery.of(builderContext).size.width,
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 16,
+                bottom: MediaQuery.of(builderContext).viewInsets.bottom + 16,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Complete Appointment',
+                        style: GoogleFonts.poppins(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF3A3A50),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(modalContext),
+                        icon: const Icon(Icons.close, color: Color(0xFF5D5D72)),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    'Please provide session details to complete the appointment',
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      color: const Color(0xFF5D5D72),
+                    ),
+                  ),
+                  const Divider(),
+                  
+                  Flexible(
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 16),
+
+                          // Session Summary
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.summarize,
+                                size: 18,
+                                color: const Color(0xFF7C83FD),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Session Summary *',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFF3A3A50),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: summaryController,
+                            maxLines: 4,
+                            decoration: InputDecoration(
+                              hintText: 'Provide a brief summary of the session...',
+                              hintStyle: GoogleFonts.poppins(
+                                fontSize: 14,
+                                color: Colors.grey[500],
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: Colors.grey[300]!),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(color: Color(0xFF7C83FD), width: 2),
+                              ),
+                              filled: true,
+                              fillColor: Colors.grey[50],
+                              contentPadding: const EdgeInsets.all(16),
+                            ),
+                            style: GoogleFonts.poppins(fontSize: 14),
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Topics Discussed
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.topic,
+                                size: 18,
+                                color: const Color(0xFF7C83FD),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Topics Discussed',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFF3A3A50),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: topicsController,
+                            maxLines: 3,
+                            decoration: InputDecoration(
+                              hintText: 'List the main topics covered during the session...',
+                              hintStyle: GoogleFonts.poppins(
+                                fontSize: 14,
+                                color: Colors.grey[500],
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: Colors.grey[300]!),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(color: Color(0xFF7C83FD), width: 2),
+                              ),
+                              filled: true,
+                              fillColor: Colors.grey[50],
+                              contentPadding: const EdgeInsets.all(16),
+                            ),
+                            style: GoogleFonts.poppins(fontSize: 14),
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Recommendations
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.recommend,
+                                size: 18,
+                                color: const Color(0xFF7C83FD),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Recommendations',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFF3A3A50),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: recommendationsController,
+                            maxLines: 4,
+                            decoration: InputDecoration(
+                              hintText: 'Provide recommendations for the student...',
+                              hintStyle: GoogleFonts.poppins(
+                                fontSize: 14,
+                                color: Colors.grey[500],
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: Colors.grey[300]!),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(color: Color(0xFF7C83FD), width: 2),
+                              ),
+                              filled: true,
+                              fillColor: Colors.grey[50],
+                              contentPadding: const EdgeInsets.all(16),
+                            ),
+                            style: GoogleFonts.poppins(fontSize: 14),
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Additional Message
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.message,
+                                size: 18,
+                                color: const Color(0xFF7C83FD),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Additional Message (optional)',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFF3A3A50),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: messageController,
+                            maxLines: 2,
+                            decoration: InputDecoration(
+                              hintText: 'Add a note for the stasdasdudent...',
+                              hintStyle: GoogleFonts.poppins(
+                                fontSize: 14,
+                                color: Colors.grey[500],
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: Colors.grey[300]!),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(color: Color(0xFF7C83FD), width: 2),
+                              ),
+                              filled: true,
+                              fillColor: Colors.grey[50],
+                              contentPadding: const EdgeInsets.all(16),
+                            ),
+                            style: GoogleFonts.poppins(fontSize: 14),
+                          ),
+                          const SizedBox(height: 24),
+
+                          // Action Buttons
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextButton(
+                                  onPressed: isSaving ? null : () => Navigator.pop(context),
+                                  style: TextButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(vertical: 16),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      side: BorderSide(color: Colors.grey[300]!),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Cancel',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      color: const Color(0xFF5D5D72),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: isSaving ? null : () async {
+                                    if (summaryController.text.trim().isEmpty) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Please provide a session summary',
+                                            style: GoogleFonts.poppins(),
+                                          ),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                      return;
+                                    }
+
+                                    setModalState(() => isSaving = true);
+
+                                    try {
+                                      final user = Supabase.instance.client.auth.currentUser;
+                                      if (user == null) throw Exception('Not logged in');
+
+                                      // Get counselor profile
+                                      final counselorProfile = await Supabase.instance.client
+                                          .from('counselors')
+                                          .select('counselor_id')
+                                          .eq('user_id', user.id)
+                                          .single();
+
+                                      final counselorId = counselorProfile['counselor_id'] as int;
+
+                                      // Save session notes
+                                      await Supabase.instance.client.from('counseling_session_notes').insert({
+                                        'appointment_id': appointment.id,
+                                        'counselor_id': counselorId,
+                                        'student_user_id': appointment.userId,
+                                        'summary': summaryController.text.trim(),
+                                        'topics_discussed': topicsController.text.trim().isNotEmpty 
+                                            ? topicsController.text.trim() 
+                                            : null,
+                                        'recommendations': recommendationsController.text.trim().isNotEmpty 
+                                            ? recommendationsController.text.trim() 
+                                            : null,
+                                        'created_at': DateTime.now().toIso8601String(),
+                                        'updated_at': DateTime.now().toIso8601String(),
+                                      });
+
+                                      // Update appointment status
+                                      await Supabase.instance.client
+                                          .from('counseling_appointments')
+                                          .update({
+                                            'status': 'completed',
+                                          })
+                                          .eq('appointment_id', appointment.id);
+
+                                      final statusMessage = messageController.text.trim().isNotEmpty 
+                                          ? messageController.text.trim() 
+                                          : 'Your appointment has been completed. Session notes have been saved.';
+
+                                      // Send notification to student
+                                      await _sendStatusUpdateNotification(appointment, 'completed', statusMessage);
+
+                                      Navigator.pop(modalContext, true); // Return true to indicate success
+                                    } catch (e) {
+                                      if (modalContext.mounted) {
+                                        ScaffoldMessenger.of(modalContext).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Error completing appointment: $e',
+                                              style: GoogleFonts.poppins(),
+                                            ),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                      }
+                                    } finally {
+                                      if (modalContext.mounted) {
+                                        setModalState(() => isSaving = false);
+                                      }
+                                    }
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF7C83FD),
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(vertical: 16),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  child: isSaving
+                                      ? const SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                            color: Colors.white,
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : Text(
+                                          'Complete',
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    ).then((result) {
+      if (result == true && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Appointment completed and session notes saved',
+              style: GoogleFonts.poppins(),
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+        // Refresh the appointments list
+        _loadAppointments();
+      }
+    });
   }
 
   Future<void> _sendStatusUpdateNotification(Appointment appointment, String newStatus, String? message) async {

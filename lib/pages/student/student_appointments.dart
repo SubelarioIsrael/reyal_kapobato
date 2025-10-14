@@ -570,6 +570,7 @@ class _StudentAppointmentsState extends State<StudentAppointments> {
                           callID: normalizedCallCode,
                           userID: user.id,
                           userName: userName,
+                          counselorId: null, // Students don't have counselor ID
                         ),
                       ),
                     );

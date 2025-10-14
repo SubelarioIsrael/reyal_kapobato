@@ -36,6 +36,34 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     });
 
     try {
+      final currentUser = Supabase.instance.client.auth.currentUser;
+      if (currentUser?.email == null) {
+        throw Exception('User not found');
+      }
+
+      // First, verify the current password by attempting to sign in with it
+      try {
+        await Supabase.instance.client.auth.signInWithPassword(
+          email: currentUser!.email!,
+          password: _currentPasswordController.text,
+        );
+      } catch (e) {
+        // If sign in fails, the current password is incorrect
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Current password is incorrect',
+                style: GoogleFonts.poppins(),
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      // If we get here, the current password is correct, so update to new password
       await Supabase.instance.client.auth.updateUser(
         UserAttributes(password: _newPasswordController.text),
       );

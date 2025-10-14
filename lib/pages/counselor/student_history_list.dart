@@ -122,7 +122,7 @@ class _StudentHistoryListState extends State<StudentHistoryList> {
       setState(() {
         _students = [];
         _isLoading = false;
-        _errorMessage = 'Error loading student history: $e';
+        _errorMessage = 'Error loading students: $e';
       });
     }
   }
@@ -156,7 +156,7 @@ class _StudentHistoryListState extends State<StudentHistoryList> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Student History',
+          'My Students',
           style: GoogleFonts.poppins(
             fontSize: 20,
             fontWeight: FontWeight.w600,
@@ -302,14 +302,6 @@ class _StudentHistoryListState extends State<StudentHistoryList> {
                           style: GoogleFonts.poppins(
                             fontSize: 12,
                             color: const Color(0xFF5D5D72),
-                          ),
-                        ),
-                      if (student['email'] != null && student['email'].isNotEmpty)
-                        Text(
-                          student['email'],
-                          style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            color: const Color(0xFF7C83FD),
                           ),
                         ),
                     ],

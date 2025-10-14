@@ -19,6 +19,17 @@ CREATE TABLE public.activity_completions (
   CONSTRAINT activity_completions_activity_id_fkey FOREIGN KEY (activity_id) REFERENCES public.activities(id),
   CONSTRAINT activity_completions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(user_id)
 );
+CREATE TABLE public.alerts (
+  alert_id bigint NOT NULL DEFAULT nextval('alerts_alert_id_seq'::regclass),
+  user_id uuid NOT NULL,
+  journal_id integer NOT NULL,
+  risk_level USER-DEFINED NOT NULL,
+  sentiment text,
+  matched_terms ARRAY DEFAULT '{}'::text[],
+  created_at timestamp with time zone DEFAULT now(),
+  is_acknowledged boolean DEFAULT false,
+  CONSTRAINT alerts_pkey PRIMARY KEY (alert_id)
+);
 CREATE TABLE public.breathing_exercises (
   id integer NOT NULL DEFAULT nextval('breathing_exercises_id_seq'::regclass),
   name character varying NOT NULL,
@@ -105,10 +116,11 @@ CREATE TABLE public.journal_entries (
   journal_id integer NOT NULL DEFAULT nextval('journalentries_journal_id_seq'::regclass),
   title character varying NOT NULL,
   content text NOT NULL,
-  sentiment_score numeric CHECK (sentiment_score >= '-1.0'::numeric AND sentiment_score <= 1.0),
   entry_timestamp timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
   is_shared_with_counselor boolean DEFAULT false,
   user_id uuid,
+  sentiment text,
+  insight text,
   CONSTRAINT journal_entries_pkey PRIMARY KEY (journal_id),
   CONSTRAINT journal_entries_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(user_id)
 );
@@ -265,8 +277,6 @@ CREATE TABLE public.video_calls (
   counselor_joined_at timestamp with time zone,
   student_joined_at timestamp with time zone,
   ended_at timestamp with time zone,
-  duration_minutes integer,
-  notes text,
   CONSTRAINT video_calls_pkey PRIMARY KEY (call_id),
   CONSTRAINT video_calls_counselor_id_fkey FOREIGN KEY (counselor_id) REFERENCES public.counselors(counselor_id),
   CONSTRAINT video_calls_student_user_id_fkey FOREIGN KEY (student_user_id) REFERENCES public.users(user_id)

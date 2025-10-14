@@ -42,7 +42,6 @@ import 'pages/admin/admin_questionnaire.dart';
 import 'pages/admin/admin_hotlines.dart';
 import 'pages/admin/admin_daily_uplifts.dart';
 import 'pages/counselor/counselor_home.dart';
-import 'pages/counselor/counselor_settings.dart';
 import 'pages/counselor/student_overview.dart';
 import 'pages/counselor/all_appointments.dart';
 import 'pages/counselor/student_history_list.dart';
@@ -197,8 +196,7 @@ final Map<String, WidgetBuilder> appRoutes = {
       const AuthGuard(child: CounselorProfileSetup()),
   '/counselor-profile-first-setup': (context) =>
       const AuthGuard(child: CounselorProfileFirstSetup()),
-  'counselor-settings': (context) =>
-      const AuthGuard(child: CounselorSettings()),
+
   '/all-appointments': (context) =>
       const AuthGuard(child: AllAppointments()),
   '/student-history-list': (context) =>
