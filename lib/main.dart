@@ -71,7 +71,7 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   late AppLinks _appLinks;
-  
+
   @override
   void initState() {
     super.initState();
@@ -83,9 +83,9 @@ class _MyAppState extends State<MyApp> {
     Supabase.instance.client.auth.onAuthStateChange.listen((data) {
       final event = data.event;
       final session = data.session;
-      
+
       print('Auth event: $event');
-      
+
       // Handle password recovery
       if (event == AuthChangeEvent.passwordRecovery) {
         print('Password recovery event detected');
@@ -94,11 +94,11 @@ class _MyAppState extends State<MyApp> {
           _navigatorKey.currentState?.pushReplacementNamed('/reset-password');
         });
       }
-      
+
       // Note: Removed automatic email verification message on sign in
       // This was causing the message to show on every login for users with verified emails
       // Email verification success is now only handled through the deep link flow
-      
+
       // Also handle token refresh which might happen during password recovery
       if (event == AuthChangeEvent.tokenRefreshed && session != null) {
         // Check if this is a password recovery session
@@ -113,14 +113,14 @@ class _MyAppState extends State<MyApp> {
 
   void _setupDeepLinkListener() {
     _appLinks = AppLinks();
-    
+
     // Handle app launch from deep link
     _appLinks.getInitialLink().then((Uri? uri) {
       if (uri != null) {
         _handleDeepLink(uri);
       }
     });
-    
+
     // Handle deep links while app is running
     _appLinks.uriLinkStream.listen((Uri uri) {
       _handleDeepLink(uri);
@@ -129,33 +129,33 @@ class _MyAppState extends State<MyApp> {
 
   void _handleDeepLink(Uri uri) {
     print('Received deep link: $uri');
-    
+
     // Handle password reset deep link
     if (uri.scheme == 'breathebetter' && uri.host == 'reset-password') {
       print('Password reset deep link detected');
-      
+
       // Extract query parameters if needed (like access_token, refresh_token)
       final queryParams = uri.queryParameters;
       print('Query parameters: $queryParams');
-      
+
       // Navigate to reset password page
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _navigatorKey.currentState?.pushReplacementNamed('/reset-password');
       });
     }
-    
+
     // Handle email verification deep link
     if (uri.scheme == 'breathebetter' && uri.host == 'verify-email') {
       print('Email verification deep link detected');
-      
+
       // Extract query parameters
       final queryParams = uri.queryParameters;
       print('Query parameters: $queryParams');
-      
+
       // Navigate to login page with verification success message
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _navigatorKey.currentState?.pushReplacementNamed('/login');
-        
+
         // Show success message after navigation
         Future.delayed(const Duration(milliseconds: 500), () {
           if (_navigatorKey.currentContext != null) {

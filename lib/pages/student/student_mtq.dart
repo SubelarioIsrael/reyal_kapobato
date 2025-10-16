@@ -19,7 +19,7 @@ class _StudentMtqState extends State<StudentMtq> {
   bool isLoading = true;
   bool showIntroduction = true;
   int? currentVersionId;
-  
+
   // Bi-weekly restriction variables
   bool canTakeQuestionnaire = true;
   DateTime? lastSubmissionDate;
@@ -52,13 +52,15 @@ class _StudentMtqState extends State<StudentMtq> {
           .maybeSingle();
 
       if (lastResponse != null) {
-        final lastSubmissionStr = lastResponse['submission_timestamp'] as String;
+        final lastSubmissionStr =
+            lastResponse['submission_timestamp'] as String;
         lastSubmissionDate = DateTime.parse(lastSubmissionStr);
-        
+
         // Calculate if 2 weeks (14 days) have passed
-        final daysSinceLastSubmission = DateTime.now().difference(lastSubmissionDate!).inDays;
+        final daysSinceLastSubmission =
+            DateTime.now().difference(lastSubmissionDate!).inDays;
         final canTake = daysSinceLastSubmission >= 14;
-        
+
         if (!canTake) {
           // Calculate next available date (14 days from last submission)
           nextAvailableDate = lastSubmissionDate!.add(const Duration(days: 14));
@@ -67,7 +69,7 @@ class _StudentMtqState extends State<StudentMtq> {
         setState(() {
           canTakeQuestionnaire = canTake;
         });
-        
+
         print('Last submission: $lastSubmissionDate');
         print('Days since last submission: $daysSinceLastSubmission');
         print('Can take questionnaire: $canTake');
@@ -79,7 +81,7 @@ class _StudentMtqState extends State<StudentMtq> {
         });
         print('No previous submissions found, user can take questionnaire');
       }
-      
+
       // If user can take the questionnaire, load it
       if (canTakeQuestionnaire) {
         await _loadActiveQuestionnaire();
@@ -88,7 +90,6 @@ class _StudentMtqState extends State<StudentMtq> {
           isLoading = false;
         });
       }
-      
     } catch (e) {
       print('Error checking bi-weekly restriction: $e');
       setState(() {
@@ -642,12 +643,22 @@ class _StudentMtqState extends State<StudentMtq> {
 
   Widget _buildRestrictionScreen(Color pastelBlue) {
     const pastelPurple = Color(0xFFE0D4FD);
-    
+
     // Format dates for display
     String formatDate(DateTime date) {
       const months = [
-        'January', 'February', 'March', 'April', 'May', 'June',
-        'July', 'August', 'September', 'October', 'November', 'December'
+        'January',
+        'February',
+        'March',
+        'April',
+        'May',
+        'June',
+        'July',
+        'August',
+        'September',
+        'October',
+        'November',
+        'December'
       ];
       return '${months[date.month - 1]} ${date.day}, ${date.year}';
     }
@@ -691,7 +702,7 @@ class _StudentMtqState extends State<StudentMtq> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const SizedBox(height: 10),
-                
+
                 // Calendar Icon
                 Container(
                   padding: const EdgeInsets.all(20),
@@ -777,7 +788,6 @@ class _StudentMtqState extends State<StudentMtq> {
                         ),
                         const SizedBox(height: 16),
                       ],
-                      
                       if (nextAvailableDate != null) ...[
                         Row(
                           children: [
@@ -807,16 +817,17 @@ class _StudentMtqState extends State<StudentMtq> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        
+
                         // Days remaining
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
                             color: const Color(0xFF7C83FD).withOpacity(0.1),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
-                            daysRemaining == 1 
+                            daysRemaining == 1
                                 ? '1 day remaining'
                                 : '$daysRemaining days remaining',
                             style: GoogleFonts.poppins(
@@ -848,25 +859,28 @@ class _StudentMtqState extends State<StudentMtq> {
                   icon: Icons.history_rounded,
                   title: 'View Previous Summaries',
                   subtitle: 'Review your past questionnaire results',
-                  onTap: () => Navigator.pushNamed(context, 'questionnaire-history'),
+                  onTap: () =>
+                      Navigator.pushNamed(context, 'questionnaire-history'),
                 ),
                 const SizedBox(height: 12),
                 _buildActionButton(
                   icon: Icons.spa_rounded,
                   title: 'Try Breathing Exercises',
                   subtitle: 'Practice mindfulness and relaxation',
-                  onTap: () => Navigator.pushNamed(context, 'breathing-exercises'),
+                  onTap: () => Navigator.pushNamed(
+                      context, 'student-breathing-exercises'),
                 ),
                 const SizedBox(height: 12),
                 _buildActionButton(
                   icon: Icons.book_rounded,
                   title: 'Mood Journal',
                   subtitle: 'Track your daily emotions and thoughts',
-                  onTap: () => Navigator.pushNamed(context, 'journal'),
+                  onTap: () =>
+                      Navigator.pushNamed(context, 'student-journal-entries'),
                 ),
-                
+
                 const SizedBox(height: 32),
-                
+
                 // Go back button
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
