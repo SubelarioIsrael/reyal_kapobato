@@ -35,7 +35,6 @@ class _StudentHomeState extends State<StudentHome> {
   double _todayProgress = 0.0;
   bool _isProgressLoading = true;
   Map<String, bool> _todayCompletions = {
-    'track_mood': false,
     'mood_journal': false,
     'daily_checkin': false,
     'breathing_exercise': false,
@@ -223,20 +222,21 @@ class _StudentHomeState extends State<StudentHome> {
           children: week.asMap().entries.map((entry) {
             final index = entry.key;
             final day = entry.value;
-          final isToday = day['isToday'];
-          final checkedIn = day['checkedIn'];
-          final emoji = day['emoji'];
-          final date = day['date'] as DateTime;
-          Color bgColor;
-          if (checkedIn) {
-            bgColor = Colors.green;
-          } else if (isToday) {
-            bgColor = Colors.orange;
-          } else {
-            bgColor = Colors.grey[200]!;
-          }
+            final isToday = day['isToday'];
+            final checkedIn = day['checkedIn'];
+            final emoji = day['emoji'];
+            final date = day['date'] as DateTime;
+            Color bgColor;
+            if (checkedIn) {
+              bgColor = Colors.green;
+            } else if (isToday) {
+              bgColor = Colors.orange;
+            } else {
+              bgColor = Colors.grey[200]!;
+            }
             return Padding(
-              padding: EdgeInsets.only(right: index < week.length - 1 ? 12.0 : 0),
+              padding:
+                  EdgeInsets.only(right: index < week.length - 1 ? 12.0 : 0),
               child: Column(
                 children: [
                   Container(
@@ -302,8 +302,8 @@ class _StudentHomeState extends State<StudentHome> {
       case 1: // Home (stay on this page)
         // No navigation needed, already on home
         break;
-      case 2: // Track Mood (Daily Check-in)
-        Navigator.pushNamed(context, '/student-daily-checkin');
+      case 2: // Mood Journal
+        Navigator.pushNamed(context, 'student-mood-journal');
         break;
     }
   }
@@ -357,24 +357,24 @@ class _StudentHomeState extends State<StudentHome> {
           .from('uplifts')
           .select('uplift_id')
           .order('uplift_id', ascending: true);
-      
+
       if (idsResponse.isNotEmpty) {
         // Get list of all available uplift IDs
-        final availableIds = idsResponse
-            .map((item) => item['uplift_id'] as int)
-            .toList();
-        
+        final availableIds =
+            idsResponse.map((item) => item['uplift_id'] as int).toList();
+
         // Generate a random index based on current time
-        final randomIndex = DateTime.now().millisecondsSinceEpoch % availableIds.length;
+        final randomIndex =
+            DateTime.now().millisecondsSinceEpoch % availableIds.length;
         final selectedUpliftId = availableIds[randomIndex];
-        
+
         // Fetch the selected uplift
         final response = await Supabase.instance.client
             .from('uplifts')
             .select('*')
             .eq('uplift_id', selectedUpliftId)
             .single();
-        
+
         setState(() {
           dailyUplift = response;
           isDailyUpliftLoading = false;
@@ -401,8 +401,6 @@ class _StudentHomeState extends State<StudentHome> {
 
     // Get remaining activities
     final remainingActivities = <String>[];
-    if (!_todayCompletions['track_mood']!)
-      remainingActivities.add('Track your mood');
     if (!_todayCompletions['mood_journal']!)
       remainingActivities.add('Write in your mood journal');
     if (!_todayCompletions['daily_checkin']!)
@@ -526,7 +524,7 @@ class _StudentHomeState extends State<StudentHome> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                   // Add some space below AppBar
+                  // Add some space below AppBar
                   Text(
                     "Welcome Back",
                     style: GoogleFonts.poppins(
@@ -535,7 +533,7 @@ class _StudentHomeState extends State<StudentHome> {
                       color: const Color(0xFF5D5D72),
                     ),
                   ),
-                  
+
                   Text(
                     isLoading ? "Loading..." : "Hi, ${studentName ?? ''}!",
                     style: GoogleFonts.poppins(
@@ -556,7 +554,7 @@ class _StudentHomeState extends State<StudentHome> {
                     ),
                   ),
                   _buildWeeklyMoodBar(),
-        
+
                   // Daily Uplift Card
                   Card(
                     shape: RoundedRectangleBorder(
@@ -577,7 +575,8 @@ class _StudentHomeState extends State<StudentHome> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      dailyUplift!['quote'] ?? 'Stay positive and keep going!',
+                                      dailyUplift!['quote'] ??
+                                          'Stay positive and keep going!',
                                       style: GoogleFonts.poppins(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w500,
@@ -585,7 +584,10 @@ class _StudentHomeState extends State<StudentHome> {
                                       ),
                                     ),
                                     const SizedBox(height: 8),
-                                    if (dailyUplift!['author'] != null && dailyUplift!['author'].toString().isNotEmpty)
+                                    if (dailyUplift!['author'] != null &&
+                                        dailyUplift!['author']
+                                            .toString()
+                                            .isNotEmpty)
                                       Text(
                                         '— ${dailyUplift!['author']}',
                                         style: GoogleFonts.poppins(
@@ -625,7 +627,6 @@ class _StudentHomeState extends State<StudentHome> {
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                       color: const Color(0xFF3A3A50),
-      
                     ),
                   ),
                   const SizedBox(height: 5),
@@ -699,7 +700,7 @@ class _StudentHomeState extends State<StudentHome> {
                 label: 'Breathing Exercises'),
             BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
             BottomNavigationBarItem(
-                icon: Icon(Icons.emoji_emotions), label: 'Track Mood'),
+                icon: Icon(Icons.book), label: 'Mood Journal'),
           ],
         ),
         floatingActionButton: FloatingActionButton(
@@ -757,9 +758,7 @@ class _FeatureCardData {
   final String image;
   final String route;
   const _FeatureCardData(
-      {required this.title,
-      required this.image,
-      required this.route});
+      {required this.title, required this.image, required this.route});
 }
 
 class _FeatureCard extends StatelessWidget {
@@ -773,14 +772,16 @@ class _FeatureCard extends StatelessWidget {
       return GestureDetector(
         onTap: () => Navigator.pushNamed(context, 'student-contacts'),
         child: Card(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           elevation: 2,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
                 child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(16)),
                   child: Image.network(
                     feature.image,
                     fit: BoxFit.cover,
@@ -823,7 +824,8 @@ class _FeatureCard extends StatelessWidget {
           children: [
             Expanded(
               child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(16)),
                 child: Image.network(
                   feature.image,
                   fit: BoxFit.cover,
