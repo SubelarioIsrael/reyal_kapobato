@@ -90,11 +90,12 @@ class _QuestionnaireSummaryState extends State<QuestionnaireSummary> {
   }
 
   String _determineSeverityLevel(int totalScore) {
-    // For a 10-question questionnaire with 0-4 scale (max score = 40)
-    if (totalScore <= 4) return 'mild'; // 0-10% of max score
-    if (totalScore <= 9) return 'moderate'; // 11-25% of max score
-    if (totalScore <= 14) return 'severe'; // 26-40% of max score
-    return 'critical'; // >40% of max score
+    // For combined PHQ-9 (0-27) and GAD-7 (0-21) = total max score of 48
+    // Using more conservative thresholds for supportive approach
+    if (totalScore <= 7) return 'mild'; // 0-15% of max score
+    if (totalScore <= 14) return 'moderate'; // 16-30% of max score  
+    if (totalScore <= 24) return 'severe'; // 31-50% of max score
+    return 'critical'; // >50% of max score
   }
 
   Future<String> _generateInsightsWithSentiment() async {
@@ -117,8 +118,7 @@ class _QuestionnaireSummaryState extends State<QuestionnaireSummary> {
         'Not at all',
         'Several days',
         'More than half the days',
-        'Nearly every day',
-        'Every day'
+        'Nearly every day'
       ];
 
       for (final answer in answers) {
@@ -175,31 +175,31 @@ class _QuestionnaireSummaryState extends State<QuestionnaireSummary> {
 
   String _generateInsights(String severityLevel) {
     switch (severityLevel) {
+      case 'minimal':
+        return 'Your responses suggest you are experiencing minimal symptoms that are common in daily life. This indicates good emotional well-being. Continue maintaining healthy habits and self-care practices to support your mental health.';
       case 'mild':
-        return 'Your responses indicate that you are experiencing minimal symptoms of anxiety and depression. This is a good sign, but it\'s still important to maintain healthy coping strategies and monitor your mental well-being regularly.';
+        return 'Your responses indicate some symptoms that may occasionally affect your daily life. These experiences are manageable with good self-care strategies. Consider incorporating stress management techniques and maintaining social connections.';
       case 'moderate':
-        return 'Your responses suggest you are experiencing some symptoms of anxiety and depression. While these symptoms are not severe, they may be affecting your daily life. Regular self-care and stress management techniques can be helpful.';
-      case 'severe':
-        return 'Your responses indicate significant symptoms of anxiety and depression. These symptoms are likely impacting your daily functioning and well-being. Professional support and regular self-care practices are recommended.';
-      case 'critical':
-        return 'Your responses show severe symptoms of anxiety and depression. These symptoms are significantly affecting your daily life and may require immediate professional support. Please consider reaching out to a counselor or mental health professional.';
+        return 'Your responses suggest you are experiencing symptoms that may be impacting your daily functioning and well-being. These feelings are valid and treatable. Consider reaching out to support services and practicing regular self-care activities.';
+      case 'elevated':
+        return 'Your responses indicate significant symptoms that may be substantially affecting your daily life and well-being. Please know that you are not alone and that effective help is available. We strongly encourage you to connect with campus counseling services or a mental health professional.';
       default:
-        return 'Based on your responses, we recommend monitoring your mental health and practicing self-care.';
+        return 'Thank you for completing the assessment. Based on your responses, we recommend continuing to monitor your mental health and practicing self-care.';
     }
   }
 
   String _generateRecommendations(String severityLevel) {
     switch (severityLevel) {
+      case 'minimal':
+        return '• Continue your current self-care practices\n• Maintain regular exercise and healthy sleep habits\n• Practice the recommended breathing exercises for stress management\n• Stay connected with friends and family\n• Consider keeping a mood journal to track patterns';
       case 'mild':
-        return '• Continue practicing self-care and stress management techniques\n• Maintain regular exercise and healthy sleep habits\n• Consider journaling to track your mood\n• Practice the recommended breathing exercises when feeling stressed';
+        return '• Practice the recommended breathing exercises regularly\n• Maintain a consistent daily routine\n• Engage in physical activity and outdoor time\n• Connect with supportive friends or family members\n• Use campus resources like study groups or recreational activities\n• Consider speaking with a counselor if symptoms persist';
       case 'moderate':
-        return '• Practice the recommended breathing exercises regularly\n• Consider talking to a trusted friend or family member\n• Try to maintain a regular routine and healthy habits\n• Use the mood journal feature to track patterns\n• Consider speaking with a counselor if symptoms persist';
-      case 'severe':
-        return '• Practice the recommended breathing exercises daily\n• Consider speaking with a counselor\n• Reach out to your support network\n• Maintain a regular sleep schedule\n• Use the chatbot for immediate support when needed\n• Consider booking a counseling appointment';
-      case 'critical':
-        return '• Practice the recommended breathing exercises multiple times daily\n• We strongly recommend speaking with a counselor\n• Reach out to your support network\n• Use the chatbot for immediate support\n• Book a counseling appointment as soon as possible\n• Consider reaching out to emergency services if having thoughts of self-harm';
+        return '• Practice the recommended breathing exercises daily\n• Consider scheduling a consultation with campus counseling services\n• Reach out to your support network regularly\n• Maintain healthy sleep and eating habits\n• Use the mood tracking features in the app\n• Explore stress reduction techniques like mindfulness or meditation';
+      case 'elevated':
+        return '• We strongly recommend connecting with campus counseling services\n• Practice the recommended breathing exercises multiple times daily\n• Reach out to trusted friends, family, or mentors for support\n• Use crisis resources if you need immediate support\n• Consider joining a support group\n• Prioritize basic self-care: sleep, nutrition, and gentle movement\n• Remember that seeking help is a sign of strength, not weakness';
       default:
-        return '• Practice regular self-care\n• Maintain healthy habits\n• Reach out for support when needed';
+        return '• Practice regular self-care and stress management\n• Maintain healthy lifestyle habits\n• Stay connected with your support network\n• Reach out for help when needed';
     }
   }
 
@@ -219,6 +219,7 @@ class _QuestionnaireSummaryState extends State<QuestionnaireSummary> {
 
       // Select appropriate exercise based on severity
       switch (severityLevel) {
+        case 'minimal':
         case 'mild':
           return exercises.firstWhere(
             (e) => e['name'] == 'Deep Breathing',
@@ -229,8 +230,7 @@ class _QuestionnaireSummaryState extends State<QuestionnaireSummary> {
             (e) => e['name'] == 'Box Breathing',
             orElse: () => exercises.first,
           )['id'];
-        case 'severe':
-        case 'critical':
+        case 'elevated':
           return exercises.firstWhere(
             (e) => e['name'] == '4-7-8 Breathing',
             orElse: () => exercises.first,
@@ -445,7 +445,7 @@ class _QuestionnaireSummaryState extends State<QuestionnaireSummary> {
                 const SizedBox(height: 24),
 
                 // Action Buttons
-                if (summaryData!['severity_level'] == 'critical') ...[
+                if (summaryData!['severity_level'] == 'elevated') ...[
                   Center(
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
@@ -461,7 +461,7 @@ class _QuestionnaireSummaryState extends State<QuestionnaireSummary> {
                       onPressed: () =>
                           Navigator.pushNamed(context, 'student-counselors'),
                       child: Text(
-                        'Book a Counselor',
+                        'Connect with a Counselor',
                         style: GoogleFonts.poppins(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -480,7 +480,7 @@ class _QuestionnaireSummaryState extends State<QuestionnaireSummary> {
                     // Go Back Button
                     Expanded(
                       child: TextButton.icon(
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: () => Navigator.pushNamed(context, 'questionnaire-history'),
                         icon: const Icon(Icons.arrow_back,
                             color: Color(0xFF5D5D72)),
                         label: Text(
@@ -545,14 +545,14 @@ class _QuestionnaireSummaryState extends State<QuestionnaireSummary> {
 
   Color _getSeverityColor(String severityLevel) {
     switch (severityLevel) {
-      case 'mild':
+      case 'minimal':
         return Colors.green;
+      case 'mild':
+        return Colors.lightGreen;
       case 'moderate':
         return Colors.orange;
-      case 'severe':
+      case 'elevated':
         return Colors.deepOrange;
-      case 'critical':
-        return Colors.red;
       default:
         return Colors.grey;
     }
@@ -560,14 +560,14 @@ class _QuestionnaireSummaryState extends State<QuestionnaireSummary> {
 
   IconData _getSeverityIcon(String severityLevel) {
     switch (severityLevel) {
+      case 'minimal':
+        return Icons.sentiment_very_satisfied;
       case 'mild':
         return Icons.sentiment_satisfied;
       case 'moderate':
         return Icons.sentiment_neutral;
-      case 'severe':
+      case 'elevated':
         return Icons.sentiment_dissatisfied;
-      case 'critical':
-        return Icons.sentiment_very_dissatisfied;
       default:
         return Icons.sentiment_neutral;
     }

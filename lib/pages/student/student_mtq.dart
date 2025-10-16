@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../components/question.dart';
 import '../../components/student_drawer.dart';
 import '../../components/student_notification_button.dart';
-import '../../services/activity_service.dart';
 
 class StudentMtq extends StatefulWidget {
   const StudentMtq({super.key});
@@ -18,7 +17,14 @@ class _StudentMtqState extends State<StudentMtq> {
   double progress = 0;
   bool isLoading = true;
   bool showIntroduction = true;
+  bool showSafetyWarning = false;
+  bool isSubmitting = false; // Add this line
   int? currentVersionId;
+
+  // Question sections
+  List<Question> phq9Questions = [];
+  List<Question> gad7Questions = [];
+  String currentSection = '';
 
   // Bi-weekly restriction variables
   bool canTakeQuestionnaire = true;
@@ -42,7 +48,6 @@ class _StudentMtqState extends State<StudentMtq> {
         return;
       }
 
-      // Get the user's most recent questionnaire submission
       final lastResponse = await Supabase.instance.client
           .from('questionnaire_responses')
           .select('submission_timestamp')
@@ -56,33 +61,23 @@ class _StudentMtqState extends State<StudentMtq> {
             lastResponse['submission_timestamp'] as String;
         lastSubmissionDate = DateTime.parse(lastSubmissionStr);
 
-        // Calculate if 2 weeks (14 days) have passed
         final daysSinceLastSubmission =
             DateTime.now().difference(lastSubmissionDate!).inDays;
         final canTake = daysSinceLastSubmission >= 14;
 
         if (!canTake) {
-          // Calculate next available date (14 days from last submission)
           nextAvailableDate = lastSubmissionDate!.add(const Duration(days: 14));
         }
 
         setState(() {
           canTakeQuestionnaire = canTake;
         });
-
-        print('Last submission: $lastSubmissionDate');
-        print('Days since last submission: $daysSinceLastSubmission');
-        print('Can take questionnaire: $canTake');
-        print('Next available date: $nextAvailableDate');
       } else {
-        // No previous submissions, user can take the questionnaire
         setState(() {
           canTakeQuestionnaire = true;
         });
-        print('No previous submissions found, user can take questionnaire');
       }
 
-      // If user can take the questionnaire, load it
       if (canTakeQuestionnaire) {
         await _loadActiveQuestionnaire();
       } else {
@@ -101,7 +96,6 @@ class _StudentMtqState extends State<StudentMtq> {
 
   Future<void> _loadActiveQuestionnaire() async {
     try {
-      // First, get the active questionnaire version
       final versionData = await Supabase.instance.client
           .from('questionnaire_versions')
           .select()
@@ -110,7 +104,6 @@ class _StudentMtqState extends State<StudentMtq> {
 
       currentVersionId = versionData['version_id'];
 
-      // Then get all questions for this version
       final questionsData = await Supabase.instance.client
           .from('questionnaire_questions')
           .select('''
@@ -134,16 +127,19 @@ class _StudentMtqState extends State<StudentMtq> {
                   'Not at all',
                   'Several days',
                   'More than half the days',
-                  'Nearly every day',
-                  'Every day'
+                  'Nearly every day'
                 ],
               }))
           .toList();
 
+      phq9Questions = fetchedQuestions.take(9).toList();
+      gad7Questions = fetchedQuestions.skip(9).take(7).toList();
+
       setState(() {
-        questions = fetchedQuestions;
+        questions = [...phq9Questions, ...gad7Questions];
         isLoading = false;
         progress = (currentQuestionIndex + 1) / questions.length;
+        currentSection = _getCurrentSection();
       });
     } catch (e) {
       print('Error loading questionnaire: $e');
@@ -151,15 +147,32 @@ class _StudentMtqState extends State<StudentMtq> {
     }
   }
 
+  String _getCurrentSection() {
+    if (currentQuestionIndex < phq9Questions.length) {
+      return 'PHQ-9: Depression Screening';
+    } else {
+      return 'GAD-7: Anxiety Screening';
+    }
+  }
+
   void _updateProgress() {
     setState(() {
       progress = (currentQuestionIndex + 1) / questions.length;
+      currentSection = _getCurrentSection();
     });
   }
 
   void _nextQuestion(int selectedIndex) {
+    bool isSelfHarmQuestion = currentQuestionIndex == 8 && selectedIndex >= 1;
+
     setState(() {
       questions[currentQuestionIndex].selectedOption = selectedIndex;
+
+      if (isSelfHarmQuestion && !showSafetyWarning) {
+        showSafetyWarning = true;
+        return;
+      }
+
       if (currentQuestionIndex < questions.length - 1) {
         currentQuestionIndex++;
         _updateProgress();
@@ -170,19 +183,23 @@ class _StudentMtqState extends State<StudentMtq> {
   }
 
   Future<void> _submitAnswers() async {
+    if (isSubmitting) return; // Prevent multiple submissions
+    
+    setState(() {
+      isSubmitting = true;
+    });
+
     try {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) {
         throw Exception('User not logged in');
       }
 
-      // Calculate total score
       final totalScore = questions.fold<int>(
         0,
         (sum, question) => sum + (question.selectedOption ?? 0),
       );
 
-      // Insert questionnaire response
       final responseData = await Supabase.instance.client
           .from('questionnaire_responses')
           .insert({
@@ -195,7 +212,6 @@ class _StudentMtqState extends State<StudentMtq> {
 
       final responseId = responseData['response_id'];
 
-      // Insert individual answers
       for (final question in questions) {
         if (question.selectedOption != null) {
           await Supabase.instance.client.from('questionnaire_answers').insert({
@@ -207,11 +223,7 @@ class _StudentMtqState extends State<StudentMtq> {
         }
       }
 
-      // Record activity completion
-      await ActivityService.recordActivityCompletion('track_mood');
-
       if (mounted) {
-        // Navigate to summary page
         Navigator.pushNamed(
           context,
           'questionnaire-summary',
@@ -230,6 +242,12 @@ class _StudentMtqState extends State<StudentMtq> {
           ),
         );
       }
+    } finally {
+      if (mounted) {
+        setState(() {
+          isSubmitting = false;
+        });
+      }
     }
   }
 
@@ -245,7 +263,6 @@ class _StudentMtqState extends State<StudentMtq> {
       );
     }
 
-    // Show restriction screen if user cannot take questionnaire
     if (!canTakeQuestionnaire) {
       return _buildRestrictionScreen(pastelBlue);
     }
@@ -289,10 +306,6 @@ class _StudentMtqState extends State<StudentMtq> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Back Button
-                  const SizedBox(height: 0),
-
-                  // Title
                   Text(
                     'Mental Health Questionnaire',
                     style: GoogleFonts.poppins(
@@ -302,8 +315,6 @@ class _StudentMtqState extends State<StudentMtq> {
                     ),
                   ),
                   const SizedBox(height: 24),
-
-                  // Introduction Text
                   Text(
                     'Welcome to your mental health check-in',
                     style: GoogleFonts.poppins(
@@ -313,9 +324,8 @@ class _StudentMtqState extends State<StudentMtq> {
                     ),
                   ),
                   const SizedBox(height: 16),
-
                   Text(
-                    'This questionnaire is designed to help us understand your current mental well-being and provide appropriate support. Your honest responses will help us better assist you in your mental health journey.',
+                    'This questionnaire consists of two standardized screening tools to help assess your current well-being. Please consider how you have been feeling over the past two weeks when answering all questions.',
                     style: GoogleFonts.poppins(
                       fontSize: 16,
                       color: const Color(0xFF3A3A50),
@@ -323,8 +333,30 @@ class _StudentMtqState extends State<StudentMtq> {
                     ),
                   ),
                   const SizedBox(height: 24),
-
-                  // Guidelines
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: pastelPurple.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'This questionnaire includes:',
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF3A3A50),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _buildBulletPoint('PHQ-9: Depression screening (9 questions)'),
+                        _buildBulletPoint('GAD-7: Anxiety screening (7 questions)'),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -343,20 +375,61 @@ class _StudentMtqState extends State<StudentMtq> {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        _buildBulletPoint(
-                            'Take your time to answer each question thoughtfully'),
-                        _buildBulletPoint(
-                            'Answer as honestly as possible - there are no right or wrong answers'),
-                        _buildBulletPoint(
-                            'Consider how you\'ve been feeling over the past two weeks'),
-                        _buildBulletPoint(
-                            'Complete the questionnaire in a quiet, private space'),
+                        _buildBulletPoint('Answer honestly - there are no right or wrong answers'),
+                        _buildBulletPoint('Consider your experiences over the past two weeks'),
+                        _buildBulletPoint('Complete in a quiet, private space'),
+                        _buildBulletPoint('Take your time with each question'),
                       ],
                     ),
                   ),
                   const SizedBox(height: 24),
-
-                  // History Button
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.warning_amber_rounded, 
+                                color: Colors.orange, size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Important Safety Notice',
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.orange.shade800,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'This questionnaire includes questions about thoughts of self-harm. If you are having thoughts of hurting yourself or others, please seek immediate help from:',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            color: Colors.orange.shade800,
+                            height: 1.4,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '• Campus Counseling Services\n• National Suicide Prevention Lifeline: 988\n• Emergency Services: 911',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            color: Colors.orange.shade800,
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
                   Center(
                     child: TextButton.icon(
                       onPressed: () {
@@ -364,7 +437,7 @@ class _StudentMtqState extends State<StudentMtq> {
                       },
                       icon: const Icon(Icons.history, color: Color(0xFF5D5D72)),
                       label: Text(
-                        'View Previous Summaries',
+                        'View Previous Results',
                         style: GoogleFonts.poppins(
                           fontSize: 16,
                           color: const Color(0xFF5D5D72),
@@ -382,8 +455,6 @@ class _StudentMtqState extends State<StudentMtq> {
                     ),
                   ),
                   const SizedBox(height: 32),
-
-                  // Disclaimer
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -391,7 +462,7 @@ class _StudentMtqState extends State<StudentMtq> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      'Important: This questionnaire is not a substitute for professional medical advice, diagnosis, or treatment. The results should not be interpreted as a clinical diagnosis. If you\'re experiencing severe distress, please seek help from a qualified mental health professional.',
+                      'Important: This screening tool is not a diagnostic instrument and should not replace professional mental health assessment. Results are for educational and self-awareness purposes only. If you have concerns about your mental health, please consult with a qualified healthcare professional.',
                       style: GoogleFonts.poppins(
                         fontSize: 14,
                         color: const Color(0xFF3A3A50),
@@ -400,8 +471,6 @@ class _StudentMtqState extends State<StudentMtq> {
                     ),
                   ),
                   const SizedBox(height: 32),
-
-                  // Start Button
                   Center(
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
@@ -420,7 +489,7 @@ class _StudentMtqState extends State<StudentMtq> {
                         });
                       },
                       child: Text(
-                        'Begin Questionnaire',
+                        'Begin Assessment',
                         style: GoogleFonts.poppins(
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
@@ -431,6 +500,136 @@ class _StudentMtqState extends State<StudentMtq> {
                   ),
                 ],
               ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (showSafetyWarning) {
+      return Scaffold(
+        backgroundColor: pastelBlue,
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      const Icon(
+                        Icons.favorite,
+                        color: Colors.red,
+                        size: 48,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'We Care About You',
+                        style: GoogleFonts.poppins(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF3A3A50),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Your response indicates you may be having thoughts of self-harm. Please know that help is available and things can get better.',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          color: const Color(0xFF3A3A50),
+                          height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              'Immediate Help Available:',
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.red.shade700,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Crisis Text Line: Text HOME to 741741\nNational Suicide Prevention Lifeline: 988\nEmergency Services: 911',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                color: Colors.red.shade700,
+                                height: 1.4,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextButton(
+                              onPressed: () => Navigator.pushNamed(context, 'student-counselors'),
+                              child: Text(
+                                'Find Counselor',
+                                style: GoogleFonts.poppins(
+                                  color: const Color(0xFF7C83FD),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF7C83FD),
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  showSafetyWarning = false;
+                                  if (currentQuestionIndex < questions.length - 1) {
+                                    currentQuestionIndex++;
+                                    _updateProgress();
+                                  } else {
+                                    _submitAnswers();
+                                  }
+                                });
+                              },
+                              child: Text(
+                                'Continue',
+                                style: GoogleFonts.poppins(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -448,7 +647,6 @@ class _StudentMtqState extends State<StudentMtq> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Back Button
                 GestureDetector(
                   onTap: () {
                     showDialog(
@@ -501,8 +699,22 @@ class _StudentMtqState extends State<StudentMtq> {
                   ),
                 ),
                 const SizedBox(height: 20),
-
-                // Progress bar with label
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF7C83FD).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    currentSection,
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF7C83FD),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
                 Text(
                   'Question ${currentQuestionIndex + 1} of ${questions.length}',
                   style: GoogleFonts.poppins(
@@ -523,8 +735,6 @@ class _StudentMtqState extends State<StudentMtq> {
                   ),
                 ),
                 const SizedBox(height: 30),
-
-                // Question text
                 Text(
                   currentQuestion.questionText,
                   style: GoogleFonts.poppins(
@@ -534,8 +744,6 @@ class _StudentMtqState extends State<StudentMtq> {
                   ),
                 ),
                 const SizedBox(height: 20),
-
-                // Options
                 ...List.generate(
                   currentQuestion.options.length,
                   (index) => Container(
@@ -571,10 +779,7 @@ class _StudentMtqState extends State<StudentMtq> {
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 30),
-
-                // Next or Finish Button
                 Align(
                   alignment: Alignment.centerRight,
                   child: ElevatedButton(
@@ -588,19 +793,28 @@ class _StudentMtqState extends State<StudentMtq> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    onPressed: currentQuestion.selectedOption != null
+                    onPressed: (currentQuestion.selectedOption != null && !isSubmitting)
                         ? () => _nextQuestion(currentQuestion.selectedOption!)
                         : null,
-                    child: Text(
-                      currentQuestionIndex < questions.length - 1
-                          ? 'Next'
-                          : 'Finish',
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
+                    child: isSubmitting && currentQuestionIndex == questions.length - 1
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            currentQuestionIndex < questions.length - 1
+                                ? 'Next'
+                                : 'Finish',
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -644,7 +858,6 @@ class _StudentMtqState extends State<StudentMtq> {
   Widget _buildRestrictionScreen(Color pastelBlue) {
     const pastelPurple = Color(0xFFE0D4FD);
 
-    // Format dates for display
     String formatDate(DateTime date) {
       const months = [
         'January',
@@ -663,7 +876,6 @@ class _StudentMtqState extends State<StudentMtq> {
       return '${months[date.month - 1]} ${date.day}, ${date.year}';
     }
 
-    // Calculate days remaining
     int daysRemaining = 0;
     if (nextAvailableDate != null) {
       daysRemaining = nextAvailableDate!.difference(DateTime.now()).inDays + 1;
@@ -702,8 +914,6 @@ class _StudentMtqState extends State<StudentMtq> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const SizedBox(height: 10),
-
-                // Calendar Icon
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -717,8 +927,6 @@ class _StudentMtqState extends State<StudentMtq> {
                   ),
                 ),
                 const SizedBox(height: 24),
-
-                // Title
                 Text(
                   'Questionnaire Not Available',
                   textAlign: TextAlign.center,
@@ -729,8 +937,6 @@ class _StudentMtqState extends State<StudentMtq> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // Explanation
                 Text(
                   'The Mental Health Questionnaire can only be taken once every 2 weeks to ensure meaningful assessment and prevent survey fatigue.',
                   textAlign: TextAlign.center,
@@ -741,8 +947,6 @@ class _StudentMtqState extends State<StudentMtq> {
                   ),
                 ),
                 const SizedBox(height: 32),
-
-                // Info Card
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -817,8 +1021,6 @@ class _StudentMtqState extends State<StudentMtq> {
                           ),
                         ),
                         const SizedBox(height: 8),
-
-                        // Days remaining
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 6),
@@ -842,8 +1044,6 @@ class _StudentMtqState extends State<StudentMtq> {
                   ),
                 ),
                 const SizedBox(height: 32),
-
-                // Alternative Actions
                 Text(
                   'In the meantime, you can:',
                   style: GoogleFonts.poppins(
@@ -853,8 +1053,6 @@ class _StudentMtqState extends State<StudentMtq> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // Action Buttons
                 _buildActionButton(
                   icon: Icons.history_rounded,
                   title: 'View Previous Summaries',
@@ -878,10 +1076,7 @@ class _StudentMtqState extends State<StudentMtq> {
                   onTap: () =>
                       Navigator.pushNamed(context, 'student-journal-entries'),
                 ),
-
                 const SizedBox(height: 32),
-
-                // Go back button
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF7C83FD),

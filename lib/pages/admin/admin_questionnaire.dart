@@ -18,6 +18,7 @@ class _AdminQuestionnaireState extends State<AdminQuestionnaire> {
   List<Map<String, dynamic>> _filteredQuestions = [];
   List<Map<String, dynamic>> _versions = [];
   int _selectedVersionId = 0;
+  String _selectedCategory = 'PHQ-9';
 
   @override
   void initState() {
@@ -80,6 +81,7 @@ class _AdminQuestionnaireState extends State<AdminQuestionnaire> {
             questions:question_id (
               question_id,
               question_text,
+              category,
               is_active,
               created_at
             )
@@ -189,6 +191,7 @@ class _AdminQuestionnaireState extends State<AdminQuestionnaire> {
 
   void _showAddQuestionDialog() {
     _questionController.clear();
+    _selectedCategory = 'PHQ-9';
     
     ModernFormDialog.show(
       context: context,
@@ -202,14 +205,38 @@ class _AdminQuestionnaireState extends State<AdminQuestionnaire> {
             FormSection(
               title: 'Question Details',
               icon: Icons.quiz_outlined,
-              child: ModernTextFormField(
-                controller: _questionController,
-                labelText: 'Question Text',
-                hintText: 'Enter the question text that will be displayed to users',
-                prefixIcon: Icons.help_outline,
-                maxLines: 3,
-                validator: (value) =>
-                    value?.isEmpty ?? true ? 'Please enter a question' : null,
+              child: Column(
+                children: [
+                  ModernTextFormField(
+                    controller: _questionController,
+                    labelText: 'Question Text',
+                    hintText: 'Enter the question text that will be displayed to users',
+                    prefixIcon: Icons.help_outline,
+                    maxLines: 3,
+                    validator: (value) =>
+                        value?.isEmpty ?? true ? 'Please enter a question' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    value: _selectedCategory,
+                    decoration: const InputDecoration(
+                      labelText: 'Category',
+                      prefixIcon: Icon(Icons.category_outlined),
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'PHQ-9', child: Text('PHQ-9')),
+                      DropdownMenuItem(value: 'GAD-7', child: Text('GAD-7')),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedCategory = value ?? 'PHQ-9';
+                      });
+                    },
+                    validator: (value) =>
+                        value?.isEmpty ?? true ? 'Please select a category' : null,
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 24),
@@ -236,6 +263,7 @@ class _AdminQuestionnaireState extends State<AdminQuestionnaire> {
                           .from('questions')
                           .insert({
                             'question_text': _questionController.text.trim(),
+                            'category': _selectedCategory,
                             'is_active': true,
                           })
                           .select()
@@ -561,6 +589,29 @@ class _AdminQuestionnaireState extends State<AdminQuestionnaire> {
                                   style: GoogleFonts.poppins(
                                     fontWeight: FontWeight.w500,
                                     color: const Color(0xFF3A3A50),
+                                  ),
+                                ),
+                                subtitle: Padding(
+                                  padding: const EdgeInsets.only(top: 8.0),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: question['category'] == 'PHQ-9'
+                                          ? Colors.blue.withOpacity(0.1)
+                                          : Colors.green.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      question['category'] ?? 'No Category',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                        color: question['category'] == 'PHQ-9'
+                                            ? Colors.blue[700]
+                                            : Colors.green[700],
+                                      ),
+                                    ),
                                   ),
                                 ),
                                 trailing: PopupMenuButton<String>(
