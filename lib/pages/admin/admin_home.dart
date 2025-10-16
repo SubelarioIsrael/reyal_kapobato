@@ -34,17 +34,15 @@ class _AdminHomeState extends State<AdminHome> {
       // Get total users count
       final totalUsersResponse = await supabase.from('users').select('user_id');
       final totalUsersCount = totalUsersResponse.length;
+      print('Total users found: $totalUsersCount');
 
-      // Get active users (users who have logged in within the last 24 hours)
+      // Get active users (users with status = 'active' in users table)
       final activeUsersResponse = await supabase
-          .from('students')
+          .from('users')
           .select('user_id')
-          .gte(
-              'last_login',
-              DateTime.now()
-                  .subtract(const Duration(hours: 24))
-                  .toIso8601String());
+          .eq('status', 'active');
       final activeUsersCount = activeUsersResponse.length;
+      print('Active users found: $activeUsersCount');
 
       // Get completed appointments count
       final completedAppointmentsResponse = await supabase
@@ -52,6 +50,7 @@ class _AdminHomeState extends State<AdminHome> {
           .select('appointment_id')
           .eq('status', 'completed');
       final completedAppointmentsCount = completedAppointmentsResponse.length;
+      print('Completed appointments found: $completedAppointmentsCount');
 
       // Get recent user registrations (last 5) with email instead of username
       final recentRegistrationsResponse = await supabase
@@ -512,20 +511,17 @@ class _AdminHomeState extends State<AdminHome> {
       // Fetch analytics data
       final totalUsersResult = await supabase
           .from('users')
-          .select('user_id')
-          .count(CountOption.exact);
+          .select('user_id');
       
       final activeUsersResult = await supabase
           .from('users')
           .select('user_id')
-          .eq('status', 'active')
-          .count(CountOption.exact);
+          .eq('status', 'active');
       
       final completedSessionsResult = await supabase
           .from('counseling_appointments')
           .select('appointment_id')
-          .eq('status', 'completed')
-          .count(CountOption.exact);
+          .eq('status', 'completed');
       
       final recentRegistrationsResult = await supabase
           .from('users')
@@ -534,9 +530,9 @@ class _AdminHomeState extends State<AdminHome> {
           .order('registration_date', ascending: false)
           .limit(10);
 
-      final totalUsers = totalUsersResult.count;
-      final activeUsers = activeUsersResult.count;
-      final completedSessions = completedSessionsResult.count;
+      final totalUsers = totalUsersResult.length;
+      final activeUsers = activeUsersResult.length;
+      final completedSessions = completedSessionsResult.length;
       final recentRegistrations = recentRegistrationsResult as List<dynamic>;
 
       final pdf = pw.Document();
