@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../components/student_drawer.dart';
 import '../../components/student_notification_button.dart';
+import '../../services/api/sentiment_app.dart';
 
 class QuestionnaireSummary extends StatefulWidget {
   final int responseId;
@@ -67,9 +68,9 @@ class _QuestionnaireSummaryState extends State<QuestionnaireSummary> {
       return existingSummary;
     }
 
-    // Create new summary based on score
+    // Create new summary using sentiment analysis
     final severityLevel = _determineSeverityLevel(widget.totalScore);
-    final insights = _generateInsights(severityLevel);
+    final insights = await _generateInsightsWithSentiment();
     final recommendations = _generateRecommendations(severityLevel);
     final breathingExerciseId = await _selectBreathingExercise(severityLevel);
 
@@ -94,6 +95,82 @@ class _QuestionnaireSummaryState extends State<QuestionnaireSummary> {
     if (totalScore <= 9) return 'moderate'; // 11-25% of max score
     if (totalScore <= 14) return 'severe'; // 26-40% of max score
     return 'critical'; // >40% of max score
+  }
+
+  Future<String> _generateInsightsWithSentiment() async {
+    try {
+      // Fetch all questions and answers for this response
+      final answers = await Supabase.instance.client
+          .from('questionnaire_answers')
+          .select('question_text_snapshot, chosen_answer')
+          .eq('response_id', widget.responseId)
+          .order('answer_id');
+
+      if (answers.isEmpty) {
+        // If no answers found, use static insights
+        return _generateInsights(_determineSeverityLevel(widget.totalScore));
+      }
+
+      // Convert answers to text format for sentiment analysis
+      final List<String> answerTexts = [];
+      const answerOptions = [
+        'Not at all',
+        'Several days',
+        'More than half the days',
+        'Nearly every day',
+        'Every day'
+      ];
+
+      for (final answer in answers) {
+        final questionText = answer['question_text_snapshot'] as String;
+        final chosenAnswer = answer['chosen_answer'] as int;
+        final answerText = answerOptions[chosenAnswer];
+
+        answerTexts.add('$questionText - $answerText');
+      }
+
+      // Combine all questions and answers into a single text
+      final combinedText = answerTexts.join('. ');
+
+      // Analyze sentiment
+      final sentimentResult = await analyzeSentiment(combinedText);
+
+      // Debug: Print the API response to understand the structure
+      print('Sentiment analysis result: $sentimentResult');
+
+      // Extract the "thought" from the sentiment analysis result
+      // Try different possible field names that the API might return
+      String? thought = sentimentResult['thought'] as String? ??
+          sentimentResult['insight'] as String? ??
+          sentimentResult['analysis'] as String? ??
+          sentimentResult['summary'] as String? ??
+          sentimentResult['result'] as String? ??
+          sentimentResult['response'] as String?;
+
+      // If no specific field is found, try to get any string value from the response
+      if (thought == null || thought.isEmpty) {
+        // Look for any string value in the response
+        for (final key in sentimentResult.keys) {
+          final value = sentimentResult[key];
+          if (value is String && value.isNotEmpty) {
+            thought = value;
+            break;
+          }
+        }
+      }
+
+      // If AI analysis failed or returned empty, use static insights
+      if (thought == null || thought.isEmpty) {
+        print('AI analysis failed or returned empty, using static insights');
+        return _generateInsights(_determineSeverityLevel(widget.totalScore));
+      }
+
+      return thought;
+    } catch (e) {
+      print('Error generating insights with sentiment analysis: $e');
+      // Fallback to static insights based on severity level
+      return _generateInsights(_determineSeverityLevel(widget.totalScore));
+    }
   }
 
   String _generateInsights(String severityLevel) {

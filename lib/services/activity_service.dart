@@ -1,5 +1,4 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter/material.dart';
 import 'notification_service.dart';
 
 class ActivityService {
@@ -7,7 +6,6 @@ class ActivityService {
   static const Map<String, int> activityIds = {
     'daily_checkin': 1,
     'mood_journal': 2,
-    'track_mood': 3,
     'breathing_exercise': 4,
   };
 
@@ -118,7 +116,6 @@ class ActivityService {
       print('Response from Supabase: $response'); // Debug log
 
       final completions = {
-        'track_mood': false,
         'mood_journal': false,
         'daily_checkin': false,
         'breathing_exercise': false,
@@ -141,7 +138,6 @@ class ActivityService {
       print('Error getting today\'s completions: $e');
       // Return default completions map on error
       return {
-        'track_mood': false,
         'mood_journal': false,
         'daily_checkin': false,
         'breathing_exercise': false,
