@@ -265,7 +265,7 @@ class _StudentChatListState extends State<StudentChatList> {
       // Mark messages as read immediately when opening chat
       final currentUserId = _supabase.auth.currentUser?.id;
       if (currentUserId != null) {
-        ChatMessageService.markAppointmentMessagesAsRead(appointmentId).then((_) {
+        ChatMessageService.markMessagesAsRead(appointmentId).then((_) {
           print('StudentChatList: Marked appointment $appointmentId messages as read for student');
         }).catchError((e) {
           print('StudentChatList: Error marking messages as read: $e');

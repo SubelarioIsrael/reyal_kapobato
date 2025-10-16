@@ -212,300 +212,317 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
   }
 
   Widget _buildStepper() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (step == 0) ...[
-          const SizedBox(height: 20),
-          Text(
-            "What's your mood today?",
-            style: GoogleFonts.poppins(
-              fontSize: 24,
-              fontWeight: FontWeight.w600,
-              color: const Color(0xFF3A3A50),
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            "Select the mood that reflects how you're feeling at this moment",
-            style: GoogleFonts.poppins(
-              fontSize: 16,
-              color: const Color(0xFF5D5D72),
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 40),
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: moodOptions.map((mood) {
-                final isSelected = moodType == mood['type'];
-                return GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      moodType = mood['type'];
-                      emojiCode = mood['emoji'];
-                    });
-                  },
-                  child: Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      color: isSelected 
-                          ? const Color(0xFF7C83FD) 
-                          : Colors.grey[100],
-                      borderRadius: BorderRadius.circular(28),
-                      border: Border.all(
-                        color: isSelected 
-                            ? const Color(0xFF7C83FD) 
-                            : Colors.grey[300]!,
-                        width: 2,
-                      ),
-                    ),
-                    child: Center(
-                      child: Text(
-                        mood['emoji']!,
-                        style: const TextStyle(fontSize: 28),
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-          const SizedBox(height: 50),
-          Container(
-            width: double.infinity,
-            height: 56,
-            child: ElevatedButton(
-              onPressed: moodType == null ? null : () => setState(() => step = 1),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF7C83FD),
-                disabledBackgroundColor: Colors.grey[300],
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                elevation: 0,
-              ),
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (step == 0) ...[
+            const SizedBox(height: 20),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
               child: Text(
-                'Continue',
+                "What's your mood today?",
+                style: GoogleFonts.poppins(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF3A3A50),
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: Text(
+                "Select the mood that reflects how you're feeling at this moment",
                 style: GoogleFonts.poppins(
                   fontSize: 16,
+                  color: const Color(0xFF5D5D72),
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 40),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Wrap(
+                alignment: WrapAlignment.spaceEvenly,
+                spacing: 12,
+                runSpacing: 12,
+                children: moodOptions.map((mood) {
+                  final isSelected = moodType == mood['type'];
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        moodType = mood['type'];
+                        emojiCode = mood['emoji'];
+                      });
+                    },
+                    child: Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: isSelected 
+                            ? const Color(0xFF7C83FD) 
+                            : Colors.grey[100],
+                        borderRadius: BorderRadius.circular(28),
+                        border: Border.all(
+                          color: isSelected 
+                              ? const Color(0xFF7C83FD) 
+                              : Colors.grey[300]!,
+                          width: 2,
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          mood['emoji']!,
+                          style: const TextStyle(fontSize: 28),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+            const SizedBox(height: 50),
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton(
+                onPressed: moodType == null ? null : () => setState(() => step = 1),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF7C83FD),
+                  disabledBackgroundColor: Colors.grey[300],
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 0,
+                ),
+                child: Text(
+                  'Continue',
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ] else if (step == 1) ...[
+            const SizedBox(height: 20),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: Text(
+                "What's making you feel ${moodType != null ? _capitalizeString(moodType!) : ''}?",
+                style: GoogleFonts.poppins(
+                  fontSize: 24,
                   fontWeight: FontWeight.w600,
-                  color: Colors.white,
+                  color: const Color(0xFF3A3A50),
                 ),
+                textAlign: TextAlign.center,
               ),
             ),
-          ),
-        ] else if (step == 1) ...[
-          const SizedBox(height: 20),
-          Text(
-            "What's making you feel ${moodType != null ? _capitalizeString(moodType!) : ''}?",
-            style: GoogleFonts.poppins(
-              fontSize: 24,
-              fontWeight: FontWeight.w600,
-              color: const Color(0xFF3A3A50),
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            "Select one or more reasons (optional)",
-            style: GoogleFonts.poppins(
-              fontSize: 16,
-              color: const Color(0xFF5D5D72),
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: Text(
+                "Select one or more reasons (optional)",
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  color: const Color(0xFF5D5D72),
                 ),
-              ],
+                textAlign: TextAlign.center,
+              ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Reasons',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF3A3A50),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: reasonOptions.map((reason) {
+                      final selected = reasons.contains(reason);
+                      return FilterChip(
+                        label: Text(reason),
+                        selected: selected,
+                        onSelected: (val) {
+                          setState(() {
+                            if (selected) {
+                              reasons.remove(reason);
+                            } else {
+                              reasons.add(reason);
+                            }
+                          });
+                        },
+                        backgroundColor: Colors.grey[100],
+                        selectedColor: const Color(0xFF7C83FD).withOpacity(0.1),
+                        checkmarkColor: const Color(0xFF7C83FD),
+                        labelStyle: GoogleFonts.poppins(
+                          color: selected ? const Color(0xFF7C83FD) : const Color(0xFF5D5D72),
+                          fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                        ),
+                        side: BorderSide(
+                          color: selected ? const Color(0xFF7C83FD) : Colors.grey[300]!,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Add a note (optional)',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF3A3A50),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: noteController,
+                    decoration: InputDecoration(
+                      hintText: "Tell us more about how you're feeling...",
+                      hintStyle: GoogleFonts.poppins(
+                        color: Colors.grey[500],
+                        fontSize: 14,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFF7C83FD)),
+                      ),
+                      contentPadding: const EdgeInsets.all(16),
+                    ),
+                    maxLines: 3,
+                    style: GoogleFonts.poppins(),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 50),
+            Row(
               children: [
-                Text(
-                  'Reasons',
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF3A3A50),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: reasonOptions.map((reason) {
-                    final selected = reasons.contains(reason);
-                    return FilterChip(
-                      label: Text(reason),
-                      selected: selected,
-                      onSelected: (val) {
-                        setState(() {
-                          if (selected) {
-                            reasons.remove(reason);
-                          } else {
-                            reasons.add(reason);
-                          }
-                        });
-                      },
-                      backgroundColor: Colors.grey[100],
-                      selectedColor: const Color(0xFF7C83FD).withOpacity(0.1),
-                      checkmarkColor: const Color(0xFF7C83FD),
-                      labelStyle: GoogleFonts.poppins(
-                        color: selected ? const Color(0xFF7C83FD) : const Color(0xFF5D5D72),
-                        fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                Expanded(
+                  child: SizedBox(
+                    height: 56,
+                    child: OutlinedButton(
+                      onPressed: () => setState(() => step = 0),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFF7C83FD)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                       ),
-                      side: BorderSide(
-                        color: selected ? const Color(0xFF7C83FD) : Colors.grey[300]!,
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Add a note (optional)',
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF3A3A50),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: noteController,
-                  decoration: InputDecoration(
-                    hintText: "Tell us more about how you're feeling...",
-                    hintStyle: GoogleFonts.poppins(
-                      color: Colors.grey[500],
-                      fontSize: 14,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF7C83FD)),
-                    ),
-                    contentPadding: const EdgeInsets.all(16),
-                  ),
-                  maxLines: 3,
-                  style: GoogleFonts.poppins(),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 50),
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  height: 56,
-                  child: OutlinedButton(
-                    onPressed: () => setState(() => step = 0),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Color(0xFF7C83FD)),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    child: Text(
-                      'Back',
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF7C83FD),
+                      child: Text(
+                        'Back',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF7C83FD),
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Container(
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: isSubmitting || moodType == null ? null : _submitCheckIn,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF7C83FD),
-                      disabledBackgroundColor: Colors.grey[300],
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: SizedBox(
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: isSubmitting || moodType == null ? null : _submitCheckIn,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF7C83FD),
+                        disabledBackgroundColor: Colors.grey[300],
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 0,
                       ),
-                      elevation: 0,
-                    ),
-                    child: isSubmitting
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 3,
+                      child: isSubmitting
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 3,
+                              ),
+                            )
+                          : Text(
+                              'Submit',
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
                             ),
-                          )
-                        : Text(
-                            'Submit',
-                            style: GoogleFonts.poppins(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-        ]
-      ],
+              ],
+            ),
+            const SizedBox(height: 20),
+          ]
+        ],
+      ),
     );
   }
 
@@ -520,7 +537,6 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(32),
@@ -693,9 +709,9 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
           ),
           child: Column(
             children: [
-              Icon(
+              const Icon(
                 Icons.check_circle_outline,
-                color: const Color(0xFF7C83FD),
+                color: Color(0xFF7C83FD),
                 size: 32,
               ),
               const SizedBox(height: 8),
