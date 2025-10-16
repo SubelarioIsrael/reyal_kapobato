@@ -41,8 +41,7 @@ class _LoginPageState extends State<LoginPage> {
         final userType = userData['user_type'];
         final status = userData['status'];
         if (status == 'suspended') {
-          _showErrorDialog(
-              'Your account has been suspended. Please contact support.');
+          _showAccountSuspendedDialog();
           return;
         }
         if (status != 'active') {
@@ -58,8 +57,6 @@ class _LoginPageState extends State<LoginPage> {
             Navigator.pushReplacementNamed(context, 'counselor-home');
           } else if (userType == 'admin') {
             Navigator.pushReplacementNamed(context, 'admin-home');
-          } else if (userType == 'parent') {
-            Navigator.pushReplacementNamed(context, 'parent-home');
           } else {
             _showErrorDialog('Invalid user type. Please contact support.');
           }
@@ -131,6 +128,74 @@ class _LoginPageState extends State<LoginPage> {
           ),
           content: Text(
             message,
+            style: GoogleFonts.poppins(),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(
+                'OK',
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF7C83FD),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  // Helper method to show email not verified dialog
+  void _showEmailNotVerifiedDialog() {
+    if (mounted) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(
+            'Email Not Verified',
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.w600,
+              color: Colors.orange.shade700,
+            ),
+          ),
+          content: Text(
+            'Your email address has not been verified. Please check your inbox and click the verification link before logging in.',
+            style: GoogleFonts.poppins(),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(
+                'OK',
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF7C83FD),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  // Helper method to show account suspended dialog
+  void _showAccountSuspendedDialog() {
+    if (mounted) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(
+            'Account Suspended',
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.w600,
+              color: Colors.red.shade700,
+            ),
+          ),
+          content: Text(
+            'Your account has been suspended. Please contact support for assistance.',
             style: GoogleFonts.poppins(),
           ),
           actions: [
@@ -322,6 +387,14 @@ class _LoginPageState extends State<LoginPage> {
       if (response.user != null) {
         print("Logged in: ${response.user?.email}");
 
+        // Check if email is verified
+        if (response.user!.emailConfirmedAt == null) {
+          _showEmailNotVerifiedDialog();
+          // Sign out the user since email is not verified
+          await _supabase.auth.signOut();
+          return;
+        }
+
         // Get user role from the database
         await _redirectBasedOnRole(response.user!.id);
       } else {
@@ -333,9 +406,12 @@ class _LoginPageState extends State<LoginPage> {
 
       // Handle specific error codes
       if (e.message.contains('Invalid login credentials')) {
-        errorMessage = 'Invalid email or password.';
-      } else if (e.message.contains('Email not confirmed')) {
         errorMessage = 'Please confirm your email before logging in.';
+      } else if (e.message.contains('Email not confirmed') || 
+                 e.message.contains('email_not_confirmed') ||
+                 e.message.contains('signup_disabled')) {
+        _showEmailNotVerifiedDialog();
+        return;
       } else {
         errorMessage = e.message;
       }
@@ -436,13 +512,13 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                           validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return 'Please enter your email';
+                              return 'Email field is required';
                             }
                             final emailRegex = RegExp(
                               r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$',
                             );
                             if (!emailRegex.hasMatch(value)) {
-                              return 'Enter a valid email';
+                              return 'Invalid email format';
                             }
                             return null;
                           },
@@ -482,7 +558,7 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                           validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return 'Please enter your password';
+                              return 'Password field is required';
                             }
                             if (value.length < 6) {
                               return 'Password must be at least 6 characters';
