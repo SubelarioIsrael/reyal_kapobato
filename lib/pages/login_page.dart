@@ -406,7 +406,7 @@ class _LoginPageState extends State<LoginPage> {
 
       // Handle specific error codes
       if (e.message.contains('Invalid login credentials')) {
-        errorMessage = 'Please confirm your email before logging in.';
+        errorMessage = 'Your email address has not been verified. Please check your inbox and click the verification link before logging in.';
       } else if (e.message.contains('Email not confirmed') || 
                  e.message.contains('email_not_confirmed') ||
                  e.message.contains('signup_disabled')) {

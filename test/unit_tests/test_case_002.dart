@@ -1,5 +1,5 @@
 // TEST CASE 002: Empty Email Field Validation During Login
-// Requirement: Student leaves email field empty during login attempt - Login fails with "Email field is required" error message
+// Requirement: Users leaves email field empty during login attempt - Login fails with "Email field is required" error message
 // Uses EXACT validation code from LoginPage.dart (lines 515-524)
 // Created: October 17, 2025
 // Status: ✅ PASSING
