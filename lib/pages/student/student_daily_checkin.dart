@@ -5,6 +5,7 @@ import 'dart:async';
 import '../../components/student_drawer.dart';
 import '../../components/student_notification_button.dart';
 import '../../services/activity_service.dart';
+import 'student_checkin_history.dart';
 
 class StudentDailyCheckInPage extends StatefulWidget {
   const StudentDailyCheckInPage({Key? key}) : super(key: key);
@@ -20,6 +21,7 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
   String? emojiCode;
   List<String> reasons = [];
   TextEditingController noteController = TextEditingController();
+  TextEditingController customReasonController = TextEditingController();
   bool isSubmitting = false;
   bool isComplete = false;
   Map<String, dynamic>? todayCheckIn;
@@ -33,7 +35,7 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
     {'type': 'happy', 'emoji': '😃'},
     {'type': 'loved', 'emoji': '🥰'},
   ];
-  final reasonOptions = ['Relationship', 'School', 'Friend', 'Work', 'Family'];
+  final reasonOptions = ['Relationship', 'School', 'Friend', 'Work', 'Family', 'Other'];
 
   @override
   void initState() {
@@ -51,7 +53,6 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
     if (userId == null) return;
 
     final today = DateTime.now();
-    // Get the start and end of today in the local timezone
     final startOfToday = DateTime(today.year, today.month, today.day);
     final endOfToday =
         DateTime(today.year, today.month, today.day, 23, 59, 59, 999);
@@ -61,15 +62,11 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
           .from('mood_entries')
           .select()
           .eq('user_id', userId)
-          .gte(
-              'entry_date',
-              startOfToday
-                  .toIso8601String()) // Greater than or equal to start of day
-          .lte('entry_date',
-              endOfToday.toIso8601String()) // Less than or equal to end of day
+          .gte('entry_date', startOfToday.toIso8601String())
+          .lte('entry_date', endOfToday.toIso8601String())
           .maybeSingle()
           .timeout(
-        const Duration(seconds: 10), // Add timeout for fetching as well
+        const Duration(seconds: 10),
         onTimeout: () {
           throw TimeoutException('Fetching check-in timed out');
         },
@@ -83,10 +80,9 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
       }
     } catch (e) {
       if (mounted) {
-        // Handle error during fetch, maybe show a message or set isComplete to false
         print('Error fetching today\'s check-in: ${e.toString()}');
         setState(() {
-          isComplete = false; // Allow submission if fetching fails
+          isComplete = false;
         });
       }
     }
@@ -102,6 +98,21 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
       return;
     }
 
+    if (reasons.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select at least one reason'),
+        ),
+      );
+      return;
+    }
+
+    List<String> finalReasons = List.from(reasons);
+    if (reasons.contains('Other') && customReasonController.text.trim().isNotEmpty) {
+      finalReasons.remove('Other');
+      finalReasons.add(customReasonController.text.trim());
+    }
+
     try {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) {
@@ -112,11 +123,10 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
         'user_id': user.id,
         'mood_type': moodType,
         'emoji_code': emojiCode,
-        'reasons': reasons,
+        'reasons': finalReasons,
         'notes': noteController.text,
       });
 
-      // Record activity completion
       await ActivityService.recordActivityCompletion('daily_checkin');
 
       if (mounted) {
@@ -177,6 +187,17 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
         ),
         centerTitle: true,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.history, color: Color(0xFF5D5D72)),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const StudentCheckInHistoryPage(),
+                ),
+              );
+            },
+          ),
           const StudentNotificationButton(),
         ],
       ),
@@ -337,7 +358,7 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8.0),
               child: Text(
-                "Select one or more reasons (optional)",
+                "Select one or more reasons *",
                 style: GoogleFonts.poppins(
                   fontSize: 16,
                   color: const Color(0xFF5D5D72),
@@ -363,7 +384,7 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Reasons',
+                    'Reasons *',
                     style: GoogleFonts.poppins(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -383,6 +404,9 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
                           setState(() {
                             if (selected) {
                               reasons.remove(reason);
+                              if (reason == 'Other') {
+                                customReasonController.clear();
+                              }
                             } else {
                               reasons.add(reason);
                             }
@@ -401,6 +425,38 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
                       );
                     }).toList(),
                   ),
+                  if (reasons.contains('Other')) ...[
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: customReasonController,
+                      maxLength: 25,
+                      decoration: InputDecoration(
+                        hintText: "Enter your custom reason...",
+                        hintStyle: GoogleFonts.poppins(
+                          color: Colors.grey[500],
+                          fontSize: 14,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Color(0xFF7C83FD)),
+                        ),
+                        contentPadding: const EdgeInsets.all(16),
+                        counterStyle: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      style: GoogleFonts.poppins(),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -488,7 +544,7 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
                   child: SizedBox(
                     height: 56,
                     child: ElevatedButton(
-                      onPressed: isSubmitting || moodType == null ? null : _submitCheckIn,
+                      onPressed: isSubmitting || moodType == null || reasons.isEmpty ? null : _submitCheckIn,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF7C83FD),
                         disabledBackgroundColor: Colors.grey[300],
