@@ -242,26 +242,60 @@ class _SignUpPageState extends State<SignUpPage> {
   void _showErrorDialog(String title, String message) {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: Text(
-          title,
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w600,
-            color: Colors.red.shade700,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            Icon(
+              Icons.error_outline,
+              color: Colors.red.shade600,
+              size: 28,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                title,
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.red.shade700,
+                  fontSize: 18,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Container(
+          constraints: const BoxConstraints(maxWidth: 300),
+          child: Text(
+            message,
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              height: 1.5,
+              color: Colors.grey.shade700,
+            ),
           ),
         ),
-        content: Text(
-          message,
-          style: GoogleFonts.poppins(),
-        ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'OK',
-              style: GoogleFonts.poppins(
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF7C83FD),
+          Container(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red.shade600,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'OK',
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
               ),
             ),
           ),
@@ -275,28 +309,100 @@ class _SignUpPageState extends State<SignUpPage> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: Text(
-          'Account Created Successfully!',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF4CAF50),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            Icon(
+              Icons.check_circle_outline,
+              color: const Color(0xFF4CAF50),
+              size: 28,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Registration Successful!',
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF4CAF50),
+                  fontSize: 18,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Container(
+          constraints: const BoxConstraints(maxWidth: 300),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Welcome to BreatheBetter!',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade800,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'A verification link has been sent to:',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  _emailController.text.trim(),
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF7C83FD),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Please check your inbox and click the verification link before signing in.',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  height: 1.4,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+            ],
           ),
         ),
-        content: Text(
-          'A verification link has been sent to ${_emailController.text.trim()}.\n\nPlease check your inbox and click the link to verify your email before logging in.',
-          style: GoogleFonts.poppins(),
-        ),
         actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pushReplacementNamed(context, '/login');
-            },
-            child: Text(
-              'Go to Login',
-              style: GoogleFonts.poppins(
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF7C83FD),
+          Container(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF4CAF50),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.pushReplacementNamed(context, '/login');
+              },
+              child: Text(
+                'Go to Sign In',
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
               ),
             ),
           ),
