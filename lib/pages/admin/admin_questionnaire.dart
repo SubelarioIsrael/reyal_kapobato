@@ -397,6 +397,29 @@ class _AdminQuestionnaireState extends State<AdminQuestionnaire> {
 
   Future<void> _toggleVersionStatus(int versionId, bool currentStatus) async {
     try {
+      // If trying to deactivate, check if there are other active versions
+      if (currentStatus) {
+        final activeVersionsResponse = await Supabase.instance.client
+            .from('questionnaire_versions')
+            .select('version_id')
+            .eq('is_active', true);
+
+        final activeVersions = List<Map<String, dynamic>>.from(activeVersionsResponse);
+        
+        // If this is the only active version, prevent deactivation
+        if (activeVersions.length <= 1) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Cannot deactivate the last active version. At least one version must remain active.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
+      }
+
       // First, deactivate all versions
       await Supabase.instance.client
           .from('questionnaire_versions')
