@@ -20,6 +20,7 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
   String? emojiCode;
   List<String> reasons = [];
   TextEditingController noteController = TextEditingController();
+  TextEditingController otherReasonController = TextEditingController();
   bool isSubmitting = false;
   bool isComplete = false;
   Map<String, dynamic>? todayCheckIn;
@@ -33,7 +34,7 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
     {'type': 'happy', 'emoji': '😃'},
     {'type': 'loved', 'emoji': '🥰'},
   ];
-  final reasonOptions = ['Relationship', 'School', 'Friend', 'Work', 'Family'];
+  final reasonOptions = ['Relationship', 'School', 'Friend', 'Work', 'Family', 'Other'];
 
   @override
   void initState() {
@@ -102,17 +103,47 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
       return;
     }
 
+    if (reasons.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select at least one reason'),
+        ),
+      );
+      return;
+    }
+
+    if (reasons.contains('Other') && otherReasonController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please specify your other reason'),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      isSubmitting = true;
+    });
+
     try {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) {
         throw Exception('User not logged in');
       }
 
+      // Replace "Other" with the actual text if present
+      List<String> finalReasons = reasons.map((reason) {
+        if (reason == 'Other' && otherReasonController.text.trim().isNotEmpty) {
+          return otherReasonController.text.trim();
+        }
+        return reason;
+      }).toList();
+
       await Supabase.instance.client.from('mood_entries').insert({
         'user_id': user.id,
         'mood_type': moodType,
         'emoji_code': emojiCode,
-        'reasons': reasons,
+        'reasons': finalReasons,
         'notes': noteController.text,
       });
 
@@ -135,6 +166,12 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
             content: Text('Error saving check-in. Please try again.'),
           ),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          isSubmitting = false;
+        });
       }
     }
   }
@@ -311,139 +348,183 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
             ),
           ),
         ] else if (step == 1) ...[
-          const SizedBox(height: 20),
-          Text(
-            "What's making you feel ${moodType != null ? _capitalizeString(moodType!) : ''}?",
-            style: GoogleFonts.poppins(
-              fontSize: 24,
-              fontWeight: FontWeight.w600,
-              color: const Color(0xFF3A3A50),
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            "Select one or more reasons (optional)",
-            style: GoogleFonts.poppins(
-              fontSize: 16,
-              color: const Color(0xFF5D5D72),
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Reasons',
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF3A3A50),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  const SizedBox(height: 20),
+                  Text(
+                    "What's making you feel ${moodType != null ? _capitalizeString(moodType!) : ''}?",
+                    style: GoogleFonts.poppins(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF3A3A50),
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: reasonOptions.map((reason) {
-                    final selected = reasons.contains(reason);
-                    return FilterChip(
-                      label: Text(reason),
-                      selected: selected,
-                      onSelected: (val) {
-                        setState(() {
-                          if (selected) {
-                            reasons.remove(reason);
-                          } else {
-                            reasons.add(reason);
-                          }
-                        });
-                      },
-                      backgroundColor: Colors.grey[100],
-                      selectedColor: const Color(0xFF7C83FD).withOpacity(0.1),
-                      checkmarkColor: const Color(0xFF7C83FD),
-                      labelStyle: GoogleFonts.poppins(
-                        color: selected ? const Color(0xFF7C83FD) : const Color(0xFF5D5D72),
-                        fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                      ),
-                      side: BorderSide(
-                        color: selected ? const Color(0xFF7C83FD) : Colors.grey[300]!,
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  Text(
+                    "Select at least one reason *",
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      color: const Color(0xFF5D5D72),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Reasons',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF3A3A50),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: reasonOptions.map((reason) {
+                            final selected = reasons.contains(reason);
+                            return FilterChip(
+                              label: Text(reason),
+                              selected: selected,
+                              onSelected: (val) {
+                                setState(() {
+                                  if (selected) {
+                                    reasons.remove(reason);
+                                    if (reason == 'Other') {
+                                      otherReasonController.clear();
+                                    }
+                                  } else {
+                                    reasons.add(reason);
+                                  }
+                                });
+                              },
+                              backgroundColor: Colors.grey[100],
+                              selectedColor: const Color(0xFF7C83FD).withOpacity(0.1),
+                              checkmarkColor: const Color(0xFF7C83FD),
+                              labelStyle: GoogleFonts.poppins(
+                                color: selected ? const Color(0xFF7C83FD) : const Color(0xFF5D5D72),
+                                fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                              ),
+                              side: BorderSide(
+                                color: selected ? const Color(0xFF7C83FD) : Colors.grey[300]!,
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                        if (reasons.contains('Other')) ...[
+                          const SizedBox(height: 16),
+                          TextField(
+                            controller: otherReasonController,
+                            decoration: InputDecoration(
+                              labelText: 'Specify your reason *',
+                              labelStyle: GoogleFonts.poppins(
+                                color: const Color(0xFF5D5D72),
+                                fontSize: 14,
+                              ),
+                              hintText: "What else is affecting your mood?",
+                              hintStyle: GoogleFonts.poppins(
+                                color: Colors.grey[500],
+                                fontSize: 14,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: Colors.grey[300]!),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: Colors.grey[300]!),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(color: Color(0xFF7C83FD)),
+                              ),
+                              contentPadding: const EdgeInsets.all(16),
+                            ),
+                            style: GoogleFonts.poppins(),
+                            maxLength: 50,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Add a note (optional)',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF3A3A50),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: noteController,
+                          decoration: InputDecoration(
+                            hintText: "Tell us more about how you're feeling...",
+                            hintStyle: GoogleFonts.poppins(
+                              color: Colors.grey[500],
+                              fontSize: 14,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: Colors.grey[300]!),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: Colors.grey[300]!),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: Color(0xFF7C83FD)),
+                            ),
+                            contentPadding: const EdgeInsets.all(16),
+                          ),
+                          maxLines: 3,
+                          style: GoogleFonts.poppins(),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Add a note (optional)',
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF3A3A50),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: noteController,
-                  decoration: InputDecoration(
-                    hintText: "Tell us more about how you're feeling...",
-                    hintStyle: GoogleFonts.poppins(
-                      color: Colors.grey[500],
-                      fontSize: 14,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF7C83FD)),
-                    ),
-                    contentPadding: const EdgeInsets.all(16),
-                  ),
-                  maxLines: 3,
-                  style: GoogleFonts.poppins(),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 50),
           Row(
             children: [
               Expanded(
@@ -473,7 +554,7 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
                 child: Container(
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: isSubmitting || moodType == null ? null : _submitCheckIn,
+                    onPressed: isSubmitting || moodType == null || reasons.isEmpty ? null : _submitCheckIn,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF7C83FD),
                       disabledBackgroundColor: Colors.grey[300],
