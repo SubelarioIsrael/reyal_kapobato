@@ -100,7 +100,7 @@ class _StudentJournalEntriesState extends State<StudentJournalEntries> {
       builder: (context) => AlertDialog(
         title: Text('Delete Entry', style: GoogleFonts.poppins()),
         content: Text(
-          'Are you sure you want to delete "${entry.title ?? entry.content.substring(0, entry.content.length.clamp(0, 20))}"?',
+          'Are you sure you want to delete "${entry.title ?? (entry.content.isNotEmpty ? entry.content.substring(0, entry.content.length.clamp(0, 20)) : "Untitled entry")}"?',
           style: GoogleFonts.poppins(),
         ),
         actions: [
@@ -121,9 +121,83 @@ class _StudentJournalEntriesState extends State<StudentJournalEntries> {
       final success = await JournalService.deleteJournalEntry(entry.journalId);
       if (success) {
         _loadJournalEntries();
-        _showErrorSnackBar('Entry deleted successfully');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Entry deleted successfully')),
+        );
       } else {
         _showErrorSnackBar('Failed to delete entry');
+      }
+    }
+  }
+
+  Future<void> _updateSharingStatus(JournalEntry entry) async {
+    final newSharingStatus = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Update Sharing', style: GoogleFonts.poppins()),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Would you like to share this entry with your counselor?',
+              style: GoogleFonts.poppins(),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Current status: ${entry.isSharedWithCounselor ? "Shared" : "Private"}',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(null),
+            child: Text('Cancel', style: GoogleFonts.poppins()),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(
+              'Keep Private',
+              style: GoogleFonts.poppins(
+                color: entry.isSharedWithCounselor ? Colors.grey[600] : Colors.blue,
+                fontWeight: entry.isSharedWithCounselor ? FontWeight.normal : FontWeight.bold,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(
+              'Share with Counselor',
+              style: GoogleFonts.poppins(
+                color: entry.isSharedWithCounselor ? Colors.blue : Colors.green,
+                fontWeight: entry.isSharedWithCounselor ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (newSharingStatus != null && newSharingStatus != entry.isSharedWithCounselor) {
+      final success = await JournalService.updateJournalSharingStatus(
+        entry.journalId.toString(),
+        newSharingStatus,
+      );
+      
+      if (success) {
+        _loadJournalEntries();
+        Navigator.of(context).pop(); // Close the details modal
+        _showErrorSnackBar(
+          newSharingStatus 
+            ? 'Entry is now shared with counselor' 
+            : 'Entry is now private'
+        );
+      } else {
+        _showErrorSnackBar('Failed to update sharing status');
       }
     }
   }
@@ -238,6 +312,27 @@ class _StudentJournalEntriesState extends State<StudentJournalEntries> {
               const SizedBox(height: 20),
               Row(
                 children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _updateSharingStatus(entry),
+                      icon: Icon(
+                        entry.isSharedWithCounselor ? Icons.edit_outlined : Icons.share_outlined,
+                        color: const Color(0xFF7C83FD),
+                      ),
+                      label: Text(
+                        entry.isSharedWithCounselor ? 'Edit Sharing' : 'Share with Counselor',
+                        style: GoogleFonts.poppins(color: const Color(0xFF7C83FD)),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF7C83FD).withOpacity(0.1),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () => _deleteEntry(entry),

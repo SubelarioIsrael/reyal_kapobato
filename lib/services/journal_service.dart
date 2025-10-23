@@ -67,6 +67,20 @@ class JournalService {
     }
   }
 
+  static Future<bool> updateJournalSharingStatus(String journalId, bool isShared) async {
+    try {
+      final response = await Supabase.instance.client
+          .from('mood_journal_entries')
+          .update({'is_shared_with_counselor': isShared})
+          .eq('journal_id', journalId);
+
+      return true;
+    } catch (e) {
+      print('Error updating journal sharing status: $e');
+      return false;
+    }
+  }
+
   static Future<List<JournalEntry>> searchJournalEntries(
       String userId, String query) async {
     try {
