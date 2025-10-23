@@ -75,7 +75,7 @@ class _CounselorProfileViewState extends State<CounselorProfileView> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          "BreatheBetter",
+          "Counselor Profile",
           style: GoogleFonts.poppins(
             fontSize: 20,
             fontWeight: FontWeight.bold,

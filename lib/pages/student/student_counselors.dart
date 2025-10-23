@@ -60,7 +60,7 @@ class _StudentCounselorsState extends State<StudentCounselors> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          "BreatheBetter",
+          "Counselors",
           style: GoogleFonts.poppins(
             fontSize: 20,
             fontWeight: FontWeight.bold,

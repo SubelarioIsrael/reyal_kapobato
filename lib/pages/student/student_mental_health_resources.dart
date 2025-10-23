@@ -237,7 +237,7 @@ class _StudentMentalHealthResourcesState
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          "BreatheBetter",
+          "Wellness Resources",
           style: GoogleFonts.poppins(
             fontSize: 20,
             fontWeight: FontWeight.bold,

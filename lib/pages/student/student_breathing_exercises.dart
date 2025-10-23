@@ -307,7 +307,7 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises>
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          "BreatheBetter",
+          "Breathing Exercises",
           style: GoogleFonts.poppins(
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -519,16 +519,6 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Title
-          Text(
-            'Breathing Exercises',
-            style: GoogleFonts.poppins(
-              fontSize: 22,
-              fontWeight: FontWeight.w600,
-              color: const Color(0xFF3A3A50),
-            ),
-          ),
-          const SizedBox(height: 10),
           Text(
             'Choose an exercise to begin:',
             style: GoogleFonts.poppins(

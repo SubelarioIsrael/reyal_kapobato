@@ -361,9 +361,10 @@ class _AdminAccountsState extends State<AdminAccounts> {
           "Manage Accounts",
           style: GoogleFonts.poppins(
             fontSize: 20,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.bold,
           ),
         ),
+        centerTitle: true,
         backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF3A3A50),
         elevation: 0,

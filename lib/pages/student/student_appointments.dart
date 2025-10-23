@@ -647,7 +647,7 @@ class _StudentAppointmentsState extends State<StudentAppointments> {
             ),
           ),
           title: Text(
-            "BreatheBetter",
+            "Appointments",
             style: GoogleFonts.poppins(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -668,14 +668,7 @@ class _StudentAppointmentsState extends State<StudentAppointments> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                     // Header Section
-                    Text(
-                      'My Appointments',
-                      style: GoogleFonts.poppins(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF3A3A50),
-                      ),
-                    ),
+                    
                     const SizedBox(height: 8),
                     
                     

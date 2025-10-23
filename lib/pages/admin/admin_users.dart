@@ -113,27 +113,133 @@ class _AdminUsersState extends State<AdminUsers> {
     }
   }
 
-  Future<void> _deleteUserWithRelatedData(String userId) async {
+  Future<void> _suspendUserWithConfirmation(String userId, String userEmail, String currentStatus) async {
+    final isActive = currentStatus == 'active';
+    
     // Show confirmation dialog first
     final bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Confirm Deletion'),
-        content: const Text(
-          'Are you sure you want to delete this user? This action will permanently remove the user and all their related data. This cannot be undone.',
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            Icon(
+              isActive ? Icons.block : Icons.check_circle,
+              color: isActive ? Colors.orange : Colors.green,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              isActive ? 'Suspend User' : 'Activate User',
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF3A3A50),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              isActive
+                  ? 'Are you sure you want to suspend this user?'
+                  : 'Are you sure you want to activate this user?',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                color: const Color(0xFF3A3A50),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.email, size: 20, color: Colors.grey),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      userEmail,
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFF3A3A50),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isActive
+                    ? Colors.orange.withOpacity(0.1)
+                    : Colors.green.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isActive
+                      ? Colors.orange.withOpacity(0.3)
+                      : Colors.green.withOpacity(0.3),
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    color: isActive ? Colors.orange : Colors.green,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      isActive
+                          ? 'The user will not be able to log in while suspended. You can activate them again at any time.'
+                          : 'The user will be able to log in and access the system again.',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: isActive ? Colors.orange.shade700 : Colors.green.shade700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w600,
+                color: Colors.grey,
+              ),
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: isActive ? Colors.orange : Colors.green,
               foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
-            child: const Text('Delete'),
+            child: Text(
+              isActive ? 'Suspend' : 'Activate',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+            ),
           ),
         ],
       ),
@@ -141,166 +247,7 @@ class _AdminUsersState extends State<AdminUsers> {
 
     if (confirmed != true) return;
 
-    try {
-      // Delete related data in proper order (from dependent to parent)
-      // 1. Delete user notifications
-      await Supabase.instance.client
-          .from('user_notifications')
-          .delete()
-          .eq('user_id', userId);
-
-      // 2. Delete questionnaire responses and answers
-      final responses = await Supabase.instance.client
-          .from('questionnaire_responses')
-          .select('response_id')
-          .eq('user_id', userId);
-      
-      for (var response in responses) {
-        await Supabase.instance.client
-            .from('questionnaire_answers')
-            .delete()
-            .eq('response_id', response['response_id']);
-      }
-      
-      await Supabase.instance.client
-          .from('questionnaire_responses')
-          .delete()
-          .eq('user_id', userId);
-
-      // 3. Delete activity completions
-      await Supabase.instance.client
-          .from('activity_completions')
-          .delete()
-          .eq('user_id', userId);
-
-      // 3b. Delete chat messages
-      await Supabase.instance.client
-          .from('chat_messages')
-          .delete()
-          .eq('user_id', userId);
-
-      // 3c. Delete intervention logs
-      await Supabase.instance.client
-          .from('intervention_logs')
-          .delete()
-          .eq('user_id', userId);
-
-      // 3d. Delete video calls (as student)
-      await Supabase.instance.client
-          .from('video_calls')
-          .delete()
-          .eq('student_user_id', userId);
-
-      // 3e. Delete messages (as sender and receiver)
-      await Supabase.instance.client
-          .from('messages')
-          .delete()
-          .eq('sender_id', userId);
-      
-      await Supabase.instance.client
-          .from('messages')
-          .delete()
-          .eq('receiver_id', userId);
-
-      // 3f. Delete counseling session notes
-      await Supabase.instance.client
-          .from('counseling_session_notes')
-          .delete()
-          .eq('student_user_id', userId);
-
-      // 4. Delete journal entries
-      await Supabase.instance.client
-          .from('journal_entries')
-          .delete()
-          .eq('user_id', userId);
-
-      // 5. Delete mood entries
-      await Supabase.instance.client
-          .from('mood_entries')
-          .delete()
-          .eq('user_id', userId);
-
-      // 6. Delete emergency contacts
-      await Supabase.instance.client
-          .from('emergency_contacts')
-          .delete()
-          .eq('user_id', userId);
-
-      // 7. Delete counseling appointments (as student)
-      await Supabase.instance.client
-          .from('counseling_appointments')
-          .delete()
-          .eq('user_id', userId);
-      
-      // 7b. Delete counseling appointments and related data where user is the counselor
-      // First get counselor_id for this user
-      final counselorResponse = await Supabase.instance.client
-          .from('counselors')
-          .select('counselor_id')
-          .eq('user_id', userId);
-      
-      if (counselorResponse.isNotEmpty) {
-        final counselorId = counselorResponse[0]['counselor_id'];
-        
-        // Delete counseling appointments as counselor
-        await Supabase.instance.client
-            .from('counseling_appointments')
-            .delete()
-            .eq('counselor_id', counselorId);
-            
-        // Delete video calls as counselor
-        await Supabase.instance.client
-            .from('video_calls')
-            .delete()
-            .eq('counselor_id', counselorId);
-            
-        // Delete counseling session notes as counselor
-        await Supabase.instance.client
-            .from('counseling_session_notes')
-            .delete()
-            .eq('counselor_id', counselorId);
-      }
-
-      // 8. Tables password_resets and user_profiles don't exist in updated schema
-      // Skipping deletion of these non-existent tables
-
-      // 9. Delete role-specific records
-      await Supabase.instance.client
-          .from('students')
-          .delete()
-          .eq('user_id', userId);
-      
-      await Supabase.instance.client
-          .from('counselors')
-          .delete()
-          .eq('user_id', userId);
-
-      // 10. Finally, delete the main user record
-      await Supabase.instance.client
-          .from('users')
-          .delete()
-          .eq('user_id', userId);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('User and all related data deleted successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        _loadUsers();
-      }
-    } catch (e) {
-      print('Error deleting user with related data: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to delete user: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
+    await _toggleUserStatus(userId, currentStatus);
   }
 
   void _showAddUserDialog() {
@@ -614,9 +561,10 @@ class _AdminUsersState extends State<AdminUsers> {
           "User Management",
           style: GoogleFonts.poppins(
             fontSize: 20,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.bold,
           ),
         ),
+        centerTitle: true,
         backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF3A3A50),
         elevation: 0,
@@ -800,30 +748,44 @@ class _AdminUsersState extends State<AdminUsers> {
                                 ],
                               ),
                               trailing: PopupMenuButton<String>(
-                                itemBuilder: (context) => [
-                                  PopupMenuItem(
-                                    value: 'toggle_status',
-                                    child: Text(
-                                      isActive
-                                          ? 'Suspend User'
-                                          : 'Activate User',
-                                    ),
-                                  ),
-                                  const PopupMenuItem(
-                                    value: 'delete',
-                                    child: Text('Delete User'),
-                                  ),
-                                ],
+                                icon: Icon(
+                                  Icons.more_vert,
+                                  color: Colors.grey[600],
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                                 onSelected: (value) async {
-                                  if (value == 'toggle_status') {
-                                    await _toggleUserStatus(
+                                  if (value == 'suspend') {
+                                    await _suspendUserWithConfirmation(
                                       user['user_id'],
+                                      user['email'] ?? 'No Email',
                                       user['status'],
                                     );
-                                  } else if (value == 'delete') {
-                                    await _deleteUserWithRelatedData(user['user_id']);
                                   }
                                 },
+                                itemBuilder: (context) => [
+                                  PopupMenuItem(
+                                    value: 'suspend',
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          isActive ? Icons.block : Icons.check_circle,
+                                          color: isActive ? Colors.orange : Colors.green,
+                                          size: 20,
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Text(
+                                          isActive ? 'Suspend User' : 'Activate User',
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 14,
+                                            color: const Color(0xFF3A3A50),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           );

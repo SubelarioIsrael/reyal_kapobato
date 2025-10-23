@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/appointment.dart';
 import '../chat/appointment_chat.dart';
 import 'all_appointments.dart';
+import 'video_call_dialog.dart';
 
 import '../../widgets/student_avatar.dart';
 import '../../components/counselor_drawer.dart';
@@ -964,11 +965,9 @@ class _CounselorHomeState extends State<CounselorHome> {
                 Icons.video_call,
                 Colors.orange,
                 () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const AllAppointments(),
-                    ),
+                  showDialog(
+                    context: context,
+                    builder: (context) => const VideoCallDialog(),
                   );
                 },
               ),

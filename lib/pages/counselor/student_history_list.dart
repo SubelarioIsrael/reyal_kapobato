@@ -159,11 +159,11 @@ class _StudentHistoryListState extends State<StudentHistoryList> {
           'My Students',
           style: GoogleFonts.poppins(
             fontSize: 20,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.bold,
             color: const Color(0xFF3A3A50),
           ),
         ),
-        
+      centerTitle: true, 
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
