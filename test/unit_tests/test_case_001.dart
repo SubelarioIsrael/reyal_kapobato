@@ -1,5 +1,5 @@
 // TEST CASE 001: Email Validation During Login
-// Requirement: Student enters invalid email format during login - Login fails with "Invalid email format" error message
+// Requirement: Users enters invalid email format during login - Login fails with "Invalid email format" error message
 // Uses EXACT validation code from LoginPage.dart (lines 515-524)
 // Created: October 17, 2025
 // Status: ✅ PASSING

@@ -47,7 +47,7 @@ class _AdminAccountsState extends State<AdminAccounts> {
       final response = await Supabase.instance.client
           .from('users')
           .select()
-          .inFilter('user_type', ['admin', 'counselor']).order('username');
+          .inFilter('user_type', ['admin', 'counselor', 'student']).order('username');
 
       setState(() {
         _accounts = List<Map<String, dynamic>>.from(response);
@@ -173,6 +173,10 @@ class _AdminAccountsState extends State<AdminAccounts> {
                     value: 'admin',
                     child: Text('Admin'),
                   ),
+                  DropdownMenuItem(
+                    value: 'student',
+                    child: Text('Student'),
+                  ),
                 ],
                 onChanged: (value) {
                   setState(() {
@@ -270,6 +274,29 @@ class _AdminAccountsState extends State<AdminAccounts> {
                               'bio': 'Professional counselor ready to help you.',
                               'profile_picture': null, // Will be set later if needed
                               'user_id': authResponse.user!.id,
+                            });
+                          } else if (_selectedRole == 'student') {
+                            // Split the full name into first and last name
+                            final nameParts = _nameController.text.trim().split(' ');
+                            final firstName = nameParts.first;
+                            final lastName = nameParts.length > 1 
+                                ? nameParts.sublist(1).join(' ') 
+                                : '';
+
+                            // Generate a unique student code
+                            final studentCode = 'STU${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
+
+                            await Supabase.instance.client
+                                .from('students')
+                                .insert({
+                              'student_code': studentCode,
+                              'course': 'Not Set', // Default course
+                              'year_level': 1, // Default year level
+                              'user_id': authResponse.user!.id,
+                              'first_name': firstName,
+                              'last_name': lastName,
+                              'strand': 'Not Set', // Default strand
+                              'education_level': 'basic_education', // Default education level
                             });
                           }
 
@@ -382,6 +409,7 @@ class _AdminAccountsState extends State<AdminAccounts> {
                       _buildFilterChip('all', 'All Accounts'),
                       _buildFilterChip('admin', 'Admins'),
                       _buildFilterChip('counselor', 'Counselors'),
+                      _buildFilterChip('student', 'Students'),
                     ],
                   ),
                 ),
@@ -424,14 +452,20 @@ class _AdminAccountsState extends State<AdminAccounts> {
                               leading: CircleAvatar(
                                 backgroundColor: account['user_type'] == 'admin'
                                     ? const Color(0xFF7C83FD).withOpacity(0.1)
-                                    : const Color(0xFF81C784).withOpacity(0.1),
+                                    : account['user_type'] == 'student'
+                                        ? const Color(0xFFFF9800).withOpacity(0.1)
+                                        : const Color(0xFF81C784).withOpacity(0.1),
                                 child: Icon(
                                   account['user_type'] == 'admin'
                                       ? Icons.admin_panel_settings
-                                      : Icons.psychology,
+                                      : account['user_type'] == 'student'
+                                          ? Icons.school
+                                          : Icons.psychology,
                                   color: account['user_type'] == 'admin'
                                       ? const Color(0xFF7C83FD)
-                                      : const Color(0xFF81C784),
+                                      : account['user_type'] == 'student'
+                                          ? const Color(0xFFFF9800)
+                                          : const Color(0xFF81C784),
                                 ),
                               ),
                               title: Text(
