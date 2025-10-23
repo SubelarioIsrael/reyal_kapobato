@@ -369,7 +369,7 @@ class _AdminQuestionnaireState extends State<AdminQuestionnaire> {
                         Text(
                           'Duplicate Version Name',
                           style: GoogleFonts.poppins(
-                            fontSize: 18,
+                            fontSize: 16,
                             fontWeight: FontWeight.w600,
                             color: const Color(0xFF3A3A50),
                           ),

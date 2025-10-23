@@ -121,7 +121,7 @@ class _StudentAppointmentsState extends State<StudentAppointments> {
   Future<void> _loadAppointments() async {
     try {
       final appointments = await _counselorService.getUserAppointments();
-      // Sort appointments by date and time
+      // Sort appointments by date and time (latest first)
       appointments.sort((a, b) {
         final DateTime dateTimeA = DateTime(
           a.appointmentDate.year,
@@ -137,7 +137,7 @@ class _StudentAppointmentsState extends State<StudentAppointments> {
           b.startTime.hour,
           b.startTime.minute,
         );
-        return dateTimeA.compareTo(dateTimeB);
+        return dateTimeB.compareTo(dateTimeA); // Reversed for descending order
       });
 
       setState(() {
@@ -640,11 +640,11 @@ class _StudentAppointmentsState extends State<StudentAppointments> {
         appBar: AppBar(
           backgroundColor: const Color.fromARGB(255, 242, 241, 248),
           elevation: 0,
-          leading: Builder(
-            builder: (context) => IconButton(
-              icon: const Icon(Icons.menu, color: Color(0xFF5D5D72)),
-              onPressed: () => Scaffold.of(context).openDrawer(),
-            ),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF5D5D72)),
+            onPressed: () {
+              Navigator.pushReplacementNamed(context, 'student-home');
+            },
           ),
           title: Text(
             "Appointments",
