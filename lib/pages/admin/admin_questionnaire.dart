@@ -342,12 +342,117 @@ class _AdminQuestionnaireState extends State<AdminQuestionnaire> {
           isPrimary: true,
           onPressed: () async {
             if (versionController.text.trim().isNotEmpty) {
+              // Check for duplicate version name
+              final trimmedVersionName = versionController.text.trim();
+              final duplicateVersion = _versions.firstWhere(
+                (v) => (v['version_name'] as String).toLowerCase() == 
+                       trimmedVersionName.toLowerCase(),
+                orElse: () => {},
+              );
+
+              if (duplicateVersion.isNotEmpty) {
+                // Show popup warning dialog
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    title: Row(
+                      children: [
+                        const Icon(
+                          Icons.warning_amber_rounded,
+                          color: Colors.orange,
+                          size: 28,
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Duplicate Version Name',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF3A3A50),
+                          ),
+                        ),
+                      ],
+                    ),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'A version with this name already exists. Please choose a different name.',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            color: const Color(0xFF3A3A50),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Colors.orange.withOpacity(0.3),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.info_outline,
+                                color: Colors.orange,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Existing: "$trimmedVersionName"',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.orange.shade700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    actions: [
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF7C83FD),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: Text(
+                            'OK',
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+                return;
+              }
+
               try {
                 // Create new version
                 final versionResponse = await Supabase.instance.client
                     .from('questionnaire_versions')
                     .insert({
-                      'version_name': versionController.text.trim(),
+                      'version_name': trimmedVersionName,
                       'is_active': true,
                     })
                     .select()
@@ -498,12 +603,13 @@ class _AdminQuestionnaireState extends State<AdminQuestionnaire> {
       backgroundColor: const Color.fromARGB(255, 242, 241, 248),
       appBar: AppBar(
         title: Text(
-          "Questionnaire Management",
+          "MTQ Management",
           style: GoogleFonts.poppins(
             fontSize: 20,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.bold,
           ),
         ),
+        centerTitle: true,
         backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF3A3A50),
         elevation: 0,
@@ -516,33 +622,34 @@ class _AdminQuestionnaireState extends State<AdminQuestionnaire> {
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: DropdownButtonFormField<int>(
-                              value: _selectedVersionId,
-                              decoration: const InputDecoration(
-                                labelText: 'Select Version',
-                                border: OutlineInputBorder(),
-                              ),
-                              items: _versions.map((version) {
-                                return DropdownMenuItem<int>(
-                                  value: version['version_id'] as int,
-                                  child:
-                                      Text(version['version_name'] as String),
-                                );
-                              }).toList(),
-                              onChanged: (value) {
-                                if (value != null) {
-                                  setState(() {
-                                    _selectedVersionId = value;
-                                  });
-                                  _loadQuestions();
-                                }
-                              },
-                            ),
+                      DropdownButtonFormField<int>(
+                        value: _selectedVersionId,
+                        decoration: const InputDecoration(
+                          labelText: 'Select Version',
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 16,
                           ),
-                        ],
+                        ),
+                        isExpanded: true,
+                        items: _versions.map((version) {
+                          return DropdownMenuItem<int>(
+                            value: version['version_id'] as int,
+                            child: Text(
+                              version['version_name'] as String,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() {
+                              _selectedVersionId = value;
+                            });
+                            _loadQuestions();
+                          }
+                        },
                       ),
                       const SizedBox(height: 16),
                       Row(

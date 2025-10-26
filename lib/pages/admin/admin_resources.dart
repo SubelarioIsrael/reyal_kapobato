@@ -591,7 +591,7 @@ class _AdminResourcesState extends State<AdminResources> {
           'Mental Health Resources',
           style: GoogleFonts.poppins(
             fontSize: 20,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.bold,
           ),
         ),
         backgroundColor: Colors.white,

@@ -117,11 +117,11 @@ class _AllAppointmentsState extends State<AllAppointments> {
           'All Appointments',
           style: GoogleFonts.poppins(
             fontSize: 20,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.bold,
             color: const Color(0xFF3A3A50),
           ),
         ),
-        
+        centerTitle: true,
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: const Color(0xFF7C83FD),

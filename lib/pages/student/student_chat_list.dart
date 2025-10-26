@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../models/appointment.dart';
+import '../chat/appointment_chat.dart';
+import '../../widgets/counselor_avatar.dart';
 
 class StudentChatList extends StatefulWidget {
   const StudentChatList({super.key});
@@ -40,7 +43,7 @@ class _StudentChatListState extends State<StudentChatList> {
       // Start with all accepted appointments for this student
       final acceptedAppointments = await _supabase
           .from('counseling_appointments')
-          .select('appointment_id, counselor_id, appointment_date')
+          .select('appointment_id, counselor_id, user_id, appointment_date, start_time, end_time, status, notes')
           .eq('user_id', user.id)
           .eq('status', 'accepted')
           .order('appointment_date', ascending: false);
@@ -114,6 +117,7 @@ class _StudentChatListState extends State<StudentChatList> {
             'counselor_name':
                 '${counselorResponse['first_name']} ${counselorResponse['last_name']}',
             'appointment_id': appointmentId,
+            'appointment_data': appointment, // Store full appointment data
             'last_message': lastMessage,
             'last_message_time': lastMessageTime,
             'is_read': isRead,
@@ -154,13 +158,20 @@ class _StudentChatListState extends State<StudentChatList> {
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
         onTap: () {
-          Navigator.pushNamed(
+          final appointmentData = chat['appointment_data'];
+          final appointment = Appointment.fromJson({
+            ...appointmentData,
+            'counselor_name': chat['counselor_name'],
+          });
+          
+          Navigator.push(
             context,
-            '/appointment-chat',
-            arguments: {
-              'appointmentId': chat['appointment_id'],
-              'counselorName': chat['counselor_name'] ?? 'Unknown Counselor',
-            },
+            MaterialPageRoute(
+              builder: (context) => AppointmentChat(
+                appointment: appointment,
+                isCounselor: false,
+              ),
+            ),
           ).then((_) => _fetchCounselorChats());
         },
         child: Padding(
@@ -174,11 +185,6 @@ class _StudentChatListState extends State<StudentChatList> {
                     width: 60,
                     height: 60,
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF7C83FD), Color(0xFF9B59B6)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
                       borderRadius: BorderRadius.circular(18),
                       boxShadow: [
                         BoxShadow(
@@ -188,14 +194,12 @@ class _StudentChatListState extends State<StudentChatList> {
                         ),
                       ],
                     ),
-                    child: Center(
-                      child: Text(
-                        chat['counselor_name']?[0]?.toUpperCase() ?? 'C',
-                        style: GoogleFonts.inter(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: CounselorAvatar(
+                        counselorId: chat['counselor_id'],
+                        radius: 30,
+                        fallbackName: chat['counselor_name'] ?? 'Counselor',
                       ),
                     ),
                   ),
@@ -324,7 +328,7 @@ class _StudentChatListState extends State<StudentChatList> {
           "My Chats",
           style: GoogleFonts.inter(
             fontSize: 20,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.bold,
             color: const Color(0xFF2D3748),
           ),
         ),

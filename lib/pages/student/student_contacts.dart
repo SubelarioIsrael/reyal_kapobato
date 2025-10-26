@@ -463,7 +463,7 @@ class _StudentContactsPageState extends State<StudentContactsPage> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          "BreatheBetter",
+          "Support Contacts",
           style: GoogleFonts.poppins(
             fontSize: 20,
             fontWeight: FontWeight.bold,

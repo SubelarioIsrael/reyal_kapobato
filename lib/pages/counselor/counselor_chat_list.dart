@@ -77,68 +77,71 @@ class _CounselorChatListState extends State<CounselorChatList> {
 
       final counselorId = counselorResponse['counselor_id'];
 
-      // Get all appointments that have messages - use separate query for student info since
-      // there's no direct FK between counseling_appointments and students
+      // Get accepted appointments first, then get messages for those appointments
+      final acceptedAppointments = await _supabase
+          .from('counseling_appointments')
+          .select('appointment_id, user_id, counselor_id, appointment_date, start_time, end_time, status, notes')
+          .eq('counselor_id', counselorId)
+          .eq('status', 'accepted'); // Only show accepted appointments
+
+      if (acceptedAppointments.isEmpty) {
+        setState(() {
+          _appointmentsWithMessages = [];
+          _isLoading = false;
+        });
+        return;
+      }
+
+      final appointmentIds = acceptedAppointments.map((a) => a['appointment_id']).toList();
+
+      // Get messages for accepted appointments
       final appointmentsWithMessages = await _supabase
           .from('messages')
-          .select('''
-            appointment_id,
-            sender_id,
-            receiver_id,
-            created_at,
-            message,
-            is_read,
-            counseling_appointments!inner(
-              appointment_id,
-              counselor_id,
-              user_id,
-              appointment_date,
-              start_time,
-              end_time,
-              status,
-              notes
-            )
-          ''')
-          .eq('counseling_appointments.counselor_id', counselorId)
+          .select('appointment_id, sender_id, receiver_id, created_at, message, is_read')
+          .inFilter('appointment_id', appointmentIds)
           .order('created_at', ascending: false);
 
-      // Group messages by appointment_id first
+      // Create appointment groups for all accepted appointments
       Map<int, Map<String, dynamic>> appointmentGroups = {};
       Set<String> uniqueUserIds = {};
 
+      // Initialize groups for all accepted appointments
+      for (var appointment in acceptedAppointments) {
+        final appointmentId = appointment['appointment_id'];
+        appointmentGroups[appointmentId] = {
+          'appointment': appointment,
+          'user_name': 'Unknown User',
+          'user_initials': 'UU',
+          'messages': [],
+          'unread_count': 0,
+          'last_message': null,
+          'last_message_time': null,
+        };
+        uniqueUserIds.add(appointment['user_id']);
+      }
+
+      // Add messages to their respective appointment groups
       for (var message in appointmentsWithMessages) {
         final appointmentId = message['appointment_id'];
-        final appointment = message['counseling_appointments'];
+        
+        if (appointmentGroups.containsKey(appointmentId)) {
+          // Add message to group
+          appointmentGroups[appointmentId]!['messages'].add(message);
 
-        if (!appointmentGroups.containsKey(appointmentId)) {
-          appointmentGroups[appointmentId] = {
-            'appointment': appointment,
-            'user_name': 'Unknown User',
-            'user_initials': 'UU',
-            'messages': [],
-            'unread_count': 0,
-            'last_message': null,
-            'last_message_time': null,
-          };
-          uniqueUserIds.add(appointment['user_id']);
-        }
+          // Update last message if this is more recent
+          final messageTime = DateTime.parse(message['created_at']);
+          if (appointmentGroups[appointmentId]!['last_message_time'] == null ||
+              messageTime.isAfter(
+                  appointmentGroups[appointmentId]!['last_message_time'])) {
+            appointmentGroups[appointmentId]!['last_message'] =
+                message['message'];
+            appointmentGroups[appointmentId]!['last_message_time'] = messageTime;
+          }
 
-        // Add message to group
-        appointmentGroups[appointmentId]!['messages'].add(message);
-
-        // Update last message if this is more recent
-        final messageTime = DateTime.parse(message['created_at']);
-        if (appointmentGroups[appointmentId]!['last_message_time'] == null ||
-            messageTime.isAfter(
-                appointmentGroups[appointmentId]!['last_message_time'])) {
-          appointmentGroups[appointmentId]!['last_message'] =
-              message['message'];
-          appointmentGroups[appointmentId]!['last_message_time'] = messageTime;
-        }
-
-        // Count unread messages (from student to counselor)
-        if (message['receiver_id'] == currentUser.id && !message['is_read']) {
-          appointmentGroups[appointmentId]!['unread_count']++;
+          // Count unread messages (from student to counselor)
+          if (message['receiver_id'] == currentUser.id && !message['is_read']) {
+            appointmentGroups[appointmentId]!['unread_count']++;
+          }
         }
       }
 
@@ -435,10 +438,11 @@ class _CounselorChatListState extends State<CounselorChatList> {
           'Student Chats',
           style: GoogleFonts.poppins(
             fontSize: 20,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.bold,
             color: const Color(0xFF3A3A50),
           ),
         ),
+        centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Color(0xFF5D5D72)),
           onPressed: () => Navigator.pop(context),
@@ -547,14 +551,12 @@ class _CounselorChatListState extends State<CounselorChatList> {
                     )
                   : RefreshIndicator(
                       onRefresh: _loadAppointmentsWithMessages,
-                      child: Padding(
+                      child: ListView.builder(
                         padding: const EdgeInsets.all(20),
-                        child: Column(
-                          children: _appointmentsWithMessages
-                              .map((appointmentData) =>
-                                  _buildChatCard(appointmentData))
-                              .toList(),
-                        ),
+                        itemCount: _appointmentsWithMessages.length,
+                        itemBuilder: (context, index) {
+                          return _buildChatCard(_appointmentsWithMessages[index]);
+                        },
                       ),
                     ),
     );
