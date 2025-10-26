@@ -1,0 +1,87 @@
+,,,,,,,,,
+,Proponent,Module Name,Unit Name,Date Tested,Test Case ID,Test Case Description,Expected Result,Actual Result,Result
+,Clemens Neuda,User Authentication Module,User Login,-,UAM-UL-01,User enters invalid email format during login,"Login fails with ""Invalid email format"" error message",Worked as intended,Passed
+,,,User Login,-,UAM-UL-02,User leaves a field empty during login attempt,"Login fails with ""Email field is required"" error message",2,Passed
+,,,User Login,-,UAM-UL-03,User enters valid credentials for login,"Login successful, redirected to their respective dashboard",,Passed
+,,,User Login,-,UAM-UL-04,User enters correct email but wrong password,"Login fails with ""Invalid credentials"" message",3,Passed
+,,,User Login,-,UAM-UL-05,User enters suspended account during login,"Login fails with ""Account is Suspended"" error message",,Passed
+,,,User Login,-,UAM-UL-06,User enters an unverified email during login,"Login fails with ""Your email address has not been verified. Please check your inbox and click the verification link before logging in."" error messages",1,Passed
+,,,User Registration ,-,UAM-UR-01,Student attempts to register with existing email address,Student attempts to register with existing email address,2,Passed
+,,,User Registration ,-,UAM-UR-02,A student enters a password with fewer than six characters during registration.,A student enters a password with fewer than six characters during registration.,,
+,,,User Registration ,-,UAM-UR-03,Student leaves required registration fields empty,Student leaves required registration fields empty,,
+,,,User Registration ,-,UAM-UR-04,Student enters a existing student ID,Student enters a existing student ID,,
+,,,User Registration ,-,UAM-UR-05,Student enters special characters in their name,Student enters special characters in their name,,
+,,,User Registration ,-,UAM-UR-06,Student enters a year level out of its educational level range,Student enters a year level out of its educational level range,,
+,,,Email Verification Workflow,-,UAM-EVW-01,User's email receives an verification upon registration,User's email receives an verification upon registration,,
+,,,Email Verification Workflow,-,UAM-EVW-02,User can successfully verify their email by clicking the verification link,User can successfully verify their email by clicking the verification link,,
+,,,Password Reset,,UAM-PR-01,User's enters their registered email and recevies an password reset link email,User's enters their registered email and recevies an password reset link email,,
+,Allan Jay Villanueva,,Password Reset,,UAM-PR-02,"After clicking the reset password verification link, user will be directed to the password reset page","After clicking the reset password verification link, user will be directed to the password reset page",,
+,,,Counselor Account Setup,,UAM-CAS-01,Admin enters an existing email for a counselor account,Admin enters an existing email for a counselor account,,
+,,,Counselor Account Setup,,UAM-CAS-02,Admin leaves a field empty during account set-up.,Admin leaves a field empty during account set-up.,,
+,,,Counselor Account Setup,,UAM-CAS-03,Admin enters a password with fewer than six characters during registration.,Admin enters a password with fewer than six characters during registration.,,
+,,,Counselor Account Setup,,UAM-CAS-04,Counselor's email receives an verification upon account set-up ,Counselor's email receives an verification upon account set-up ,,
+,,User Profile and Dashboard Module,Personal Dashboard,,UPD-PD-01,A logged-in user's dashboard displays role-specific metrics and a welcome message.,The dashboard loads with a personalized greeting and widgets relevant to the user's role.,,Passed
+,,,Personal Dashboard,,UPD-PD-02,Dashboard widgets are responsive and display correctly on all mobile devices.,The layout adjusts properly for mobile and tablets.,,Passed
+,,,User Profile Management,,UPD-UP-01,User can view their own personal and professional profile information.,All saved profile fields are displayed correctly to the user.,,Passed
+,,,User Profile Management,,UPD-UP-02,User can edit and save changes to their profile information.,Changes are successfully validated and saved to the database.,,Passed
+,,,Account Settings,,UPD-AS-01,User can enable or disable push notifications.,"The notification panel displays notifications; users can mark them as read, and the unread count updates.",,
+,,,Account Settings,,UPD-AS-02,User can successfully change their password after providing their current password.,The new password is updated in the database.,,Passed
+,,,Account Settings,,UPD-AS-03,System prevents password change if the current password is incorrect.,"An ""Incorrect password"" error message is displayed.",,
+,,Assessment Module,Questionnaire Management,,AM-QM-01,A logged-in student's questionnaire displays.,Loads all the questionnaire created by the Admin.,,Passed
+,,,Questionnaire Management,,AM-QM-02,Student submits their answer,The NLP will process the answer of the student and give insights and recommendations.,,Passed
+,,,Questionnaire Management,,AM-QM-03,Admin selects a questionnaire version,Loads all the questions in the selected version.,,Passed
+,,,Questionnaire Management,,AM-QM-04,Admin can add and delete a new version of questionnaire,Changes work as expected with validation to prevent duplication and deleting currently activated versions,,Passed
+,,,Questionnaire Management,,AM-QM-05,Admin selects a version and activated it,All questions will be replaced with the version’s corresponding questions.,,Passed
+,Allan Villanueva,Mental Health Resources Module,Mental Health Resources Management,,MHR-MHR-01,A logged-in student's mental health resources displays.,The user is able to view the provided mental health resources.,,Passed
+,,,Mental Health Resources Management,,MHR-MHR-02,Student selected a specifc mental health resources.,The user is able to select a resource and is redirected to the link attached to it.,,Passed
+,,,Mental Health Resources Management,,MHR-MHR-03,Admin can view all existing mental health resources,The admin is able to view all the mental health resources.,,Passed
+,,,Mental Health Resources Management,,MHR-MHR-04,Admin can add a mental health resource,The admin successfully adds a new mental health resource.,,Passed
+,,,Mental Health Resources Management,,MHR-MHR-05,Admin can delete a mental health resource,The admin successfully deletes a mental health resource.,,Passed
+,,,Mental Health Resources Management,,MHR-MHR-06,Admin can update a mental health resource,The admin successfully updates a mental health resource.,,Passed
+,,Journal Module,Journal Entries,,JM-JE-01,Student can view all of their journal entries,,,Passed
+,,,Journal Entries,,JM-JE-02,Counselor can view student's journal,,,Passed
+,,,Journal Entries,,JM-JE-03,Student can add their journal entry.,,,Passed
+,,,Journal Entries,,JM-JE-04,Student can delete their journal entry.,,,Passed
+,,,Journal Entries,,JM-JE-05,Student enabled counselor-sharing,,,Passed
+,,Breathing Exercises Module,Breathing Exercises Management,,BEM-BE-01,Student can view and select a breathing execises,,,Passed
+,,,Breathing Exercises Management,,BEM-BE-02,Students can perform breathing exercises with cues,,,Passed
+,,,Breathing Exercises Management,,BEM-BE-03,Admin can view all breathing exercises,,,Passed
+,,,Breathing Exercises Management,,BEM-BE-04,Admin can add a breathing exercise,,,Passed
+,,,Breathing Exercises Management,,BEM-BE-05,"Admin can edit, a breathing exercise",,,Passed
+,,,Breathing Exercises Management,,BEM-BE-06,Admin can delete a breathing exercise,,,Passed
+,,Support Resources Module,Emergency Contacts Management ,,SRM-EC-01,Students can view their emergency contacts,,,Passed
+,,,Emergency Contacts Management ,,SRM-EC-02,Students can add a emergency contact.,,,Passed
+,,,Emergency Contacts Management ,,SRM-EC-03,Students can update a emergency contact.,,,Passed
+,,,Emergency Contacts Management ,,SRM-EC-04,Students can delete a emergency contact.,,,Passed
+,,,Mental Health Hotlines Management,,SRM-MHH-01,Students can view all the mental health hotlines,,,Passed
+,,,Mental Health Hotlines Management,,SRM-MHH-02,Admin can view all the mental health hotlines,,,Passed
+,,,Mental Health Hotlines Management,,SRM-MHH-03,Admin can add a mental health hotlines,,,Passed
+,Jan Obregon,,Mental Health Hotlines Management,,SRM-MHH-04,Admin can update a mental health hotlines,,,Passed
+,,,Mental Health Hotlines Management,,SRM-MHH-05,Admin can delete a mental health hotlines,,,Passed
+,,,Quick Call,,SRM-QC-01,Students clicks a emergency contact or mental health hotline,,,Passed
+,,Chatbot Module,Mental Health Chat,,CM-MHC-01,Student can send a message,,,Passed
+,,,Mental Health Chat,,CM-MHC-02,Student can received a reply from the chat bot with the use of an API,,,Passed
+,,Appointment Module,Counselor Selection,,AM-CS-01,Students can select counselor on the counselor list,,,Passed
+,,,Appointment Booking,,AM-AB-01,Students can select a date and time for the appointment,,,Passed
+,,,Appointment Management,,AM-AM-01,Both student and counselor can view all of their appointments schedule with date and time,,,Passed
+,,,Appointment Management,,AM-AM-02,Both student and counselor can update all of their appointments.,,,Passed
+,,Accounts Module,User Accounts Management,,AM-UAM-01,Admin can view all the user accounts.,,,Passed
+,,,User Accounts Management,,AM-UAM-02,Admin can update a user accounts.,,,Passed
+,Vince Ybanez,,User Accounts Management,,AM-UAM-03,Admin can add all the user accounts.,,,Passed
+,,Reports Module,Export Report,,RM-ER-01,Admin can export the generated analytics report as a correctly formatted PDF.,,,Passed
+,,,Export Report,,RM-ER-02,Counselor can export the generated student report as a correctly formatted PDF.,,,Passed
+,,Uplift and Motivation Module,Motivational Quotes,,UMP-DM-01,Student can view motivational quotes on their home page,,,Passed
+,,,Uplifts and Motivation Management,,UMM-UMM-01,Admin can view all of the motivational quotes,,,Passed
+,,,Uplifts and Motivation Management,,UMM-UMM-02,Admin can add a motivational quote,,,Passed
+,,,Uplifts and Motivation Management,,UMM-UMM-03,Admin can update all of the motivational quotes,,,Passed
+,Vince Ybanez,,Uplifts and Motivation Management,,UMM-UMM-04,Admin can delete a motivational quote,,,Passed
+,,Messaging Module,Chats,,MM-C-01,Users can see their chat list,,,Passed
+,,,Chats,,MM-C-02,Users can view their messages,,,Passed
+,,,Chats,,MM-C-03,Users can send a message,,,Passed
+,,Daily Mood Tracking Module,Mood Tracker,,DMT-MT-01,Students can select a mood,,,Passed
+,,,Mood Tracker,,DMT-MT-02,Student can select a reason and add a note,,,Passed
+,Vince Ybanez,,Mood Tracker,,DMT-MT-03,Student can view their mood history,,,Passed
+,,Video Call Module,Call ID Generation,,VCM-CIG-01,Counselors can generate a call ID,,,Passed
+,,,Join Call,,VCM-JC-01,User entered an invalid ID format,,,Passed
+,,,Join Call,,VCM-JC-02,User entered a not existing call ID,,,Passed
+,,,Join Call,,VCM-JC-03,User entered a valid call ID,,,Passed

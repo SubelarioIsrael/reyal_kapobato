@@ -1,389 +1,208 @@
 // UPD-AS-01: User can enable or disable push notifications
-// Requirement: The notification panel displays notifications; users can mark them as read, and the unread count updates
-// This test simulates the notification management logic
+// Requirement: Users should be able to toggle notification settings and have them persist
 
 import 'package:flutter_test/flutter_test.dart';
 
-class MockUser {
-	final String email;
-	final String id;
-	final String userType;
-	MockUser({required this.email, required this.id, required this.userType});
+class MockSharedPreferences {
+  final Map<String, dynamic> _storage = {};
+  
+  Future<bool> setBool(String key, bool value) async {
+    await Future.delayed(Duration(milliseconds: 50)); // Simulate async operation
+    _storage[key] = value;
+    return true;
+  }
+  
+  bool? getBool(String key) {
+    return _storage[key] as bool?;
+  }
 }
 
-class MockNotification {
-	final int notificationId;
-	final String title;
-	final String message;
-	final bool isRead;
-	final DateTime createdAt;
-	final String userId;
-	
-	MockNotification({
-		required this.notificationId,
-		required this.title,
-		required this.message,
-		required this.isRead,
-		required this.createdAt,
-		required this.userId,
-	});
-	
-	MockNotification copyWith({
-		int? notificationId,
-		String? title,
-		String? message,
-		bool? isRead,
-		DateTime? createdAt,
-		String? userId,
-	}) {
-		return MockNotification(
-			notificationId: notificationId ?? this.notificationId,
-			title: title ?? this.title,
-			message: message ?? this.message,
-			isRead: isRead ?? this.isRead,
-			createdAt: createdAt ?? this.createdAt,
-			userId: userId ?? this.userId,
-		);
-	}
+class MockSupabaseClient {
+  final Map<String, Map<String, dynamic>> _tables = {
+    'users': {},
+    'counselors': {},
+  };
+  
+  MockTable from(String table) {
+    return MockTable(table, _tables[table]!);
+  }
 }
 
-class MockNotificationSettings {
-	final String userId;
-	final bool pushNotificationsEnabled;
-	final bool emailNotificationsEnabled;
-	final bool academicNotificationsEnabled;
-	final bool appointmentNotificationsEnabled;
-	
-	MockNotificationSettings({
-		required this.userId,
-		required this.pushNotificationsEnabled,
-		required this.emailNotificationsEnabled,
-		required this.academicNotificationsEnabled,
-		required this.appointmentNotificationsEnabled,
-	});
-	
-	MockNotificationSettings copyWith({
-		bool? pushNotificationsEnabled,
-		bool? emailNotificationsEnabled,
-		bool? academicNotificationsEnabled,
-		bool? appointmentNotificationsEnabled,
-	}) {
-		return MockNotificationSettings(
-			userId: userId,
-			pushNotificationsEnabled: pushNotificationsEnabled ?? this.pushNotificationsEnabled,
-			emailNotificationsEnabled: emailNotificationsEnabled ?? this.emailNotificationsEnabled,
-			academicNotificationsEnabled: academicNotificationsEnabled ?? this.academicNotificationsEnabled,
-			appointmentNotificationsEnabled: appointmentNotificationsEnabled ?? this.appointmentNotificationsEnabled,
-		);
-	}
+class MockTable {
+  final String tableName;
+  final Map<String, dynamic> data;
+  
+  MockTable(this.tableName, this.data);
+  
+  MockTable update(Map<String, dynamic> updates) {
+    // Simulate database update
+    Future.delayed(Duration(milliseconds: 100)).then((_) {
+      data.addAll(updates);
+    });
+    return this;
+  }
+  
+  Future<void> eq(String column, dynamic value) async {
+    // Simulate the final execution of the query
+    await Future.delayed(Duration(milliseconds: 100));
+    // In a real implementation, this would filter by the column/value
+    // For our mock, we just complete the chain
+  }
 }
 
-class MockNotificationResult {
-	final bool success;
-	final List<MockNotification> notifications;
-	final int unreadCount;
-	final String? errorMessage;
-	
-	MockNotificationResult({
-		required this.success,
-		required this.notifications,
-		required this.unreadCount,
-		this.errorMessage,
-	});
-}
-
-Future<MockUser> mockAuthenticateUser({required String userType}) async {
-	return MockUser(email: '$userType@college.edu', id: '$userType-123', userType: userType);
-}
-
-Future<MockNotificationSettings> mockGetNotificationSettings({required String userId}) async {
-	// Simulate database lookup
-	await Future.delayed(const Duration(milliseconds: 50));
-	
-	return MockNotificationSettings(
-		userId: userId,
-		pushNotificationsEnabled: true,
-		emailNotificationsEnabled: false,
-		academicNotificationsEnabled: true,
-		appointmentNotificationsEnabled: true,
-	);
-}
-
-Future<bool> mockUpdateNotificationSettings({
-	required String userId,
-	required MockNotificationSettings newSettings,
-}) async {
-	// Simulate database update
-	await Future.delayed(const Duration(milliseconds: 100));
-	
-	// Validate settings
-	if (userId.isEmpty) {
-		throw Exception('User ID cannot be empty');
-	}
-	
-	return true;
-}
-
-Future<MockNotificationResult> mockLoadUserNotifications({
-	required String userId,
-	int limit = 20,
-	bool unreadOnly = false,
-}) async {
-	// Simulate database query
-	await Future.delayed(const Duration(milliseconds: 75));
-	
-	if (userId.isEmpty) {
-		return MockNotificationResult(
-			success: false,
-			notifications: [],
-			unreadCount: 0,
-			errorMessage: 'Invalid user ID',
-		);
-	}
-	
-	// Mock notifications data
-	final allNotifications = [
-		MockNotification(
-			notificationId: 1,
-			title: 'Appointment Reminder',
-			message: 'Your counseling session is tomorrow at 2:00 PM',
-			isRead: false,
-			createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-			userId: userId,
-		),
-		MockNotification(
-			notificationId: 2,
-			title: 'New Message',
-			message: 'You have a new message from Dr. Smith',
-			isRead: false,
-			createdAt: DateTime.now().subtract(const Duration(hours: 5)),
-			userId: userId,
-		),
-		MockNotification(
-			notificationId: 3,
-			title: 'Academic Update',
-			message: 'Your grades have been posted',
-			isRead: true,
-			createdAt: DateTime.now().subtract(const Duration(days: 1)),
-			userId: userId,
-		),
-		MockNotification(
-			notificationId: 4,
-			title: 'System Maintenance',
-			message: 'System will be down for maintenance this weekend',
-			isRead: false,
-			createdAt: DateTime.now().subtract(const Duration(days: 2)),
-			userId: userId,
-		),
-	];
-	
-	List<MockNotification> filteredNotifications = allNotifications;
-	
-	if (unreadOnly) {
-		filteredNotifications = allNotifications.where((n) => !n.isRead).toList();
-	}
-	
-	// Apply limit
-	if (filteredNotifications.length > limit) {
-		filteredNotifications = filteredNotifications.take(limit).toList();
-	}
-	
-	// Sort by created date (newest first)
-	filteredNotifications.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-	
-	final unreadCount = allNotifications.where((n) => !n.isRead).length;
-	
-	return MockNotificationResult(
-		success: true,
-		notifications: filteredNotifications,
-		unreadCount: unreadCount,
-	);
-}
-
-Future<bool> mockMarkNotificationAsRead({
-	required String userId,
-	required int notificationId,
-}) async {
-	// Simulate database update
-	await Future.delayed(const Duration(milliseconds: 50));
-	
-	if (userId.isEmpty || notificationId <= 0) {
-		return false;
-	}
-	
-	return true;
-}
-
-Future<bool> mockMarkAllNotificationsAsRead({required String userId}) async {
-	// Simulate database update
-	await Future.delayed(const Duration(milliseconds: 100));
-	
-	if (userId.isEmpty) {
-		return false;
-	}
-	
-	return true;
+class MockNotificationService {
+  final MockSharedPreferences prefs;
+  final MockSupabaseClient supabase;
+  bool _notificationsEnabled = true;
+  String _userType = 'student';
+  String _userId = 'user123';
+  
+  MockNotificationService(this.prefs, this.supabase);
+  
+  void setUserType(String userType) {
+    _userType = userType;
+  }
+  
+  bool get notificationsEnabled => _notificationsEnabled;
+  
+  Future<void> loadSettings() async {
+    final notificationsEnabled = prefs.getBool('notifications_enabled') ?? true;
+    _notificationsEnabled = notificationsEnabled;
+  }
+  
+  Future<void> toggleNotifications(bool value) async {
+    _notificationsEnabled = value;
+    
+    // Save to SharedPreferences
+    await prefs.setBool('notifications_enabled', value);
+    
+    // Update database based on user type
+    if (_userType == 'counselor') {
+      await supabase
+          .from('counselors')
+          .update({'notifications_enabled': value})
+          .eq('user_id', _userId);
+    } else {
+      await supabase
+          .from('users')
+          .update({'notifications_enabled': value})
+          .eq('user_id', _userId);
+    }
+  }
 }
 
 void main() {
-	group('UPD-AS-01: User can enable or disable push notifications', () {
-		test('Student successfully loads notification settings', () async {
-			final user = await mockAuthenticateUser(userType: 'student');
-			
-			final settings = await mockGetNotificationSettings(userId: user.id);
-			
-			expect(settings.userId, user.id);
-			expect(settings.pushNotificationsEnabled, true);
-			expect(settings.emailNotificationsEnabled, false);
-			expect(settings.academicNotificationsEnabled, true);
-			expect(settings.appointmentNotificationsEnabled, true);
-		});
+  group('UPD-AS-01: User can enable or disable push notifications', () {
+    late MockSharedPreferences prefs;
+    late MockSupabaseClient supabase;
+    late MockNotificationService notificationService;
+    
+    setUp(() {
+      prefs = MockSharedPreferences();
+      supabase = MockSupabaseClient();
+      notificationService = MockNotificationService(prefs, supabase);
+    });
 
-		test('Student successfully updates push notification settings', () async {
-			final user = await mockAuthenticateUser(userType: 'student');
-			final originalSettings = await mockGetNotificationSettings(userId: user.id);
-			
-			final newSettings = originalSettings.copyWith(pushNotificationsEnabled: false);
-			
-			final success = await mockUpdateNotificationSettings(
-				userId: user.id,
-				newSettings: newSettings,
-			);
-			
-			expect(success, true);
-			expect(newSettings.pushNotificationsEnabled, false);
-			expect(newSettings.emailNotificationsEnabled, originalSettings.emailNotificationsEnabled);
-		});
+    test('User can enable notifications', () async {
+      // Start with notifications disabled
+      await prefs.setBool('notifications_enabled', false);
+      await notificationService.loadSettings();
+      
+      expect(notificationService.notificationsEnabled, isFalse);
+      
+      // Enable notifications
+      await notificationService.toggleNotifications(true);
+      
+      expect(notificationService.notificationsEnabled, isTrue);
+      expect(prefs.getBool('notifications_enabled'), isTrue);
+    });
 
-		test('Counselor successfully manages notification preferences', () async {
-			final user = await mockAuthenticateUser(userType: 'counselor');
-			final originalSettings = await mockGetNotificationSettings(userId: user.id);
-			
-			final newSettings = originalSettings.copyWith(
-				appointmentNotificationsEnabled: false,
-				emailNotificationsEnabled: true,
-			);
-			
-			final success = await mockUpdateNotificationSettings(
-				userId: user.id,
-				newSettings: newSettings,
-			);
-			
-			expect(success, true);
-			expect(newSettings.appointmentNotificationsEnabled, false);
-			expect(newSettings.emailNotificationsEnabled, true);
-		});
+    test('User can disable notifications', () async {
+      // Start with notifications enabled
+      await prefs.setBool('notifications_enabled', true);
+      await notificationService.loadSettings();
+      
+      expect(notificationService.notificationsEnabled, isTrue);
+      
+      // Disable notifications
+      await notificationService.toggleNotifications(false);
+      
+      expect(notificationService.notificationsEnabled, isFalse);
+      expect(prefs.getBool('notifications_enabled'), isFalse);
+    });
 
-		test('Notification panel displays notifications with unread count', () async {
-			final user = await mockAuthenticateUser(userType: 'student');
-			
-			final result = await mockLoadUserNotifications(userId: user.id);
-			
-			expect(result.success, true);
-			expect(result.notifications.length, 4);
-			expect(result.unreadCount, 3);
-			expect(result.errorMessage, isNull);
-			
-			for (int i = 0; i < result.notifications.length - 1; i++) {
-				expect(
-					result.notifications[i].createdAt.isAfter(result.notifications[i + 1].createdAt) ||
-					result.notifications[i].createdAt.isAtSameMomentAs(result.notifications[i + 1].createdAt),
-					true,
-				);
-			}
-		});
+    test('Notification settings persist in SharedPreferences', () async {
+      // Enable notifications
+      await notificationService.toggleNotifications(true);
+      expect(prefs.getBool('notifications_enabled'), isTrue);
+      
+      // Disable notifications
+      await notificationService.toggleNotifications(false);
+      expect(prefs.getBool('notifications_enabled'), isFalse);
+      
+      // Enable again
+      await notificationService.toggleNotifications(true);
+      expect(prefs.getBool('notifications_enabled'), isTrue);
+    });
 
-		test('User successfully marks notification as read and count updates', () async {
-			final user = await mockAuthenticateUser(userType: 'student');
-			
-			final initialResult = await mockLoadUserNotifications(userId: user.id);
-			expect(initialResult.unreadCount, 3);
-			
-			final unreadNotification = initialResult.notifications.firstWhere((n) => !n.isRead);
-			
-			final success = await mockMarkNotificationAsRead(
-				userId: user.id,
-				notificationId: unreadNotification.notificationId,
-			);
-			
-			expect(success, true);
-		});
+    test('Default notification setting is enabled', () async {
+      // No previous setting stored
+      await notificationService.loadSettings();
+      
+      expect(notificationService.notificationsEnabled, isTrue);
+    });
 
-		test('Notification settings validation prevents invalid updates', () async {
-			final user = await mockAuthenticateUser(userType: 'student');
-			final originalSettings = await mockGetNotificationSettings(userId: user.id);
-			
-			expect(
-				() => mockUpdateNotificationSettings(
-					userId: '',
-					newSettings: originalSettings,
-				),
-				throwsException,
-			);
-		});
+    test('Student notification settings update users table', () async {
+      notificationService.setUserType('student');
+      
+      await notificationService.toggleNotifications(true);
+      
+      // Verify database would be updated (in mock, data is stored)
+      final usersTable = supabase._tables['users']!;
+      expect(usersTable['notifications_enabled'], isTrue);
+    });
 
-		test('Loading notifications with invalid user ID returns error', () async {
-			final result = await mockLoadUserNotifications(userId: '');
-			
-			expect(result.success, false);
-			expect(result.notifications.isEmpty, true);
-			expect(result.unreadCount, 0);
-			expect(result.errorMessage, 'Invalid user ID');
-		});
+    test('Counselor notification settings update counselors table', () async {
+      notificationService.setUserType('counselor');
+      
+      await notificationService.toggleNotifications(false);
+      
+      // Verify database would be updated (in mock, data is stored)
+      final counselorsTable = supabase._tables['counselors']!;
+      expect(counselorsTable['notifications_enabled'], isFalse);
+    });
 
-		test('Marking notification as read with invalid parameters fails', () async {
-			final user = await mockAuthenticateUser(userType: 'student');
-			
-			final success1 = await mockMarkNotificationAsRead(
-				userId: user.id,
-				notificationId: 0,
-			);
-			expect(success1, false);
-			
-			final success2 = await mockMarkNotificationAsRead(
-				userId: '',
-				notificationId: 1,
-			);
-			expect(success2, false);
-		});
+    test('Multiple notification toggles work correctly', () async {
+      // Toggle multiple times
+      await notificationService.toggleNotifications(true);
+      expect(notificationService.notificationsEnabled, isTrue);
+      
+      await notificationService.toggleNotifications(false);
+      expect(notificationService.notificationsEnabled, isFalse);
+      
+      await notificationService.toggleNotifications(true);
+      expect(notificationService.notificationsEnabled, isTrue);
+      
+      // Final state should be enabled
+      expect(prefs.getBool('notifications_enabled'), isTrue);
+    });
 
-		test('Individual notification settings can be toggled independently', () async {
-			final user = await mockAuthenticateUser(userType: 'counselor');
-			final originalSettings = await mockGetNotificationSettings(userId: user.id);
-			
-			final pushDisabled = originalSettings.copyWith(pushNotificationsEnabled: false);
-			expect(pushDisabled.pushNotificationsEnabled, false);
-			expect(pushDisabled.emailNotificationsEnabled, originalSettings.emailNotificationsEnabled);
-			
-			final emailEnabled = originalSettings.copyWith(emailNotificationsEnabled: true);
-			expect(emailEnabled.emailNotificationsEnabled, true);
-			expect(emailEnabled.pushNotificationsEnabled, originalSettings.pushNotificationsEnabled);
-		});
-
-		test('Notification limit parameter works correctly', () async {
-			final user = await mockAuthenticateUser(userType: 'student');
-			
-			final limitedResult = await mockLoadUserNotifications(userId: user.id, limit: 2);
-			
-			expect(limitedResult.success, true);
-			expect(limitedResult.notifications.length, lessThanOrEqualTo(2));
-			expect(limitedResult.unreadCount, 3);
-		});
-
-		test('Unread only filter works correctly', () async {
-			final user = await mockAuthenticateUser(userType: 'student');
-			
-			final unreadResult = await mockLoadUserNotifications(
-				userId: user.id, 
-				unreadOnly: true,
-			);
-			
-			expect(unreadResult.success, true);
-			expect(unreadResult.notifications.length, 3);
-			
-			for (final notification in unreadResult.notifications) {
-				expect(notification.isRead, false);
-			}
-		});
-	});
+    test('Loading settings from SharedPreferences works correctly', () async {
+      // Set initial state in SharedPreferences
+      await prefs.setBool('notifications_enabled', false);
+      
+      // Load settings
+      await notificationService.loadSettings();
+      
+      expect(notificationService.notificationsEnabled, isFalse);
+      
+      // Change SharedPreferences value
+      await prefs.setBool('notifications_enabled', true);
+      
+      // Load settings again
+      await notificationService.loadSettings();
+      
+      expect(notificationService.notificationsEnabled, isTrue);
+    });
+  });
 }
