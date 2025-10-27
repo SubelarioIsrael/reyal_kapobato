@@ -22,6 +22,22 @@ class _StudentContactsPageState extends State<StudentContactsPage> {
   void initState() {
     super.initState();
     _loadContacts();
+    // Check for auto-open dialog argument after the first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAutoOpenDialog();
+    });
+  }
+
+  void _checkAutoOpenDialog() {
+    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    if (args != null && args['autoOpenAddDialog'] == true) {
+      // Automatically open the add emergency contact dialog
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) {
+          _showContactDialog();
+        }
+      });
+    }
   }
 
   Future<void> _loadContacts() async {
