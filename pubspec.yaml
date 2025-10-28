@@ -49,6 +49,7 @@ dependencies:
   onesignal_flutter: ^5.1.2
   firebase_core: ^4.1.1
   shared_preferences: ^2.3.2
+  flutter_local_notifications: ^19.5.0
   
 
 dev_dependencies:
