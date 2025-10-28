@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/appointment.dart';
 import '../chat/appointment_chat.dart';
-import 'all_appointments.dart';
 import 'video_call_dialog.dart';
 
 import '../../widgets/student_avatar.dart';
@@ -965,8 +964,10 @@ class _CounselorHomeState extends State<CounselorHome> {
                 Icons.video_call,
                 Colors.orange,
                 () {
-                  showDialog(
+                  showModalBottomSheet(
                     context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
                     builder: (context) => const VideoCallDialog(),
                   );
                 },
