@@ -1,9 +1,11 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/counselor.dart';
 import '../models/appointment.dart';
+import 'push_noti_service.dart';
 
 class CounselorService {
   final SupabaseClient _supabase = Supabase.instance.client;
+  final PushNotiService _pushNotiService = PushNotiService();
 
   // Get all counselors
   Future<List<Counselor>> getCounselors() async {
@@ -77,6 +79,9 @@ class CounselorService {
           })
           .select()
           .single();
+
+      // Notify counselor about new appointment request
+      await _notifyCounselorNewAppointment(counselorId, appointmentDate, startTime);
 
       return Appointment.fromJson(response);
     } catch (e) {
@@ -185,9 +190,161 @@ class CounselorService {
           .from('counseling_appointments')
           .update(updateData)
           .eq('appointment_id', appointmentId);
+
+      // Notify student about status update
+      await _notifyStudentStatusUpdate(appointmentId, status, statusMessage);
     } catch (e) {
       print('Error updating appointment status: $e');
       rethrow;
     }
+  }
+
+  // NOTIFICATION METHODS
+
+  // Notify counselor about new appointment request
+  Future<void> _notifyCounselorNewAppointment(int counselorId, DateTime appointmentDate, DateTime startTime) async {
+    try {
+      // Get counselor's user_id from counselors table
+      final counselorResponse = await _supabase
+          .from('counselors')
+          .select('user_id, first_name, last_name')
+          .eq('counselor_id', counselorId)
+          .single();
+
+      final counselorUserId = counselorResponse['user_id'] as String?;
+      if (counselorUserId == null) return;
+
+      // Don't send notification if counselor user_id is same as current user (shouldn't happen, but safety check)
+      final currentUserId = _supabase.auth.currentUser?.id;
+      if (counselorUserId == currentUserId) {
+        print('Warning: Counselor user ID is same as current user. Skipping notification.');
+        return;
+      }
+
+      final formattedDate = '${appointmentDate.day}/${appointmentDate.month}/${appointmentDate.year}';
+      final formattedTime = '${startTime.hour.toString().padLeft(2, '0')}:${startTime.minute.toString().padLeft(2, '0')}';
+
+      // This will only show when the counselor is logged in due to the user context check in PushNotiService
+      await _pushNotiService.showNotificationToUser(
+        userId: counselorUserId,
+        title: 'New Appointment Request',
+        body: 'A student has requested an appointment on $formattedDate at $formattedTime',
+        route: '/counselor-appointments',
+      );
+    } catch (e) {
+      print('Error notifying counselor: $e');
+    }
+  }
+
+  // Notify student about appointment status update
+  Future<void> _notifyStudentStatusUpdate(int appointmentId, String status, String? statusMessage) async {
+    try {
+      // Get appointment details
+      final appointmentResponse = await _supabase
+          .from('counseling_appointments')
+          .select('user_id, appointment_date, start_time')
+          .eq('appointment_id', appointmentId)
+          .single();
+
+      final studentUserId = appointmentResponse['user_id'] as String?;
+      if (studentUserId == null) return;
+
+      String title;
+      String body;
+      String route = '/appointments'; // Default route for appointments
+
+      switch (status) {
+        case 'accepted':
+          title = 'Appointment Confirmed!';
+          body = 'Your counseling appointment has been accepted.';
+          break;
+        case 'rejected':
+          title = 'Appointment Update';
+          body = statusMessage ?? 'Your appointment request was declined.';
+          break;
+        case 'cancelled':
+          title = 'Appointment Cancelled';
+          body = statusMessage ?? 'Your appointment has been cancelled.';
+          break;
+        case 'completed':
+          title = 'Session Completed';
+          body = 'Your counseling session has been completed.';
+          break;
+        default:
+          title = 'Appointment Update';
+          body = 'Your appointment status has been updated to $status.';
+      }
+
+      await _pushNotiService.showNotificationToUser(
+        userId: studentUserId,
+        title: title,
+        body: body,
+        route: route,
+      );
+    } catch (e) {
+      print('Error notifying student: $e');
+    }
+  }
+
+  // Check for upcoming appointments and send reminders
+  Future<void> checkUpcomingAppointments() async {
+    try {
+      final now = DateTime.now();
+      final reminderTime = now.add(const Duration(hours: 1)); // 1 hour before
+
+      final upcomingAppointments = await _supabase
+          .from('counseling_appointments')
+          .select('''
+            appointment_id,
+            user_id,
+            appointment_date,
+            start_time,
+            counselors!inner(first_name, last_name)
+          ''')
+          .eq('status', 'accepted')
+          .gte('appointment_date', now.toIso8601String().split('T')[0]);
+
+      for (final appointment in upcomingAppointments) {
+        final appointmentDateStr = appointment['appointment_date'] as String;
+        final startTimeStr = appointment['start_time'] as String;
+        
+        // Parse appointment datetime
+        final appointmentDate = DateTime.parse(appointmentDateStr);
+        final timeParts = startTimeStr.split(':');
+        final appointmentDateTime = DateTime(
+          appointmentDate.year,
+          appointmentDate.month,
+          appointmentDate.day,
+          int.parse(timeParts[0]),
+          int.parse(timeParts[1]),
+        );
+
+        // Check if appointment is within reminder window
+        if (appointmentDateTime.isAfter(now) && appointmentDateTime.isBefore(reminderTime)) {
+          final counselor = appointment['counselors'];
+          final counselorName = counselor != null 
+              ? '${counselor['first_name'] ?? ''} ${counselor['last_name'] ?? ''}'.trim()
+              : 'your counselor';
+
+          final formattedTime = '${timeParts[0]}:${timeParts[1]}';
+
+          await _pushNotiService.showNotificationToUser(
+            userId: appointment['user_id'],
+            title: 'Upcoming Appointment Reminder',
+            body: 'You have an appointment with $counselorName at $formattedTime',
+            route: '/appointments',
+          );
+        }
+      }
+    } catch (e) {
+      print('Error checking upcoming appointments: $e');
+    }
+  }
+
+  // Schedule appointment reminders (call this periodically)
+  Future<void> scheduleAppointmentReminders() async {
+    // This method should be called periodically (e.g., every 15-30 minutes)
+    // You might want to implement this with a background service or periodic timer
+    await checkUpcomingAppointments();
   }
 }

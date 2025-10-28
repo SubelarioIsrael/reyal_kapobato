@@ -5,6 +5,7 @@ import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:app_links/app_links.dart';
 import 'firebase_options.dart';
+import 'package:breathe_better/services/push_noti_service.dart';
 import 'routes.dart';
 
 void main() async {
@@ -29,10 +30,16 @@ void main() async {
 
   await Supabase.initialize(url: url, anonKey: anonKey);
 
+  final pushNotiService = PushNotiService();
+  await pushNotiService.initNotification();
+
   Future<void> registerDeviceWithSupabase() async {
     final supabase = Supabase.instance.client;
     final userId = supabase.auth.currentUser?.id;
     if (userId == null) return;
+
+    // Set current user ID in push notification service
+    pushNotiService.setCurrentUserId(userId);
 
     final playerId = OneSignal.User.pushSubscription.id;
     if (playerId == null) return;
@@ -56,8 +63,12 @@ void main() async {
     if (event == AuthChangeEvent.signedIn ||
         event == AuthChangeEvent.tokenRefreshed) {
       await registerDeviceWithSupabase();
+    } else if (event == AuthChangeEvent.signedOut) {
+      // Clear user ID when signing out
+      pushNotiService.setCurrentUserId('');
     }
   });
+  
   runApp(MyApp());
 }
 
@@ -75,16 +86,27 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
+    // Set navigator key for push notification service
+    PushNotiService.setNavigatorKey(_navigatorKey);
     _setupAuthListener();
     _setupDeepLinkListener();
   }
 
   void _setupAuthListener() {
+    final pushNotiService = PushNotiService();
+    
     Supabase.instance.client.auth.onAuthStateChange.listen((data) {
       final event = data.event;
       final session = data.session;
 
       print('Auth event: $event');
+
+      // Set user ID in push notification service for signed in users
+      if (event == AuthChangeEvent.signedIn && session?.user.id != null) {
+        pushNotiService.setCurrentUserId(session!.user.id);
+      } else if (event == AuthChangeEvent.signedOut) {
+        pushNotiService.setCurrentUserId('');
+      }
 
       // Handle password recovery
       if (event == AuthChangeEvent.passwordRecovery) {
@@ -181,6 +203,7 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'BreatheBetter',
+      navigatorKey: _navigatorKey,
       initialRoute: '/login',
       routes: appRoutes,
     );
