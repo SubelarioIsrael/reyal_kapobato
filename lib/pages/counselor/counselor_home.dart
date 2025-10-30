@@ -61,7 +61,7 @@ class _CounselorHomeState extends State<CounselorHome> {
       // Check if counselor profile exists and is complete
       final counselorProfile = await Supabase.instance.client
           .from('counselors')
-          .select('counselor_id, first_name, last_name, specialization, bio')
+          .select('counselor_id, first_name, last_name, department_assigned, bio')
           .eq('user_id', user.id)
           .maybeSingle();
 
@@ -76,12 +76,12 @@ class _CounselorHomeState extends State<CounselorHome> {
       // Check if profile is incomplete
       final firstName = counselorProfile['first_name'] as String?;
       final lastName = counselorProfile['last_name'] as String?;
-      final specialization = counselorProfile['specialization'] as String?;
+      final departmentAssigned = counselorProfile['department_assigned'] as String?;
       final bio = counselorProfile['bio'] as String?;
 
       final isProfileIncomplete = (firstName?.trim().isEmpty ?? true) ||
           (lastName?.trim().isEmpty ?? true) ||
-          (specialization?.trim().isEmpty ?? true) ||
+          (departmentAssigned?.trim().isEmpty ?? true) ||
           (bio?.trim().isEmpty ?? true);
 
       if (isProfileIncomplete) {

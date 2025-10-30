@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../components/modern_form_dialog.dart';
 
 class AdminDailyUplifts extends StatefulWidget {
   const AdminDailyUplifts({super.key});
@@ -73,6 +74,7 @@ class _AdminDailyUpliftsState extends State<AdminDailyUplifts> {
             .eq('uplift_id', editingUplift!['uplift_id']);
         
         if (mounted) {
+          Navigator.pop(context); // Close the modal
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Daily uplift updated successfully!'),
@@ -88,6 +90,7 @@ class _AdminDailyUpliftsState extends State<AdminDailyUplifts> {
         });
         
         if (mounted) {
+          Navigator.pop(context); // Close the modal
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Daily uplift added successfully!'),
@@ -181,256 +184,189 @@ class _AdminDailyUpliftsState extends State<AdminDailyUplifts> {
 
   void _showAddUpliftDialog() {
     _clearForm(); // Ensure form is clean for new entry
-    showModalBottomSheet(
+    
+    ModernFormDialog.show(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _buildUpliftFormDialog(),
+      title: 'Add New Daily Uplift',
+      subtitle: 'Create an inspiring quote for students',
+      content: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            FormSection(
+              title: 'Uplift Information',
+              icon: Icons.format_quote,
+              child: Column(
+                children: [
+                  ModernTextFormField(
+                    controller: _quoteController,
+                    labelText: 'Motivational Quote',
+                    hintText: 'Enter an inspiring quote...',
+                    prefixIcon: Icons.format_quote,
+                    maxLines: 4,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Please enter a motivational quote';
+                      }
+                      if (value.trim().length < 10) {
+                        return 'Quote must be at least 10 characters long';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  ModernTextFormField(
+                    controller: _authorController,
+                    labelText: 'Author',
+                    hintText: 'Who said this?',
+                    prefixIcon: Icons.person_outline,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Please enter the author name';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'These uplifts will be shown randomly to students on their home page.',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: const Color(0xFF5D5D72),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        const ModernActionButton(
+          text: 'Cancel',
+        ),
+        ModernActionButton(
+          text: 'Add Uplift',
+          isPrimary: true,
+          onPressed: isSubmitting
+              ? null
+              : () async {
+                  await _saveUplift();
+                },
+          isLoading: isSubmitting,
+        ),
+      ],
     );
   }
 
   void _showEditUpliftDialog(Map<String, dynamic> uplift) {
     _editUplift(uplift);
-    showModalBottomSheet(
+    
+    ModernFormDialog.show(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _buildUpliftFormDialog(),
-    );
-  }
-
-  Widget _buildUpliftFormDialog() {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.9,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: Column(
-        children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: const Color(0xFF7C83FD).withOpacity(0.1),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF7C83FD).withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
+      title: 'Edit Daily Uplift',
+      subtitle: 'Update the motivational quote',
+      content: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            FormSection(
+              title: 'Uplift Information',
+              icon: Icons.format_quote,
+              child: Column(
+                children: [
+                  ModernTextFormField(
+                    controller: _quoteController,
+                    labelText: 'Motivational Quote',
+                    hintText: 'Enter an inspiring quote...',
+                    prefixIcon: Icons.format_quote,
+                    maxLines: 4,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Please enter a motivational quote';
+                      }
+                      if (value.trim().length < 10) {
+                        return 'Quote must be at least 10 characters long';
+                      }
+                      return null;
+                    },
                   ),
-                  child: const Icon(
-                    Icons.format_quote,
-                    color: Color(0xFF7C83FD),
-                    size: 28,
+                  const SizedBox(height: 20),
+                  ModernTextFormField(
+                    controller: _authorController,
+                    labelText: 'Author',
+                    hintText: 'Who said this?',
+                    prefixIcon: Icons.person_outline,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Please enter the author name';
+                      }
+                      return null;
+                    },
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Text(
-                    editingUplift != null ? 'Edit Daily Uplift' : 'Add New Daily Uplift',
-                    style: GoogleFonts.poppins(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF3A3A50),
-                    ),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close, color: Color(0xFF5D5D72)),
-                  onPressed: () {
-                    _clearForm();
-                    Navigator.pop(context);
-                  },
-                ),
-              ],
-            ),
-          ),
-          // Form Content
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Uplift Information',
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF3A3A50),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    TextFormField(
-                      controller: _quoteController,
-                      style: GoogleFonts.poppins(fontSize: 14, color: const Color(0xFF3A3A50)),
-                      decoration: InputDecoration(
-                        labelText: 'Motivational Quote *',
-                        hintText: 'Enter an inspiring quote...',
-                        labelStyle: GoogleFonts.poppins(color: const Color(0xFF5D5D72)),
-                        hintStyle: GoogleFonts.poppins(color: Colors.grey[500]),
-                        prefixIcon: const Icon(Icons.format_quote, color: Color(0xFF7C83FD)),
-                        filled: true,
-                        fillColor: Colors.grey[50],
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey[300]!),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey[300]!),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFF7C83FD), width: 2),
-                        ),
-                        contentPadding: const EdgeInsets.all(16),
-                      ),
-                      maxLines: 4,
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Please enter a motivational quote';
-                        }
-                        if (value.trim().length < 10) {
-                          return 'Quote must be at least 10 characters long';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 20),
-                    TextFormField(
-                      controller: _authorController,
-                      style: GoogleFonts.poppins(fontSize: 14, color: const Color(0xFF3A3A50)),
-                      decoration: InputDecoration(
-                        labelText: 'Author *',
-                        hintText: 'Who said this?',
-                        labelStyle: GoogleFonts.poppins(color: const Color(0xFF5D5D72)),
-                        hintStyle: GoogleFonts.poppins(color: Colors.grey[500]),
-                        prefixIcon: const Icon(Icons.person_outline, color: Color(0xFF7C83FD)),
-                        filled: true,
-                        fillColor: Colors.grey[50],
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey[300]!),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey[300]!),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFF7C83FD), width: 2),
-                        ),
-                        contentPadding: const EdgeInsets.all(16),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Please enter the author name';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.blue.shade200),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'These uplifts will be shown randomly to students on their home page.',
-                              style: GoogleFonts.poppins(
-                                fontSize: 12,
-                                color: const Color(0xFF5D5D72),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+                ],
               ),
             ),
-          ),
-          // Action Buttons
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, -4),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () {
-                      _clearForm();
-                      Navigator.pop(context);
-                    },
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      side: BorderSide(color: Colors.grey[300]!, width: 2),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
+            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
                     child: Text(
-                      'Cancel',
+                      'These uplifts will be shown randomly to students on their home page.',
                       style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
                         color: const Color(0xFF5D5D72),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _saveUplift,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      backgroundColor: const Color(0xFF7C83FD),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 2,
-                    ),
-                    child: Text(
-                      editingUplift != null ? 'Save Changes' : 'Add Uplift',
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
+      actions: [
+        const ModernActionButton(
+          text: 'Cancel',
+        ),
+        ModernActionButton(
+          text: 'Save Changes',
+          isPrimary: true,
+          onPressed: isSubmitting
+              ? null
+              : () async {
+                  await _saveUplift();
+                },
+          isLoading: isSubmitting,
+        ),
+      ],
     );
   }
 

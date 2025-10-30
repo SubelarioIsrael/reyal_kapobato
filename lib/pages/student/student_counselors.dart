@@ -243,7 +243,7 @@ class _CounselorCardState extends State<_CounselorCard> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        widget.counselor.specialization,
+                        widget.counselor.departmentAssigned,
                         style: GoogleFonts.poppins(
                           fontSize: 14,
                           color: Colors.grey[600],

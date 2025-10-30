@@ -55,7 +55,7 @@ class _CounselorProfileViewState extends State<CounselorProfileView> {
         ? ''
         : '${(_data!['first_name'] ?? '').toString()} ${(_data!['last_name'] ?? '').toString()}'
             .trim();
-    final specialization = _data?['specialization']?.toString() ?? '';
+    final departmentAssigned = _data?['department_assigned']?.toString() ?? '';
     final availability = _data?['availability_status']?.toString() ?? '';
     final bio = _data?['bio']?.toString();
     final email = _data?['users']?['email']?.toString() ?? '';
@@ -116,9 +116,9 @@ class _CounselorProfileViewState extends State<CounselorProfileView> {
                   ),
                   const SizedBox(height: 8),
 
-                  // Specialization
+                  // Department Assigned
                   Text(
-                    specialization,
+                    departmentAssigned,
                     style: GoogleFonts.poppins(
                       fontSize: 16,
                       color: Colors.grey[600],

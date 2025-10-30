@@ -460,7 +460,7 @@ class _AdminAccountsState extends State<AdminAccounts> {
                                         'first_name': firstName,
                                         'last_name': lastName,
                                         'email': _emailController.text.trim(),
-                                        'specialization': 'General Counseling',
+                                        'department_assigned': 'Volunteer',
                                         'availability_status': 'available',
                                         'bio': 'Professional counselor ready to help you.',
                                         'profile_picture': null, // Will be set later if needed

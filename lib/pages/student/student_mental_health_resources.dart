@@ -80,6 +80,196 @@ class _StudentMentalHealthResourcesState
     }
   }
 
+  void _showResourceDetails(Map<String, dynamic> resource) {
+    final isVideo = resource['resource_type'] == 'video';
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.75,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: (isVideo ? const Color(0xFF7C83FD) : const Color(0xFF81C784)).withOpacity(0.1),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: (isVideo ? const Color(0xFF7C83FD) : const Color(0xFF81C784)).withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      isVideo ? Icons.play_circle : Icons.article,
+                      color: isVideo ? const Color(0xFF7C83FD) : const Color(0xFF81C784),
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      isVideo ? 'Video Resource' : 'Article',
+                      style: GoogleFonts.poppins(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF3A3A50),
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Color(0xFF3A3A50)),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            // Content
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Title
+                    Text(
+                      resource['title'],
+                      style: GoogleFonts.poppins(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF3A3A50),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Description
+                    if (resource['description'] != null &&
+                        resource['description'].toString().isNotEmpty) ...[
+                      Text(
+                        'Description',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF3A3A50),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        resource['description'],
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                          height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+                    // Tags
+                    if (resource['tags'] != null && resource['tags'].toString().isNotEmpty) ...[
+                      Text(
+                        'Tags',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF3A3A50),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: (resource['tags'] as String)
+                            .split(',')
+                            .map((tag) => Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: (isVideo ? const Color(0xFF7C83FD) : const Color(0xFF81C784)).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: isVideo ? const Color(0xFF7C83FD) : const Color(0xFF81C784),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    tag.trim(),
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 12,
+                                      color: isVideo ? const Color(0xFF7C83FD) : const Color(0xFF81C784),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ))
+                            .toList(),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            // Action Button
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, -4),
+                  ),
+                ],
+              ),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _launchURL(resource['media_url']);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isVideo ? const Color(0xFF7C83FD) : const Color(0xFF81C784),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        isVideo ? Icons.play_arrow : Icons.open_in_new,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        isVideo ? 'Watch Video' : 'Read Article',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildResourceCard(Map<String, dynamic> resource) {
     final isVideo = resource['resource_type'] == 'video';
 
@@ -99,58 +289,48 @@ class _StudentMentalHealthResourcesState
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => _launchURL(resource['media_url']),
+          onTap: () => _showResourceDetails(resource),
           borderRadius: BorderRadius.circular(16),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
+                // Icon
                 Container(
-                  width: 50,
-                  height: 50,
+                  width: 48,
+                  height: 48,
                   decoration: BoxDecoration(
                     color: isVideo
                         ? const Color(0xFF7C83FD).withOpacity(0.1)
                         : const Color(0xFF81C784).withOpacity(0.1),
-                    shape: BoxShape.circle,
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
                     isVideo ? Icons.play_circle : Icons.article,
                     color: isVideo
                         ? const Color(0xFF7C83FD)
                         : const Color(0xFF81C784),
-                    size: 30,
+                    size: 24,
                   ),
                 ),
                 const SizedBox(width: 16),
+                // Content
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        resource['title'],
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF3A3A50),
-                        ),
-                      ),
-                      if (resource['content'] != null)
-                        Text(
-                          resource['content'],
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                    ],
+                  child: Text(
+                    resource['title'],
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF3A3A50),
+                    ),
                   ),
                 ),
-                const Icon(
+                const SizedBox(width: 12),
+                // Arrow
+                Icon(
                   Icons.arrow_forward_ios,
-                  color: Color(0xFF7C83FD),
+                  color: const Color(0xFF7C83FD),
                   size: 16,
                 ),
               ],

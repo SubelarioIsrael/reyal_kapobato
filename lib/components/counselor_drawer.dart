@@ -14,7 +14,7 @@ class _CounselorDrawerState extends State<CounselorDrawer> {
   String _firstName = '';
   String _lastName = '';
   String? _profilePicture;
-  String _specialization = '';
+  String _departmentAssigned = '';
   bool _isLoading = true;
 
   @override
@@ -38,7 +38,7 @@ class _CounselorDrawerState extends State<CounselorDrawer> {
       // Get counselor data from counselors table
       final counselorResponse = await Supabase.instance.client
           .from('counselors')
-          .select('first_name, last_name, specialization')
+          .select('first_name, last_name, department_assigned')
           .eq('user_id', userId)
           .maybeSingle();
 
@@ -47,7 +47,7 @@ class _CounselorDrawerState extends State<CounselorDrawer> {
           _firstName = counselorResponse?['first_name'] ?? '';
           _lastName = counselorResponse?['last_name'] ?? '';
           _profilePicture = userResponse?['profile_picture'];
-          _specialization = counselorResponse?['specialization'] ?? '';
+          _departmentAssigned = counselorResponse?['department_assigned'] ?? '';
           _isLoading = false;
         });
       }
@@ -165,9 +165,9 @@ class _CounselorDrawerState extends State<CounselorDrawer> {
                                     ),
                                   ],
                                   const SizedBox(height: 2),
-                                  if (_specialization.isNotEmpty)
+                                  if (_departmentAssigned.isNotEmpty)
                                     Text(
-                                      _specialization,
+                                      _departmentAssigned,
                                       style: GoogleFonts.poppins(
                                         color: Colors.white.withOpacity(0.8),
                                         fontSize: 11,

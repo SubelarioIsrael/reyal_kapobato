@@ -85,10 +85,9 @@ CREATE TABLE public.counselors (
   first_name character varying NOT NULL,
   last_name character varying NOT NULL,
   email character varying NOT NULL UNIQUE,
-  specialization character varying NOT NULL,
+  department_assigned character varying NOT NULL,
   availability_status text CHECK (availability_status = ANY (ARRAY['available'::character varying::text, 'busy'::character varying::text, 'away'::character varying::text, 'offline'::character varying::text])),
   bio text,
-  profile_picture character varying,
   user_id uuid NOT NULL UNIQUE,
   CONSTRAINT counselors_pkey PRIMARY KEY (counselor_id),
   CONSTRAINT counselors_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(user_id)
@@ -146,24 +145,24 @@ CREATE TABLE public.mental_health_resources (
 );
 CREATE TABLE public.messages (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
-  appointment_id bigint,
   sender_id uuid,
   receiver_id uuid,
   message text NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
   is_read boolean DEFAULT false,
   message_type text DEFAULT 'text'::text,
+  appointment_id integer,
   CONSTRAINT messages_pkey PRIMARY KEY (id),
-  CONSTRAINT messages_appointment_id_fkey FOREIGN KEY (appointment_id) REFERENCES public.counseling_appointments(appointment_id),
   CONSTRAINT messages_receiver_id_fkey FOREIGN KEY (receiver_id) REFERENCES public.users(user_id),
-  CONSTRAINT messages_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES public.users(user_id)
+  CONSTRAINT messages_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES public.users(user_id),
+  CONSTRAINT messages_appointment_id_fkey FOREIGN KEY (appointment_id) REFERENCES public.counseling_appointments(appointment_id)
 );
 CREATE TABLE public.mood_entries (
   entry_id integer NOT NULL DEFAULT nextval('mood_entries_entry_id_seq'::regclass),
   user_id uuid,
   mood_type character varying NOT NULL,
   emoji_code character varying,
-  reasons ARRAY,
+  reasons ARRAY NOT NULL,
   notes text,
   entry_timestamp timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
   entry_date date DEFAULT (entry_timestamp)::date,
@@ -223,7 +222,14 @@ CREATE TABLE public.questions (
   is_active boolean DEFAULT true,
   created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
   updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  category text CHECK (category = ANY (ARRAY['PHQ-9'::text, 'GAD-7'::text])),
   CONSTRAINT questions_pkey PRIMARY KEY (question_id)
+);
+CREATE TABLE public.student_ids (
+  student_id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  first_name character varying,
+  last_name character varying,
+  CONSTRAINT student_ids_pkey PRIMARY KEY (student_id)
 );
 CREATE TABLE public.students (
   student_id integer NOT NULL DEFAULT nextval('students_student_id_seq'::regclass) UNIQUE,
@@ -231,11 +237,10 @@ CREATE TABLE public.students (
   course character varying,
   year_level integer NOT NULL,
   user_id uuid,
-  last_login timestamp with time zone,
   first_name character varying,
   last_name character varying,
   strand character varying,
-  education_level character varying NOT NULL DEFAULT 'basic_education'::character varying CHECK (education_level::text = ANY (ARRAY['basic_education'::character varying, 'junior_high'::character varying, 'senior_high'::character varying, 'college'::character varying]::text[])),
+  education_level USER-DEFINED NOT NULL CHECK (education_level::text = ANY (ARRAY['basic_education'::character varying::text, 'junior_high'::character varying::text, 'senior_high'::character varying::text, 'college'::character varying::text])),
   CONSTRAINT students_pkey PRIMARY KEY (student_id),
   CONSTRAINT students_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(user_id)
 );
