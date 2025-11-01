@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/profile_image_service.dart';
 import '../../components/student_drawer.dart';
 import '../../components/student_notification_button.dart';
+import '../../utils/department_mapping.dart';
 
 class StudentProfile extends StatefulWidget {
   const StudentProfile({super.key});
@@ -601,15 +602,16 @@ class _StudentProfileState extends State<StudentProfile> {
                                   ),
                                   contentPadding: const EdgeInsets.all(16),
                                 ),
-                                items: const [
-                                  DropdownMenuItem(value: 'Bachelor of Science in Computer Science', child: Text('Bachelor of Science in Computer Science')),
-                                  DropdownMenuItem(value: 'Bachelor of Science in Information Technology', child: Text('Bachelor of Science in Information Technology')),
-                                  DropdownMenuItem(value: 'Bachelor of Science in Computer Engineering', child: Text('Bachelor of Science in Computer Engineering')),
-                                  DropdownMenuItem(value: 'Bachelor of Science in Software Engineering', child: Text('Bachelor of Science in Software Engineering')),
-                                  DropdownMenuItem(value: 'Bachelor of Arts in Psychology', child: Text('Bachelor of Arts in Psychology')),
-                                  DropdownMenuItem(value: 'Bachelor of Science in Business Administration', child: Text('Bachelor of Science in Business Administration')),
-                                  DropdownMenuItem(value: 'Bachelor of Science in Nursing', child: Text('Bachelor of Science in Nursing')),
-                                ],
+                                items: DepartmentMapping.collegePrograms.map((course) {
+                                  return DropdownMenuItem<String>(
+                                    value: course,
+                                    child: Text(
+                                      course,
+                                      style: GoogleFonts.poppins(fontSize: 14),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  );
+                                }).toList(),
                                 onChanged: (value) {
                                   setState(() {
                                     _selectedCourse = value;
@@ -660,13 +662,16 @@ class _StudentProfileState extends State<StudentProfile> {
                                   ),
                                   contentPadding: const EdgeInsets.all(16),
                                 ),
-                                items: const [
-                                  DropdownMenuItem(value: 'STEM (Science, Technology, Engineering, and Mathematics)', child: Text('STEM')),
-                                  DropdownMenuItem(value: 'ABM (Accountancy, Business, and Management)', child: Text('ABM')),
-                                  DropdownMenuItem(value: 'HUMSS (Humanities and Social Sciences)', child: Text('HUMSS')),
-                                  DropdownMenuItem(value: 'GAS (General Academic Strand)', child: Text('GAS')),
-                                  DropdownMenuItem(value: 'TVL (Technical-Vocational-Livelihood)', child: Text('TVL')),
-                                ],
+                                items: DepartmentMapping.seniorHighStrands.map((strand) {
+                                  return DropdownMenuItem<String>(
+                                    value: strand,
+                                    child: Text(
+                                      strand,
+                                      style: GoogleFonts.poppins(fontSize: 14),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  );
+                                }).toList(),
                                 onChanged: (value) {
                                   setState(() {
                                     _selectedStrand = value;

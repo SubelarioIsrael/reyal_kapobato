@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../utils/department_mapping.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -657,26 +658,6 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
   Widget _buildPhase2() {
-    // Course options based on education level
-    final List<String> collegePrograms = [
-      'Bachelor of Science in Computer Science',
-      'Bachelor of Science in Information Technology',
-      'Bachelor of Science in Computer Engineering',
-      'Bachelor of Science in Software Engineering',
-      'Bachelor of Arts in Psychology',
-      'Bachelor of Science in Business Administration',
-      'Bachelor of Science in Nursing',
-      // Add more programs as needed
-    ];
-
-    final List<String> strands = [
-      'STEM (Science, Technology, Engineering, and Mathematics)',
-      'ABM (Accountancy, Business, and Management)',
-      'HUMSS (Humanities and Social Sciences)',
-      'GAS (General Academic Strand)',
-      'TVL (Technical-Vocational-Livelihood)',
-    ];
-
     return Column(
       children: [
         // Student ID Field
@@ -825,7 +806,7 @@ class _SignUpPageState extends State<SignUpPage> {
               filled: true,
               fillColor: Colors.grey.shade50,
             ),
-            items: collegePrograms.map((course) {
+            items: DepartmentMapping.collegePrograms.map((course) {
               return DropdownMenuItem<String>(
                 value: course,
                 child: Text(
@@ -867,7 +848,7 @@ class _SignUpPageState extends State<SignUpPage> {
               filled: true,
               fillColor: Colors.grey.shade50,
             ),
-            items: strands.map((strand) {
+            items: DepartmentMapping.seniorHighStrands.map((strand) {
               return DropdownMenuItem<String>(
                 value: strand,
                 child: Text(

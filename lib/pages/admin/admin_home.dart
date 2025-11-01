@@ -19,7 +19,8 @@ class _AdminHomeState extends State<AdminHome> {
   int totalUsers = 0;
   int activeUsers = 0;
   int completedAppointments = 0;
-  List<Map<String, dynamic>> recentRegistrations = [];
+  List<Map<String, dynamic>> recentActivities = [];
+  bool isLoadingActivities = true;
 
   @override
   void initState() {
@@ -28,21 +29,23 @@ class _AdminHomeState extends State<AdminHome> {
   }
 
   Future<void> _loadData() async {
+    setState(() {
+      isLoadingActivities = true;
+    });
+
     try {
       final supabase = Supabase.instance.client;
 
       // Get total users count
       final totalUsersResponse = await supabase.from('users').select('user_id');
       final totalUsersCount = totalUsersResponse.length;
-      print('Total users found: $totalUsersCount');
 
-      // Get active users (users with status = 'active' in users table)
+      // Get active users
       final activeUsersResponse = await supabase
           .from('users')
           .select('user_id')
           .eq('status', 'active');
       final activeUsersCount = activeUsersResponse.length;
-      print('Active users found: $activeUsersCount');
 
       // Get completed appointments count
       final completedAppointmentsResponse = await supabase
@@ -50,45 +53,24 @@ class _AdminHomeState extends State<AdminHome> {
           .select('appointment_id')
           .eq('status', 'completed');
       final completedAppointmentsCount = completedAppointmentsResponse.length;
-      print('Completed appointments found: $completedAppointmentsCount');
 
-      // Get recent user registrations (last 5) with email instead of username
-      final recentRegistrationsResponse = await supabase
-          .from('users')
-          .select('email, registration_date')
-          .order('registration_date', ascending: false)
-          .limit(5);
-
-      final recentRegistrationsList = recentRegistrationsResponse.map((user) {
-        final registrationDate = DateTime.parse(user['registration_date']);
-        final now = DateTime.now();
-        final difference = now.difference(registrationDate);
-
-        String timeAgo;
-        if (difference.inHours < 24) {
-          timeAgo = '${difference.inHours} hours ago';
-        } else if (difference.inDays < 7) {
-          timeAgo = '${difference.inDays} days ago';
-        } else {
-          timeAgo = '${difference.inDays ~/ 7} weeks ago';
-        }
-
-        return {
-          'name': user['email'],
-          'time': timeAgo,
-        };
-      }).toList();
+      // Fetch comprehensive activities
+      final activities = await _fetchRecentActivities();
 
       if (mounted) {
         setState(() {
           totalUsers = totalUsersCount;
           activeUsers = activeUsersCount;
           completedAppointments = completedAppointmentsCount;
-          recentRegistrations = recentRegistrationsList;
+          recentActivities = activities;
+          isLoadingActivities = false;
         });
       }
     } catch (e) {
       if (mounted) {
+        setState(() {
+          isLoadingActivities = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error loading data: ${e.toString()}'),
@@ -96,6 +78,318 @@ class _AdminHomeState extends State<AdminHome> {
           ),
         );
       }
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchRecentActivities() async {
+    final supabase = Supabase.instance.client;
+    final List<Map<String, dynamic>> allActivities = [];
+
+    try {
+      // 1. New user registrations
+      final registrations = await supabase
+          .from('users')
+          .select('user_id, email, registration_date, user_type')
+          .order('registration_date', ascending: false)
+          .limit(10);
+
+      for (var reg in registrations) {
+        allActivities.add({
+          'type': 'registration',
+          'icon': Icons.person_add,
+          'color': const Color(0xFF7C83FD),
+          'title': 'New ${reg['user_type']} registered',
+          'subtitle': reg['email'],
+          'timestamp': DateTime.parse(reg['registration_date']),
+        });
+      }
+
+      // 2. New appointments booked (all statuses)
+      final appointments = await supabase
+          .from('counseling_appointments')
+          .select('''
+            appointment_id,
+            appointment_date,
+            status,
+            user_id,
+            counselor_id
+          ''')
+          .order('appointment_date', ascending: false)
+          .limit(50);
+
+      for (var apt in appointments) {
+        // Fetch student details
+        final studentData = await supabase
+            .from('users')
+            .select('user_id')
+            .eq('user_id', apt['user_id'])
+            .single();
+        
+        final studentInfo = await supabase
+            .from('students')
+            .select('first_name, last_name')
+            .eq('user_id', studentData['user_id'])
+            .maybeSingle();
+        
+        // Fetch counselor details
+        final counselorData = await supabase
+            .from('counselors')
+            .select('first_name, last_name')
+            .eq('counselor_id', apt['counselor_id'])
+            .single();
+        
+        if (studentInfo != null) {
+          final studentName = '${studentInfo['first_name']} ${studentInfo['last_name']}';
+          final counselorName = '${counselorData['first_name']} ${counselorData['last_name']}';
+          
+          allActivities.add({
+            'type': 'appointment_booked',
+            'icon': Icons.event,
+            'color': Colors.green,
+            'title': 'New appointment booked',
+            'subtitle': '$studentName with $counselorName',
+            'timestamp': DateTime.parse(apt['appointment_date']),
+          });
+        }
+      }
+
+      // 3. Cancelled sessions (student or counselor)
+      // Note: We differentiate between student and counselor cancellations
+      // by checking the status_message content
+      final counselorCancelled = await supabase
+          .from('counseling_appointments')
+          .select('''
+            appointment_id,
+            appointment_date,
+            status_message,
+            notes,
+            user_id,
+            counselor_id
+          ''')
+          .eq('status', 'cancelled')
+          .order('appointment_date', ascending: false)
+          .limit(10);
+
+      for (var cancel in counselorCancelled) {
+        // Fetch student details
+        final studentInfo = await supabase
+            .from('students')
+            .select('first_name, last_name')
+            .eq('user_id', cancel['user_id'])
+            .maybeSingle();
+        
+        // Fetch counselor details
+        final counselorData = await supabase
+            .from('counselors')
+            .select('first_name, last_name')
+            .eq('counselor_id', cancel['counselor_id'])
+            .single();
+        
+        if (studentInfo != null) {
+          final studentName = '${studentInfo['first_name']} ${studentInfo['last_name']}';
+          final counselorName = '${counselorData['first_name']} ${counselorData['last_name']}';
+          final reason = cancel['status_message'] ?? cancel['notes'] ?? 'No reason provided';
+          
+          // Check if cancellation was by counselor (you can customize this logic)
+          // For now, we'll show as "Session cancelled by counselor" if status_message exists
+          final cancelledBy = (cancel['status_message'] != null && 
+                               cancel['status_message'].toString().toLowerCase().contains('counselor'))
+              ? 'counselor'
+              : 'student';
+          
+          allActivities.add({
+            'type': cancelledBy == 'counselor' ? 'counselor_cancelled' : 'cancelled',
+            'icon': Icons.cancel_outlined,
+            'color': cancelledBy == 'counselor' ? Colors.orange[700]! : Colors.red,
+            'title': cancelledBy == 'counselor' 
+                ? 'Session cancelled by counselor'
+                : 'Session cancelled by student',
+            'subtitle': cancelledBy == 'counselor'
+                ? '$counselorName cancelled session with $studentName'
+                : '$studentName cancelled session with $counselorName',
+            'detail': 'Reason: $reason',
+            'timestamp': DateTime.parse(cancel['appointment_date']),
+          });
+        }
+      }
+
+      // 4. Rejected sessions (by counselor - before accepting)
+      final rejected = await supabase
+          .from('counseling_appointments')
+          .select('''
+            appointment_id,
+            appointment_date,
+            status_message,
+            notes,
+            user_id,
+            counselor_id
+          ''')
+          .eq('status', 'rejected')
+          .order('appointment_date', ascending: false)
+          .limit(10);
+
+      for (var reject in rejected) {
+        // Fetch student details
+        final studentInfo = await supabase
+            .from('students')
+            .select('first_name, last_name')
+            .eq('user_id', reject['user_id'])
+            .maybeSingle();
+        
+        // Fetch counselor details
+        final counselorData = await supabase
+            .from('counselors')
+            .select('first_name, last_name')
+            .eq('counselor_id', reject['counselor_id'])
+            .single();
+        
+        if (studentInfo != null) {
+          final studentName = '${studentInfo['first_name']} ${studentInfo['last_name']}';
+          final counselorName = '${counselorData['first_name']} ${counselorData['last_name']}';
+          final reason = reject['status_message'] ?? reject['notes'] ?? 'No reason provided';
+          
+          allActivities.add({
+            'type': 'rejected',
+            'icon': Icons.block,
+            'color': Colors.deepOrange,
+            'title': 'Session rejected by counselor',
+            'subtitle': '$counselorName rejected $studentName',
+            'detail': 'Reason: $reason',
+            'timestamp': DateTime.parse(reject['appointment_date']),
+          });
+        }
+      }
+
+      // 5. Completed sessions
+      final completed = await supabase
+          .from('counseling_appointments')
+          .select('''
+            appointment_id,
+            appointment_date,
+            user_id,
+            counselor_id
+          ''')
+          .eq('status', 'completed')
+          .order('appointment_date', ascending: false)
+          .limit(10);
+
+      for (var comp in completed) {
+        // Fetch student details
+        final studentInfo = await supabase
+            .from('students')
+            .select('first_name, last_name')
+            .eq('user_id', comp['user_id'])
+            .maybeSingle();
+        
+        // Fetch counselor details
+        final counselorData = await supabase
+            .from('counselors')
+            .select('first_name, last_name')
+            .eq('counselor_id', comp['counselor_id'])
+            .single();
+        
+        if (studentInfo != null) {
+          final studentName = '${studentInfo['first_name']} ${studentInfo['last_name']}';
+          final counselorName = '${counselorData['first_name']} ${counselorData['last_name']}';
+          
+          allActivities.add({
+            'type': 'completed',
+            'icon': Icons.check_circle,
+            'color': Colors.teal,
+            'title': 'Session completed',
+            'subtitle': '$counselorName completed session with $studentName',
+            'timestamp': DateTime.parse(comp['appointment_date']),
+          });
+        }
+      }
+
+      // 7. Pending appointment approvals
+      final pending = await supabase
+          .from('counseling_appointments')
+          .select('''
+            appointment_id,
+            appointment_date,
+            user_id,
+            counselor_id
+          ''')
+          .eq('status', 'pending')
+          .order('appointment_date', ascending: false)
+          .limit(10);
+
+      for (var pend in pending) {
+        // Fetch student details
+        final studentInfo = await supabase
+            .from('students')
+            .select('first_name, last_name')
+            .eq('user_id', pend['user_id'])
+            .maybeSingle();
+        
+        // Fetch counselor details
+        final counselorData = await supabase
+            .from('counselors')
+            .select('first_name, last_name')
+            .eq('counselor_id', pend['counselor_id'])
+            .single();
+        
+        if (studentInfo != null) {
+          final studentName = '${studentInfo['first_name']} ${studentInfo['last_name']}';
+          final counselorName = '${counselorData['first_name']} ${counselorData['last_name']}';
+          
+          allActivities.add({
+            'type': 'pending',
+            'icon': Icons.pending_actions,
+            'color': Colors.orange,
+            'title': 'Pending approval',
+            'subtitle': '$studentName with $counselorName',
+            'timestamp': DateTime.parse(pend['appointment_date']),
+          });
+        }
+      }
+
+      // 8. New counselor accounts (recent counselor type users)
+      final newCounselors = await supabase
+          .from('users')
+          .select('user_id, email, registration_date')
+          .eq('user_type', 'counselor')
+          .order('registration_date', ascending: false)
+          .limit(10);
+
+      for (var counselor in newCounselors) {
+        allActivities.add({
+          'type': 'counselor_added',
+          'icon': Icons.supervised_user_circle,
+          'color': const Color(0xFF9C27B0),
+          'title': 'New counselor account',
+          'subtitle': counselor['email'],
+          'timestamp': DateTime.parse(counselor['registration_date']),
+        });
+      }
+
+      // Sort all activities by timestamp (most recent first)
+      allActivities.sort((a, b) => b['timestamp'].compareTo(a['timestamp']));
+
+      // Return top 15 most recent activities
+      return allActivities.take(15).toList();
+    } catch (e) {
+      print('Error fetching activities: $e');
+      return [];
+    }
+  }
+
+  String _formatTimeAgo(DateTime timestamp) {
+    final now = DateTime.now();
+    final difference = now.difference(timestamp);
+
+    if (difference.inMinutes < 1) {
+      return 'Just now';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes} min ago';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours} hour${difference.inHours > 1 ? 's' : ''} ago';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays} day${difference.inDays > 1 ? 's' : ''} ago';
+    } else {
+      return '${difference.inDays ~/ 7} week${difference.inDays ~/ 7 > 1 ? 's' : ''} ago';
     }
   }
 
@@ -367,7 +661,7 @@ class _AdminHomeState extends State<AdminHome> {
             const SizedBox(width: 16),
             Expanded(
               child: _buildQuickActionCard(
-                'Daily Uplifts',
+                'Daily\n Uplifts',
                 Icons.format_quote,
                 Colors.teal,
                 () => Navigator.pushNamed(context, 'admin-daily-uplifts'),
@@ -450,55 +744,100 @@ class _AdminHomeState extends State<AdminHome> {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "Recent User Registrations",
-            style: GoogleFonts.poppins(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: const Color(0xFF3A3A50),
-            ),
-          ),
-          const SizedBox(height: 16),
-          ...recentRegistrations.map((registration) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Row(
-                  children: [
-                    const CircleAvatar(
-                      backgroundColor: Color(0xFF7C83FD),
-                      child:
-                          Icon(Icons.person_add, color: Colors.white, size: 16),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            registration['name'],
-                            style: GoogleFonts.poppins(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: const Color(0xFF3A3A50),
-                            ),
-                          ),
-                          Text(
-                            registration['time'],
-                            style: GoogleFonts.poppins(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
+      child: isLoadingActivities
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: CircularProgressIndicator(
+                  color: const Color(0xFF7C83FD),
+                ),
+              ),
+            )
+          : recentActivities.isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Text(
+                      "No recent activities",
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        color: Colors.grey,
                       ),
                     ),
-                  ],
+                  ),
+                )
+              : SizedBox(
+                  height: 300, // Fixed height to show ~5 items
+                  child: ListView.builder(
+                    itemCount: recentActivities.length,
+                    itemBuilder: (context, index) {
+                      final activity = recentActivities[index];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            CircleAvatar(
+                              backgroundColor: activity['color'],
+                              child: Icon(
+                                activity['icon'],
+                                color: Colors.white,
+                                size: 16,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    activity['title'],
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      color: const Color(0xFF3A3A50),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    activity['subtitle'],
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 12,
+                                      color: Colors.grey[700],
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 2,
+                                  ),
+                                  if (activity['detail'] != null) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      activity['detail'],
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 11,
+                                        color: Colors.grey[600],
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                    ),
+                                  ],
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _formatTimeAgo(activity['timestamp']),
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 11,
+                                      color: Colors.grey[500],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
                 ),
-              )),
-        ],
-      ),
     );
   }
 

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/profile_image_service.dart';
+import '../../utils/department_mapping.dart';
 
 class CounselorProfileSetup extends StatefulWidget {
   const CounselorProfileSetup({super.key});
@@ -26,20 +27,7 @@ class _CounselorProfileSetupState extends State<CounselorProfileSetup> {
   String? _profileImageUrl;
   int? _counselorId;
 
-  final List<String> _departmentOptions = const [
-    'College of Customs Administration',
-    'College of Hospitality Management/Tourism Management',
-    'College of Maritime Education',
-    'College of Business and Accountancy',
-    'College of Business Administration',
-    'College of Engineering',
-    'College of Criminology',
-    'College of Nursing',
-    'College of Teacher Education',
-    'Senior High School Department',
-    'Basic Education Department',
-    'Volunteer',
-  ];
+  final List<String> _departmentOptions = DepartmentMapping.departments;
 
   @override
   void initState() {

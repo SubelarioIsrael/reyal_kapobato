@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/counselor.dart';
 import '../../services/counselor_service.dart';
 import '../../components/student_drawer.dart';
 import '../../components/student_notification_button.dart';
 import '../../widgets/counselor_avatar.dart';
+import '../../utils/department_mapping.dart';
 
 class StudentCounselors extends StatefulWidget {
   const StudentCounselors({super.key});
@@ -16,8 +18,10 @@ class StudentCounselors extends StatefulWidget {
 
 class _StudentCounselorsState extends State<StudentCounselors> {
   final CounselorService _counselorService = CounselorService();
-  List<Counselor> _counselors = [];
+  List<Counselor> _departmentCounselors = [];
+  List<Counselor> _volunteerCounselors = [];
   bool _isLoading = true;
+  String? _studentDepartment;
 
   @override
   void initState() {
@@ -27,13 +31,57 @@ class _StudentCounselorsState extends State<StudentCounselors> {
 
   Future<void> _loadCounselors() async {
     try {
-      final counselors = await _counselorService.getCounselors();
+      // Get current user
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) {
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // Get student's education info to determine department
+      final studentData = await Supabase.instance.client
+          .from('students')
+          .select('education_level, course, strand')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+      if (studentData != null) {
+        _studentDepartment = DepartmentMapping.getStudentDepartment(
+          educationLevel: studentData['education_level'],
+          course: studentData['course'],
+          strand: studentData['strand'],
+        );
+      }
+
+      // Get all counselors
+      final allCounselors = await _counselorService.getCounselors();
+      
+      // Filter counselors by department
+      final departmentCounselors = <Counselor>[];
+      final volunteerCounselors = <Counselor>[];
+
+      for (final counselor in allCounselors) {
+        if (counselor.departmentAssigned == 'Volunteer') {
+          volunteerCounselors.add(counselor);
+        } else if (_studentDepartment != null && 
+                   counselor.departmentAssigned == _studentDepartment) {
+          departmentCounselors.add(counselor);
+        }
+      }
+
       setState(() {
-        _counselors = counselors;
+        _departmentCounselors = departmentCounselors;
+        _volunteerCounselors = volunteerCounselors;
         _isLoading = false;
       });
     } catch (e) {
+      print('Error loading counselors: $e');
       if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Error loading counselors')),
         );
@@ -85,7 +133,7 @@ class _StudentCounselorsState extends State<StudentCounselors> {
               const SizedBox(height: 0),
               if (_isLoading)
                 const Center(child: CircularProgressIndicator())
-              else if (_counselors.isEmpty)
+              else if (_departmentCounselors.isEmpty && _volunteerCounselors.isEmpty)
                 Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -108,7 +156,9 @@ class _StudentCounselorsState extends State<StudentCounselors> {
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 32),
                         child: Text(
-                          'There are currently no counselors registered in the system. Please check back later or contact the administrator for assistance.',
+                          _studentDepartment != null
+                              ? 'There are currently no counselors available for $_studentDepartment. Please check back later or contact the administrator for assistance.'
+                              : 'There are currently no counselors registered in the system. Please check back later or contact the administrator for assistance.',
                           textAlign: TextAlign.center,
                           style: GoogleFonts.poppins(
                             fontSize: 14,
@@ -145,25 +195,53 @@ class _StudentCounselorsState extends State<StudentCounselors> {
                 )
               else
                 Expanded(
-                  child: ListView.builder(
-                    itemCount: _counselors.length,
-                    itemBuilder: (context, index) {
-                      final counselor = _counselors[index];
-                      return _CounselorCard(
-                        counselor: counselor,
-                        onBookAppointment: () =>
-                            _showBookAppointmentDialog(counselor),
-                        onViewProfile: () {
-                          Navigator.pushNamed(
-                            context,
-                            '/counselor-profile-view',
-                            arguments: {
-                              'counselorId': counselor.id,
-                            },
-                          );
-                        },
-                      );
-                    },
+                  child: ListView(
+                    children: [
+                      // Department Counselors Section
+                      if (_departmentCounselors.isNotEmpty) ...[
+                        Text(
+                          _studentDepartment ?? 'Department Counselors',
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF3A3A50),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Counselors assigned to your department',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        ...(_departmentCounselors.map((counselor) => _buildCounselorCard(counselor))),
+                        const SizedBox(height: 24),
+                      ],
+                      
+                      // Volunteer Counselors Section
+                      if (_volunteerCounselors.isNotEmpty) ...[
+                        Text(
+                          'Volunteer Counselors',
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF3A3A50),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Available for all students',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        ...(_volunteerCounselors.map((counselor) => _buildCounselorCard(counselor))),
+                      ],
+                    ],
                   ),
                 ),
             ],
@@ -172,131 +250,78 @@ class _StudentCounselorsState extends State<StudentCounselors> {
       ),
     );
   }
-}
 
-class _CounselorCard extends StatefulWidget {
-  final Counselor counselor;
-  final VoidCallback onBookAppointment;
-  final VoidCallback? onViewProfile;
-
-  const _CounselorCard({
-    required this.counselor,
-    required this.onBookAppointment,
-    this.onViewProfile,
-  });
-
-  @override
-  State<_CounselorCard> createState() => _CounselorCardState();
-}
-
-class _CounselorCardState extends State<_CounselorCard> {
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildCounselorCard(Counselor counselor) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
+      child: Material(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
+        elevation: 2,
+        shadowColor: Colors.black.withOpacity(0.1),
         child: InkWell(
-          onTap: widget.onBookAppointment,
+          onTap: () => _showBookAppointmentDialog(counselor),
           borderRadius: BorderRadius.circular(16),
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CounselorAvatar(
-                  counselorId: widget.counselor.id,
-                  radius: 30,
-                  fallbackName: widget.counselor.fullName,
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        (widget.counselor.fullName.isNotEmpty
-                            ? widget.counselor.fullName
-                                .split(' ')
-                                .map((part) => part.isNotEmpty
-                                    ? part[0].toUpperCase() +
-                                        part.substring(1).toLowerCase()
-                                    : '')
-                                .join(' ')
-                            : ''),
-                        style: GoogleFonts.poppins(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF3A3A50),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        widget.counselor.departmentAssigned,
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: widget.counselor.availabilityStatus.toLowerCase() ==
-                                  'available'
-                              ? Colors.green.withOpacity(0.1)
-                              : Colors.orange.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          widget.counselor.availabilityStatus,
-                          style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: widget.counselor.availabilityStatus.toLowerCase() ==
-                                    'available'
-                                ? Colors.green
-                                : Colors.orange,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                Row(
                   children: [
-                    IconButton(
-                      onPressed: widget.onViewProfile,
-                      icon: const Icon(Icons.person_outline),
-                      color: const Color(0xFF7C83FD),
-                      tooltip: 'View Profile',
-                      style: IconButton.styleFrom(
-                        backgroundColor: const Color(0xFF7C83FD).withOpacity(0.1),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
+                    CounselorAvatar(
+                      counselorId: counselor.id,
+                      fallbackName: '${counselor.firstName} ${counselor.lastName}',
+                      radius: 30,
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${counselor.firstName} ${counselor.lastName}',
+                            style: GoogleFonts.poppins(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF3A3A50),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: counselor.departmentAssigned == 'Volunteer'
+                                      ? Colors.orange[50]
+                                      : const Color(0xFF7C83FD).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  counselor.departmentAssigned,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: counselor.departmentAssigned == 'Volunteer'
+                                        ? Colors.orange[700]
+                                        : const Color(0xFF7C83FD),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      color: Colors.grey[400],
+                      size: 20,
+                    ),
                   ],
-                ), 
+                ),
               ],
             ),
           ),
@@ -304,8 +329,6 @@ class _CounselorCardState extends State<_CounselorCard> {
       ),
     );
   }
-
-
 }
 
 class AppointmentBookingDialog extends StatefulWidget {
