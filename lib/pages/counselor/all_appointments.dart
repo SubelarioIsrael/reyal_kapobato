@@ -460,46 +460,432 @@ class _AllAppointmentsState extends State<AllAppointments> {
     String selectedOption = 'generate'; // 'generate' or 'enter'
     String? generatedCallCode;
     
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      barrierDismissible: false,
+      isScrollControlled: true,
+      isDismissible: false,
+      backgroundColor: Colors.transparent,
       builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
-          title: Row(
+        builder: (context, setState) => Container(
+          height: MediaQuery.of(context).size.height * 0.9,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
             children: [
+              // Header
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
                   color: const Color(0xFF7C83FD).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
                 ),
-                child: const Icon(
-                  Icons.video_call, 
-                  color: Color(0xFF7C83FD), 
-                  size: 28
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
                   children: [
-                    Text(
-                      'Video Call',
-                      style: GoogleFonts.poppins(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF3A3A50),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF7C83FD).withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.video_call, 
+                        color: Color(0xFF7C83FD), 
+                        size: 28
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Choose an option to start your session',
-                      style: GoogleFonts.poppins(
-                        fontSize: 13,
-                        color: const Color(0xFF5D5D72),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Video Call',
+                            style: GoogleFonts.poppins(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF3A3A50),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Choose an option to start your session',
+                            style: GoogleFonts.poppins(
+                              fontSize: 13,
+                              color: const Color(0xFF5D5D72),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Color(0xFF5D5D72)),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Content
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Option 1: Generate New Code
+                      Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: selectedOption == 'generate' 
+                                ? const Color(0xFF7C83FD) 
+                                : Colors.grey.shade300,
+                            width: selectedOption == 'generate' ? 2 : 1,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: RadioListTile<String>(
+                          value: 'generate',
+                          groupValue: selectedOption,
+                          onChanged: (value) {
+                            setState(() {
+                              selectedOption = value!;
+                              callIdController.clear();
+                              generatedCallCode = null;
+                            });
+                          },
+                          title: Text(
+                            'Generate New Call Code',
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF3A3A50),
+                            ),
+                          ),
+                          subtitle: Text(
+                            'Create a new room for students to join',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              color: const Color(0xFF5D5D72),
+                            ),
+                          ),
+                          activeColor: const Color(0xFF7C83FD),
+                        ),
+                      ),
+                      
+                      if (selectedOption == 'generate') ...[
+                        const SizedBox(height: 16),
+                        if (generatedCallCode != null) ...[
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF7C83FD).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFF7C83FD).withOpacity(0.3)),
+                            ),
+                            child: Column(
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(Icons.code, color: Color(0xFF7C83FD)),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Your Call Code:',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: const Color(0xFF3A3A50),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.grey.shade300),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        generatedCallCode!,
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 2,
+                                          color: const Color(0xFF7C83FD),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      InkWell(
+                                        onTap: () {
+                                          // Copy to clipboard logic here
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text('Call code copied to clipboard!'),
+                                              backgroundColor: Color(0xFF7C83FD),
+                                            ),
+                                          );
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF7C83FD).withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: const Icon(Icons.copy, size: 16, color: Color(0xFF7C83FD)),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'Share this code with your student to join the call',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 12,
+                                    color: const Color(0xFF5D5D72),
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ] else ...[
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: isGeneratingCode ? null : () async {
+                                setState(() {
+                                  isGeneratingCode = true;
+                                });
+                                
+                                try {
+                                  // Generate call code
+                                  final code = await _generateCallCode();
+                                  setState(() {
+                                    generatedCallCode = code;
+                                    isGeneratingCode = false;
+                                  });
+                                } catch (e) {
+                                  setState(() {
+                                    isGeneratingCode = false;
+                                  });
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Error generating code: $e'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF7C83FD),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              icon: isGeneratingCode 
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                      ),
+                                    )
+                                  : const Icon(Icons.refresh),
+                              label: Text(
+                                isGeneratingCode ? 'Generating...' : 'Generate Call Code',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                      
+                      const SizedBox(height: 24),
+                      
+                      // Option 2: Enter Existing Code
+                      Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: selectedOption == 'enter' 
+                                ? const Color(0xFF7C83FD) 
+                                : Colors.grey.shade300,
+                            width: selectedOption == 'enter' ? 2 : 1,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: RadioListTile<String>(
+                          value: 'enter',
+                          groupValue: selectedOption,
+                          onChanged: (value) {
+                            setState(() {
+                              selectedOption = value!;
+                              generatedCallCode = null;
+                            });
+                          },
+                          title: Text(
+                            'Join Existing Call',
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF3A3A50),
+                            ),
+                          ),
+                          subtitle: Text(
+                            'Enter a call code to join an existing room',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              color: const Color(0xFF5D5D72),
+                            ),
+                          ),
+                          activeColor: const Color(0xFF7C83FD),
+                        ),
+                      ),
+                      
+                      if (selectedOption == 'enter') ...[
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: callIdController,
+                          decoration: InputDecoration(
+                            hintText: 'Enter call code (abc-def-ghi)',
+                            hintStyle: GoogleFonts.poppins(
+                              color: Colors.grey.shade500,
+                              fontSize: 16,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: Colors.grey.shade300),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: Color(0xFF7C83FD), width: 2),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: Colors.grey.shade300),
+                            ),
+                            filled: true,
+                            fillColor: Colors.grey.shade50,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                            prefixIcon: Icon(
+                              Icons.code,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: 1.5,
+                          ),
+                          textCapitalization: TextCapitalization.none,
+                          autocorrect: false,
+                          onSubmitted: (value) {
+                            if (value.isNotEmpty && !isJoiningCall) {
+                              _joinVideoCall(value.trim());
+                            }
+                          },
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              
+              // Action Buttons
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, -4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          side: BorderSide(color: Colors.grey[300]!, width: 2),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          'Cancel',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF5D5D72),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: (isGeneratingCode || isJoiningCall) ? null : () async {
+                          if (selectedOption == 'generate' && generatedCallCode != null) {
+                            // Join the generated call
+                            await _joinVideoCall(generatedCallCode!);
+                          } else if (selectedOption == 'enter' && callIdController.text.isNotEmpty) {
+                            // Join the entered call code
+                            await _joinVideoCall(callIdController.text.trim());
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  selectedOption == 'generate' 
+                                      ? 'Please generate a call code first'
+                                      : 'Please enter a call code',
+                                ),
+                                backgroundColor: Colors.orange,
+                              ),
+                            );
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          backgroundColor: const Color(0xFF7C83FD),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 2,
+                        ),
+                        child: (isGeneratingCode || isJoiningCall)
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              )
+                            : Text(
+                                'Start Call',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                       ),
                     ),
                   ],
@@ -507,339 +893,6 @@ class _AllAppointmentsState extends State<AllAppointments> {
               ),
             ],
           ),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 16),
-                  
-                  // Option 1: Generate New Code
-                  Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: selectedOption == 'generate' 
-                            ? const Color(0xFF7C83FD) 
-                            : Colors.grey.shade300,
-                        width: selectedOption == 'generate' ? 2 : 1,
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: RadioListTile<String>(
-                      value: 'generate',
-                      groupValue: selectedOption,
-                      onChanged: (value) {
-                        setState(() {
-                          selectedOption = value!;
-                          callIdController.clear();
-                          generatedCallCode = null;
-                        });
-                      },
-                      title: Text(
-                        'Generate New Call Code',
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF3A3A50),
-                        ),
-                      ),
-                      subtitle: Text(
-                        'Create a new room for students to join',
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          color: const Color(0xFF5D5D72),
-                        ),
-                      ),
-                      activeColor: const Color(0xFF7C83FD),
-                    ),
-                  ),
-                  
-                  if (selectedOption == 'generate') ...[
-                    const SizedBox(height: 16),
-                    if (generatedCallCode != null) ...[
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF7C83FD).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFF7C83FD).withOpacity(0.3)),
-                        ),
-                        child: Column(
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.code, color: Color(0xFF7C83FD)),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Your Call Code:',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: const Color(0xFF3A3A50),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.grey.shade300),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    generatedCallCode!,
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 2,
-                                      color: const Color(0xFF7C83FD),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  InkWell(
-                                    onTap: () {
-                                      // Copy to clipboard logic here
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text('Call code copied to clipboard!'),
-                                          backgroundColor: const Color(0xFF7C83FD),
-                                        ),
-                                      );
-                                    },
-                                    child: Container(
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF7C83FD).withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: const Icon(Icons.copy, size: 16, color: Color(0xFF7C83FD)),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              'Share this code with your student to join the call',
-                              style: GoogleFonts.poppins(
-                                fontSize: 12,
-                                color: const Color(0xFF5D5D72),
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ] else ...[
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: isGeneratingCode ? null : () async {
-                            setState(() {
-                              isGeneratingCode = true;
-                            });
-                            
-                            try {
-                              // Generate call code
-                              final code = await _generateCallCode();
-                              setState(() {
-                                generatedCallCode = code;
-                                isGeneratingCode = false;
-                              });
-                            } catch (e) {
-                              setState(() {
-                                isGeneratingCode = false;
-                              });
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Error generating code: $e'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF7C83FD),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          icon: isGeneratingCode 
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                  ),
-                                )
-                              : const Icon(Icons.refresh),
-                          label: Text(
-                            isGeneratingCode ? 'Generating...' : 'Generate Call Code',
-                            style: GoogleFonts.poppins(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                  
-                  const SizedBox(height: 24),
-                  
-                  // Option 2: Enter Existing Code
-                  Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: selectedOption == 'enter' 
-                            ? const Color(0xFF7C83FD) 
-                            : Colors.grey.shade300,
-                        width: selectedOption == 'enter' ? 2 : 1,
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: RadioListTile<String>(
-                      value: 'enter',
-                      groupValue: selectedOption,
-                      onChanged: (value) {
-                        setState(() {
-                          selectedOption = value!;
-                          generatedCallCode = null;
-                        });
-                      },
-                      title: Text(
-                        'Join Existing Call',
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF3A3A50),
-                        ),
-                      ),
-                      subtitle: Text(
-                        'Enter a call code to join an existing room',
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          color: const Color(0xFF5D5D72),
-                        ),
-                      ),
-                      activeColor: const Color(0xFF7C83FD),
-                    ),
-                  ),
-                  
-                  if (selectedOption == 'enter') ...[
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: callIdController,
-                      decoration: InputDecoration(
-                        hintText: 'Enter call code (abc-def-ghi)',
-                        hintStyle: GoogleFonts.poppins(
-                          color: Colors.grey.shade500,
-                          fontSize: 16,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade300),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFF7C83FD), width: 2),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade300),
-                        ),
-                        filled: true,
-                        fillColor: Colors.grey.shade50,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                        prefixIcon: Icon(
-                          Icons.code,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        letterSpacing: 1.5,
-                      ),
-                      textCapitalization: TextCapitalization.none,
-                      autocorrect: false,
-                      onSubmitted: (value) {
-                        if (value.isNotEmpty && !isJoiningCall) {
-                          _joinVideoCall(value.trim());
-                        }
-                      },
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                'Cancel',
-                style: GoogleFonts.poppins(
-                  color: const Color(0xFF5D5D72),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: (isGeneratingCode || isJoiningCall) ? null : () async {
-                if (selectedOption == 'generate' && generatedCallCode != null) {
-                  // Join the generated call
-                  await _joinVideoCall(generatedCallCode!);
-                } else if (selectedOption == 'enter' && callIdController.text.isNotEmpty) {
-                  // Join the entered call code
-                  await _joinVideoCall(callIdController.text.trim());
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        selectedOption == 'generate' 
-                            ? 'Please generate a call code first'
-                            : 'Please enter a call code',
-                      ),
-                      backgroundColor: Colors.orange,
-                    ),
-                  );
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF7C83FD),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: isJoiningCall
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : Text(
-                      'Start Call',
-                      style: GoogleFonts.poppins(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-            ),
-          ],
         ),
       ),
     );

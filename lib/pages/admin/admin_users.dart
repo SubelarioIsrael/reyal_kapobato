@@ -47,7 +47,7 @@ class _AdminUsersState extends State<AdminUsers> {
     try {
       final response = await Supabase.instance.client
           .from('users')
-          .select('*, students(*)')
+          .select('*, students(*), counselors(*)')
           .order('email');
 
       setState(() {
@@ -262,109 +262,122 @@ class _AdminUsersState extends State<AdminUsers> {
       context: context,
       title: 'Add New User',
       subtitle: 'Create a new user account for the system',
-      content: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            FormSection(
-              title: 'Account Information',
-              icon: Icons.person_outline,
-              child: ModernTextFormField(
-                controller: _emailController,
-                labelText: 'Email Address',
-                hintText: 'Enter a valid email address',
-                prefixIcon: Icons.email,
-                keyboardType: TextInputType.emailAddress,
-                validator: (value) {
-                  if (value?.isEmpty ?? true) {
-                    return 'Please enter an email';
-                  }
-                  final emailRegex = RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$');
-                  if (!emailRegex.hasMatch(value!)) {
-                    return 'Enter a valid email';
-                  }
-                  return null;
-                },
-              ),
-            ),
-            const SizedBox(height: 32),
-            FormSection(
-              title: 'Account Settings',
-              icon: Icons.settings,
-              child: Column(
-                children: [  
-                  ModernDropdownFormField<String>(
-                    value: _selectedRole,
-                    labelText: 'User Role',
-                    prefixIcon: Icons.badge,
-                    items: const [
-                      DropdownMenuItem(
-                          value: 'counselor', child: Text('Counselor')),
-                      DropdownMenuItem(value: 'admin', child: Text('Admin')),
-                    ],
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedRole = value!;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  ModernTextFormField(
-                    controller: _passwordController,
-                    labelText: 'Password',
-                    hintText: 'Enter a secure password',
-                    prefixIcon: Icons.lock,
-                    obscureText: !_showPassword,
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _showPassword ? Icons.visibility : Icons.visibility_off,
-                        color: Colors.grey,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _showPassword = !_showPassword;
-                        });
-                      },
-                    ),
-                    validator: (value) => value == null || value.isEmpty
-                        ? 'Please enter a password'
-                        : null,
-                  ),
-                  const SizedBox(height: 20),
-                  ModernTextFormField(
-                    controller: _confirmPasswordController,
-                    labelText: 'Confirm Password',
-                    hintText: 'Re-enter the password',
-                    prefixIcon: Icons.lock_clock,
-                    obscureText: !_showConfirmPassword,
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _showConfirmPassword ? Icons.visibility : Icons.visibility_off,
-                        color: Colors.grey,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _showConfirmPassword = !_showConfirmPassword;
-                        });
-                      },
-                    ),
+      content: StatefulBuilder(
+        builder: (context, setDialogState) {
+          return Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                FormSection(
+                  title: 'Account Information',
+                  icon: Icons.person_outline,
+                  child: ModernTextFormField(
+                    controller: _emailController,
+                    labelText: 'Email Address',
+                    hintText: 'Enter a valid email address',
+                    prefixIcon: Icons.email,
+                    keyboardType: TextInputType.emailAddress,
                     validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please confirm your password';
+                      if (value?.isEmpty ?? true) {
+                        return 'Please enter an email';
                       }
-                      if (value != _passwordController.text) {
-                        return 'Passwords do not match';
+                      final emailRegex = RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$');
+                      if (!emailRegex.hasMatch(value!)) {
+                        return 'Enter a valid email';
                       }
                       return null;
                     },
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 32),
+                FormSection(
+                  title: 'Account Settings',
+                  icon: Icons.settings,
+                  child: Column(
+                    children: [  
+                      ModernDropdownFormField<String>(
+                        value: _selectedRole,
+                        labelText: 'User Role',
+                        prefixIcon: Icons.badge,
+                        items: const [
+                          DropdownMenuItem(
+                              value: 'counselor', child: Text('Counselor')),
+                          DropdownMenuItem(value: 'admin', child: Text('Admin')),
+                        ],
+                        onChanged: (value) {
+                          setDialogState(() {
+                            _selectedRole = value!;
+                          });
+                          setState(() {
+                            _selectedRole = value!;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                      ModernTextFormField(
+                        controller: _passwordController,
+                        labelText: 'Password',
+                        hintText: 'Enter a secure password',
+                        prefixIcon: Icons.lock,
+                        obscureText: !_showPassword,
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _showPassword ? Icons.visibility : Icons.visibility_off,
+                            color: Colors.grey,
+                          ),
+                          onPressed: () {
+                            setDialogState(() {
+                              _showPassword = !_showPassword;
+                            });
+                            setState(() {
+                              _showPassword = !_showPassword;
+                            });
+                          },
+                        ),
+                        validator: (value) => value == null || value.isEmpty
+                            ? 'Please enter a password'
+                            : null,
+                      ),
+                      const SizedBox(height: 20),
+                      ModernTextFormField(
+                        controller: _confirmPasswordController,
+                        labelText: 'Confirm Password',
+                        hintText: 'Re-enter the password',
+                        prefixIcon: Icons.lock_clock,
+                        obscureText: !_showConfirmPassword,
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _showConfirmPassword ? Icons.visibility : Icons.visibility_off,
+                            color: Colors.grey,
+                          ),
+                          onPressed: () {
+                            setDialogState(() {
+                              _showConfirmPassword = !_showConfirmPassword;
+                            });
+                            setState(() {
+                              _showConfirmPassword = !_showConfirmPassword;
+                            });
+                          },
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please confirm your password';
+                          }
+                          if (value != _passwordController.text) {
+                            return 'Passwords do not match';
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
             ),
-            const SizedBox(height: 24),
-          ],
-        ),
+          );
+        },
       ),
       actions: [
         const ModernActionButton(
@@ -373,6 +386,7 @@ class _AdminUsersState extends State<AdminUsers> {
         ModernActionButton(
           text: 'Add User',
           isPrimary: true,
+          isLoading: _isLoading,
           onPressed: _isLoading
               ? null
               : () async {
@@ -382,6 +396,118 @@ class _AdminUsersState extends State<AdminUsers> {
                     });
 
                     try {
+                      // Check if email already exists in the system
+                      final existingUser = await Supabase.instance.client
+                          .from('users')
+                          .select('email')
+                          .eq('email', _emailController.text.trim())
+                          .maybeSingle();
+
+                      if (existingUser != null) {
+                        // Email already exists
+                        setState(() {
+                          _isLoading = false;
+                        });
+                        
+                        if (mounted) {
+                          Navigator.pop(context); // Close the form dialog
+                          
+                          showDialog(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              title: Row(
+                                children: [
+                                  Icon(
+                                    Icons.error_outline,
+                                    color: Colors.red,
+                                    size: 28,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      'Email Already Exists',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w600,
+                                        color: const Color(0xFF3A3A50),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              content: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'The email address "${_emailController.text.trim()}" is already registered in the system.',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 14,
+                                      color: const Color(0xFF3A3A50),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: Colors.red.withOpacity(0.3),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.info_outline,
+                                          color: Colors.red,
+                                          size: 20,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            'Please use a different email address.',
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 12,
+                                              color: Colors.red.shade700,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              actions: [
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.red,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      'OK',
+                                      style: GoogleFonts.poppins(
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                        return;
+                      }
+
                       // For admin-created accounts, we'll create them and then manually confirm them
                       final authResponse =
                           await Supabase.instance.client.auth.signUp(
@@ -546,7 +672,6 @@ class _AdminUsersState extends State<AdminUsers> {
                     }
                   }
                 },
-          isLoading: _isLoading,
         ),
       ],
     );
@@ -636,6 +761,24 @@ class _AdminUsersState extends State<AdminUsers> {
                                   ? user['students'][0] as Map<String, dynamic>
                                   : null
                               : user['students'] as Map<String, dynamic>?;
+                          
+                          final counselorData = user['counselors'] is List
+                              ? (user['counselors'] as List).isNotEmpty
+                                  ? user['counselors'][0] as Map<String, dynamic>
+                                  : null
+                              : user['counselors'] as Map<String, dynamic>?;
+
+                          // Get name based on user type
+                          String userName = 'No Name';
+                          if (studentData != null && 
+                              studentData['first_name'] != null && 
+                              studentData['last_name'] != null) {
+                            userName = '${studentData['first_name']} ${studentData['last_name']}';
+                          } else if (counselorData != null && 
+                                     counselorData['first_name'] != null && 
+                                     counselorData['last_name'] != null) {
+                            userName = '${counselorData['first_name']} ${counselorData['last_name']}';
+                          }
 
                           return Container(
                             margin: const EdgeInsets.only(bottom: 16),
@@ -662,7 +805,7 @@ class _AdminUsersState extends State<AdminUsers> {
                                 ),
                               ),
                               title: Text(
-                                user['email'] ?? 'No Email',
+                                userName,
                                 style: GoogleFonts.poppins(
                                   fontWeight: FontWeight.w600,
                                   color: const Color(0xFF3A3A50),
@@ -675,23 +818,17 @@ class _AdminUsersState extends State<AdminUsers> {
                                   Text(
                                     user['email'] ?? 'No Email',
                                     style: GoogleFonts.poppins(
+                                        fontSize: 13,
                                         color: Colors.grey[600]),
                                   ),
-                                  if (studentData != null) ...[
+                                  if (studentData != null && studentData['student_code'] != null) ...[
                                     const SizedBox(height: 4),
                                     Text(
-                                      'Student ID: ${studentData['student_code'] ?? 'N/A'}',
+                                      'Student ID: ${studentData['student_code']}',
                                       style: GoogleFonts.poppins(
+                                          fontSize: 13,
                                           color: Colors.grey[600]),
                                     ),
-                                    if (studentData['course'] != null) ...[
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'Course: ${studentData['course']}',
-                                        style: GoogleFonts.poppins(
-                                            color: Colors.grey[600]),
-                                      ),
-                                    ],
                                   ],
                                   const SizedBox(height: 4),
                                   Row(

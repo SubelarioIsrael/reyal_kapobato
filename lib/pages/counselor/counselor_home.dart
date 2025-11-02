@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/appointment.dart';
 import '../chat/appointment_chat.dart';
-import 'all_appointments.dart';
 import 'video_call_dialog.dart';
 
 import '../../widgets/student_avatar.dart';
@@ -62,7 +61,7 @@ class _CounselorHomeState extends State<CounselorHome> {
       // Check if counselor profile exists and is complete
       final counselorProfile = await Supabase.instance.client
           .from('counselors')
-          .select('counselor_id, first_name, last_name, specialization, bio')
+          .select('counselor_id, first_name, last_name, department_assigned, bio')
           .eq('user_id', user.id)
           .maybeSingle();
 
@@ -77,12 +76,12 @@ class _CounselorHomeState extends State<CounselorHome> {
       // Check if profile is incomplete
       final firstName = counselorProfile['first_name'] as String?;
       final lastName = counselorProfile['last_name'] as String?;
-      final specialization = counselorProfile['specialization'] as String?;
+      final departmentAssigned = counselorProfile['department_assigned'] as String?;
       final bio = counselorProfile['bio'] as String?;
 
       final isProfileIncomplete = (firstName?.trim().isEmpty ?? true) ||
           (lastName?.trim().isEmpty ?? true) ||
-          (specialization?.trim().isEmpty ?? true) ||
+          (departmentAssigned?.trim().isEmpty ?? true) ||
           (bio?.trim().isEmpty ?? true);
 
       if (isProfileIncomplete) {
@@ -965,8 +964,10 @@ class _CounselorHomeState extends State<CounselorHome> {
                 Icons.video_call,
                 Colors.orange,
                 () {
-                  showDialog(
+                  showModalBottomSheet(
                     context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
                     builder: (context) => const VideoCallDialog(),
                   );
                 },

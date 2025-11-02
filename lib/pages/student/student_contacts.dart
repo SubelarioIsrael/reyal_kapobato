@@ -120,82 +120,281 @@ class _StudentContactsPageState extends State<StudentContactsPage> {
 
     final formKey = GlobalKey<FormState>();
 
-    await showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(isEdit ? 'Edit Emergency Contact' : 'Add Emergency Contact'),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'Name'),
-                validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
-              ),
-              TextFormField(
-                controller: relationshipController,
-                decoration: const InputDecoration(labelText: 'Relationship'),
-                validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
-              ),
-              TextFormField(
-                controller: numberController,
-                decoration: const InputDecoration(
-                  labelText: 'Contact Number (11 digits)',
-                  helperText: 'Enter exactly 11 digits',
-                ),
-                keyboardType: TextInputType.phone,
-                maxLength: 11,
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Required';
-                  final digitsOnly = v.replaceAll(RegExp(r'\D'), '');
-                  if (digitsOnly.length != 11) return 'Must be exactly 11 digits';
-                  return null;
-                },
-              ),
-            ],
-          ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.9,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (formKey.currentState?.validate() != true) return;
-              final userId = Supabase.instance.client.auth.currentUser?.id;
-              if (userId == null) return;
-              
-              // Clean phone number to digits only
-              final cleanedNumber = numberController.text.replaceAll(RegExp(r'\D'), '');
-              
-              if (isEdit) {
-                await Supabase.instance.client
-                    .from('emergency_contacts')
-                    .update({
-                      'contact_name': nameController.text.trim(),
-                      'relationship': relationshipController.text.trim(),
-                      'contact_number': cleanedNumber,
-                    })
-                    .eq('contact_id', contact['contact_id']);
-              } else {
-                await Supabase.instance.client
-                    .from('emergency_contacts')
-                    .insert({
-                      'user_id': userId,
-                      'contact_name': nameController.text.trim(),
-                      'relationship': relationshipController.text.trim(),
-                      'contact_number': cleanedNumber,
-                    });
-              }
-              Navigator.pop(context);
-              _loadContacts();
-            },
-            child: Text(isEdit ? 'Save' : 'Add'),
-          ),
-        ],
+        child: Column(
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: const Color(0xFF7C83FD).withOpacity(0.1),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF7C83FD).withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.contact_emergency,
+                      color: Color(0xFF7C83FD),
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      isEdit ? 'Edit Emergency Contact' : 'Add Emergency Contact',
+                      style: GoogleFonts.poppins(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF3A3A50),
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Color(0xFF5D5D72)),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            // Form Content
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Contact Information',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF3A3A50),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        controller: nameController,
+                        decoration: InputDecoration(
+                          labelText: 'Full Name *',
+                          hintText: 'Enter contact name',
+                          prefixIcon: const Icon(Icons.person_outline, color: Color(0xFF7C83FD)),
+                          labelStyle: GoogleFonts.poppins(color: const Color(0xFF5D5D72)),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Color(0xFF7C83FD), width: 2),
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                        ),
+                        style: GoogleFonts.poppins(),
+                        validator: (v) => v == null || v.trim().isEmpty ? 'Name is required' : null,
+                      ),
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        controller: relationshipController,
+                        decoration: InputDecoration(
+                          labelText: 'Relationship *',
+                          hintText: 'e.g., Parent, Sibling, Friend',
+                          prefixIcon: const Icon(Icons.people_outline, color: Color(0xFF7C83FD)),
+                          labelStyle: GoogleFonts.poppins(color: const Color(0xFF5D5D72)),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Color(0xFF7C83FD), width: 2),
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                        ),
+                        style: GoogleFonts.poppins(),
+                        validator: (v) => v == null || v.trim().isEmpty ? 'Relationship is required' : null,
+                      ),
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        controller: numberController,
+                        decoration: InputDecoration(
+                          labelText: 'Contact Number *',
+                          hintText: '09XXXXXXXXX',
+                          prefixIcon: const Icon(Icons.phone_outlined, color: Color(0xFF7C83FD)),
+                          labelStyle: GoogleFonts.poppins(color: const Color(0xFF5D5D72)),
+                          helperText: 'Enter exactly 11 digits',
+                          helperStyle: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Color(0xFF7C83FD), width: 2),
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                        ),
+                        keyboardType: TextInputType.phone,
+                        maxLength: 11,
+                        style: GoogleFonts.poppins(),
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) return 'Contact number is required';
+                          final digitsOnly = v.replaceAll(RegExp(r'\D'), '');
+                          if (digitsOnly.length != 11) return 'Must be exactly 11 digits';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.blue.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'This contact will be notified in case of emergencies.',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  color: const Color(0xFF5D5D72),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // Action Buttons
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, -4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        side: BorderSide(color: Colors.grey[300]!, width: 2),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        'Cancel',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF5D5D72),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        if (formKey.currentState?.validate() != true) return;
+                        final userId = Supabase.instance.client.auth.currentUser?.id;
+                        if (userId == null) return;
+                        
+                        // Clean phone number to digits only
+                        final cleanedNumber = numberController.text.replaceAll(RegExp(r'\D'), '');
+                        
+                        if (isEdit) {
+                          await Supabase.instance.client
+                              .from('emergency_contacts')
+                              .update({
+                                'contact_name': nameController.text.trim(),
+                                'relationship': relationshipController.text.trim(),
+                                'contact_number': cleanedNumber,
+                              })
+                              .eq('contact_id', contact['contact_id']);
+                        } else {
+                          await Supabase.instance.client
+                              .from('emergency_contacts')
+                              .insert({
+                                'user_id': userId,
+                                'contact_name': nameController.text.trim(),
+                                'relationship': relationshipController.text.trim(),
+                                'contact_number': cleanedNumber,
+                              });
+                        }
+                        Navigator.pop(context);
+                        _loadContacts();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        backgroundColor: const Color(0xFF7C83FD),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 2,
+                      ),
+                      child: Text(
+                        isEdit ? 'Save Changes' : 'Add Contact',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

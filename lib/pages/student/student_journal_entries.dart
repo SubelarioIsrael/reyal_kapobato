@@ -20,7 +20,6 @@ class _StudentJournalEntriesState extends State<StudentJournalEntries> {
   bool _isLoading = true;
   String _searchQuery = '';
   String _selectedFilter = 'all';
-  Map<String, int> _stats = {};
 
   @override
   void initState() {
@@ -39,13 +38,11 @@ class _StudentJournalEntriesState extends State<StudentJournalEntries> {
       }
 
       final entries = await JournalService.getJournalEntries(userId);
-      final stats = await JournalService.getJournalStats(userId);
 
       if (mounted) {
         setState(() {
           _journalEntries = entries;
           _filteredEntries = entries;
-          _stats = stats;
           _isLoading = false;
         });
       }
@@ -393,43 +390,6 @@ class _StudentJournalEntriesState extends State<StudentJournalEntries> {
             ? const Center(child: CircularProgressIndicator())
             : Column(
                 children: [
-                  // Stats Cards
-                  if (_stats.isNotEmpty) ...[
-                    Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: _buildStatCard(
-                              'Total Entries',
-                              _stats['total']?.toString() ?? '0',
-                              Icons.book,
-                              Colors.blue,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildStatCard(
-                              'Shared',
-                              _stats['shared']?.toString() ?? '0',
-                              Icons.share,
-                              Colors.green,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildStatCard(
-                              'Positive',
-                              _stats['positive']?.toString() ?? '0',
-                              Icons.sentiment_satisfied,
-                              Colors.orange,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-
                   // Search and Filter
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -539,45 +499,6 @@ class _StudentJournalEntriesState extends State<StudentJournalEntries> {
         backgroundColor: const Color(0xFF7C83FD),
         foregroundColor: Colors.white,
         child: const Icon(Icons.edit),
-      ),
-    );
-  }
-
-  Widget _buildStatCard(
-      String title, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: GoogleFonts.poppins(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: const Color(0xFF3A3A50),
-            ),
-          ),
-          Text(
-            title,
-            style: GoogleFonts.poppins(
-              fontSize: 12,
-              color: Colors.grey[600],
-            ),
-          ),
-        ],
       ),
     );
   }

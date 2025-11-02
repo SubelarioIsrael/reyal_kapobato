@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/counselor.dart';
 import '../../services/counselor_service.dart';
 import '../../components/student_drawer.dart';
 import '../../components/student_notification_button.dart';
 import '../../widgets/counselor_avatar.dart';
+import '../../utils/department_mapping.dart';
 
 class StudentCounselors extends StatefulWidget {
   const StudentCounselors({super.key});
@@ -15,8 +18,10 @@ class StudentCounselors extends StatefulWidget {
 
 class _StudentCounselorsState extends State<StudentCounselors> {
   final CounselorService _counselorService = CounselorService();
-  List<Counselor> _counselors = [];
+  List<Counselor> _departmentCounselors = [];
+  List<Counselor> _volunteerCounselors = [];
   bool _isLoading = true;
+  String? _studentDepartment;
 
   @override
   void initState() {
@@ -26,13 +31,57 @@ class _StudentCounselorsState extends State<StudentCounselors> {
 
   Future<void> _loadCounselors() async {
     try {
-      final counselors = await _counselorService.getCounselors();
+      // Get current user
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) {
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // Get student's education info to determine department
+      final studentData = await Supabase.instance.client
+          .from('students')
+          .select('education_level, course, strand')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+      if (studentData != null) {
+        _studentDepartment = DepartmentMapping.getStudentDepartment(
+          educationLevel: studentData['education_level'],
+          course: studentData['course'],
+          strand: studentData['strand'],
+        );
+      }
+
+      // Get all counselors
+      final allCounselors = await _counselorService.getCounselors();
+      
+      // Filter counselors by department
+      final departmentCounselors = <Counselor>[];
+      final volunteerCounselors = <Counselor>[];
+
+      for (final counselor in allCounselors) {
+        if (counselor.departmentAssigned == 'Volunteer') {
+          volunteerCounselors.add(counselor);
+        } else if (_studentDepartment != null && 
+                   counselor.departmentAssigned == _studentDepartment) {
+          departmentCounselors.add(counselor);
+        }
+      }
+
       setState(() {
-        _counselors = counselors;
+        _departmentCounselors = departmentCounselors;
+        _volunteerCounselors = volunteerCounselors;
         _isLoading = false;
       });
     } catch (e) {
+      print('Error loading counselors: $e');
       if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Error loading counselors')),
         );
@@ -41,8 +90,10 @@ class _StudentCounselorsState extends State<StudentCounselors> {
   }
 
   void _showBookAppointmentDialog(Counselor counselor) {
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (context) => AppointmentBookingDialog(counselor: counselor),
     );
   }
@@ -82,7 +133,7 @@ class _StudentCounselorsState extends State<StudentCounselors> {
               const SizedBox(height: 0),
               if (_isLoading)
                 const Center(child: CircularProgressIndicator())
-              else if (_counselors.isEmpty)
+              else if (_departmentCounselors.isEmpty && _volunteerCounselors.isEmpty)
                 Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -105,7 +156,9 @@ class _StudentCounselorsState extends State<StudentCounselors> {
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 32),
                         child: Text(
-                          'There are currently no counselors registered in the system. Please check back later or contact the administrator for assistance.',
+                          _studentDepartment != null
+                              ? 'There are currently no counselors available for $_studentDepartment. Please check back later or contact the administrator for assistance.'
+                              : 'There are currently no counselors registered in the system. Please check back later or contact the administrator for assistance.',
                           textAlign: TextAlign.center,
                           style: GoogleFonts.poppins(
                             fontSize: 14,
@@ -142,25 +195,53 @@ class _StudentCounselorsState extends State<StudentCounselors> {
                 )
               else
                 Expanded(
-                  child: ListView.builder(
-                    itemCount: _counselors.length,
-                    itemBuilder: (context, index) {
-                      final counselor = _counselors[index];
-                      return _CounselorCard(
-                        counselor: counselor,
-                        onBookAppointment: () =>
-                            _showBookAppointmentDialog(counselor),
-                        onViewProfile: () {
-                          Navigator.pushNamed(
-                            context,
-                            '/counselor-profile-view',
-                            arguments: {
-                              'counselorId': counselor.id,
-                            },
-                          );
-                        },
-                      );
-                    },
+                  child: ListView(
+                    children: [
+                      // Department Counselors Section
+                      if (_departmentCounselors.isNotEmpty) ...[
+                        Text(
+                          _studentDepartment ?? 'Department Counselors',
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF3A3A50),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Counselors assigned to your department',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        ...(_departmentCounselors.map((counselor) => _buildCounselorCard(counselor))),
+                        const SizedBox(height: 24),
+                      ],
+                      
+                      // Volunteer Counselors Section
+                      if (_volunteerCounselors.isNotEmpty) ...[
+                        Text(
+                          'Volunteer Counselors',
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF3A3A50),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Available for all students',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        ...(_volunteerCounselors.map((counselor) => _buildCounselorCard(counselor))),
+                      ],
+                    ],
                   ),
                 ),
             ],
@@ -169,131 +250,78 @@ class _StudentCounselorsState extends State<StudentCounselors> {
       ),
     );
   }
-}
 
-class _CounselorCard extends StatefulWidget {
-  final Counselor counselor;
-  final VoidCallback onBookAppointment;
-  final VoidCallback? onViewProfile;
-
-  const _CounselorCard({
-    required this.counselor,
-    required this.onBookAppointment,
-    this.onViewProfile,
-  });
-
-  @override
-  State<_CounselorCard> createState() => _CounselorCardState();
-}
-
-class _CounselorCardState extends State<_CounselorCard> {
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildCounselorCard(Counselor counselor) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
+      child: Material(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
+        elevation: 2,
+        shadowColor: Colors.black.withOpacity(0.1),
         child: InkWell(
-          onTap: widget.onBookAppointment,
+          onTap: () => _showBookAppointmentDialog(counselor),
           borderRadius: BorderRadius.circular(16),
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CounselorAvatar(
-                  counselorId: widget.counselor.id,
-                  radius: 30,
-                  fallbackName: widget.counselor.fullName,
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        (widget.counselor.fullName.isNotEmpty
-                            ? widget.counselor.fullName
-                                .split(' ')
-                                .map((part) => part.isNotEmpty
-                                    ? part[0].toUpperCase() +
-                                        part.substring(1).toLowerCase()
-                                    : '')
-                                .join(' ')
-                            : ''),
-                        style: GoogleFonts.poppins(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF3A3A50),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        widget.counselor.specialization,
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: widget.counselor.availabilityStatus.toLowerCase() ==
-                                  'available'
-                              ? Colors.green.withOpacity(0.1)
-                              : Colors.orange.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          widget.counselor.availabilityStatus,
-                          style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: widget.counselor.availabilityStatus.toLowerCase() ==
-                                    'available'
-                                ? Colors.green
-                                : Colors.orange,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                Row(
                   children: [
-                    IconButton(
-                      onPressed: widget.onViewProfile,
-                      icon: const Icon(Icons.person_outline),
-                      color: const Color(0xFF7C83FD),
-                      tooltip: 'View Profile',
-                      style: IconButton.styleFrom(
-                        backgroundColor: const Color(0xFF7C83FD).withOpacity(0.1),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
+                    CounselorAvatar(
+                      counselorId: counselor.id,
+                      fallbackName: '${counselor.firstName} ${counselor.lastName}',
+                      radius: 30,
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${counselor.firstName} ${counselor.lastName}',
+                            style: GoogleFonts.poppins(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF3A3A50),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: counselor.departmentAssigned == 'Volunteer'
+                                      ? Colors.orange[50]
+                                      : const Color(0xFF7C83FD).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  counselor.departmentAssigned,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: counselor.departmentAssigned == 'Volunteer'
+                                        ? Colors.orange[700]
+                                        : const Color(0xFF7C83FD),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      color: Colors.grey[400],
+                      size: 20,
+                    ),
                   ],
-                ), 
+                ),
               ],
             ),
           ),
@@ -301,8 +329,6 @@ class _CounselorCardState extends State<_CounselorCard> {
       ),
     );
   }
-
-
 }
 
 class AppointmentBookingDialog extends StatefulWidget {
@@ -483,289 +509,356 @@ class _AppointmentBookingDialogState extends State<AppointmentBookingDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: const Color.fromARGB(255, 242, 241, 248),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.8,
-          maxWidth: MediaQuery.of(context).size.width * 0.9,
-        ),
-        child: SingleChildScrollView(
-          child: Padding(
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.9,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        children: [
+          // Header
+          Container(
             padding: const EdgeInsets.all(24),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+            decoration: BoxDecoration(
+              color: const Color(0xFF7C83FD).withOpacity(0.1),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF7C83FD).withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.calendar_month,
+                    color: Color(0xFF7C83FD),
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF7C83FD).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(
-                          Icons.calendar_month,
-                          color: Color(0xFF7C83FD),
-                          size: 24,
+                      Text(
+                        'Book Appointment',
+                        style: GoogleFonts.poppins(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF3A3A50),
                         ),
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Book Appointment',
-                              style: GoogleFonts.poppins(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFF3A3A50),
-                              ),
-                            ),
-                            Text(
-                              'with ${widget.counselor.fullName}',
-                              style: GoogleFonts.poppins(
-                                fontSize: 14,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ],
+                      Text(
+                        'with ${widget.counselor.fullName}',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          color: const Color(0xFF5D5D72),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
-                  
-                  // Duration Notice
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.blue.shade200),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'All appointments are scheduled for exactly 1 hour',
-                            style: GoogleFonts.poppins(
-                              fontSize: 12,
-                              color: Colors.blue.shade700,
-                              fontWeight: FontWeight.w500,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, color: Color(0xFF5D5D72)),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+          ),
+          // Form Content
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Duration Notice
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.blue.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'All appointments are scheduled for exactly 1 hour',
+                              style: GoogleFonts.poppins(
+                                fontSize: 13,
+                                color: const Color(0xFF5D5D72),
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  
-                  // Date Selection
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF7C83FD).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(Icons.calendar_today, color: Color(0xFF7C83FD), size: 20),
+                        ],
                       ),
-                      title: Text(
-                        _selectedDate == null
-                            ? 'Select Date'
-                            : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: _selectedDate == null
-                              ? Colors.grey[600]
-                              : const Color(0xFF3A3A50),
-                        ),
+                    ),
+                    const SizedBox(height: 24),
+                    
+                    Text(
+                      'Appointment Details',
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF3A3A50),
                       ),
-                      trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Color(0xFF7C83FD)),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Date Selection
+                    InkWell(
                       onTap: () => _selectDate(context),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  
-                  // Start Time Selection
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF7C83FD).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
+                          color: Colors.grey[50],
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey[300]!),
                         ),
-                        child: const Icon(Icons.access_time, color: Color(0xFF7C83FD), size: 20),
-                      ),
-                      title: Text(
-                        _selectedStartTime == null
-                            ? 'Select Start Time'
-                            : 'Start: ${_selectedStartTime!.format(context)}',
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: _selectedStartTime == null
-                              ? Colors.grey[600]
-                              : const Color(0xFF3A3A50),
-                        ),
-                      ),
-                      subtitle: _selectedEndTime != null
-                          ? Text(
-                              'End: ${_selectedEndTime!.format(context)}',
-                              style: GoogleFonts.poppins(
-                                fontSize: 12,
-                                color: Colors.grey[600],
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF7C83FD).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
                               ),
-                            )
-                          : null,
-                      trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Color(0xFF7C83FD)),
+                              child: const Icon(Icons.calendar_today, 
+                                color: Color(0xFF7C83FD), size: 22),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Appointment Date',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 12,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _selectedDate == null
+                                        ? 'Select a date'
+                                        : '${DateFormat('EEEE, MMMM d, y').format(_selectedDate!)}',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                      color: _selectedDate == null
+                                          ? Colors.grey[500]
+                                          : const Color(0xFF3A3A50),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(Icons.arrow_forward_ios, 
+                              size: 16, color: Colors.grey[400]),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Start Time Selection
+                    InkWell(
                       onTap: () => _selectTime(context, true),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[50],
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey[300]!),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF7C83FD).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(Icons.access_time, 
+                                color: Color(0xFF7C83FD), size: 22),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Time Slot',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 12,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _selectedStartTime == null
+                                        ? 'Select time'
+                                        : '${_selectedStartTime!.format(context)} - ${_selectedEndTime?.format(context) ?? ""}',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                      color: _selectedStartTime == null
+                                          ? Colors.grey[500]
+                                          : const Color(0xFF3A3A50),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(Icons.arrow_forward_ios, 
+                              size: 16, color: Colors.grey[400]),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  // Notes Section
-                  Text(
-                    'Additional Notes (Optional)',
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF3A3A50),
+                    const SizedBox(height: 24),
+                    
+                    // Notes Section
+                    Text(
+                      'Additional Notes (Optional)',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF3A3A50),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    constraints: const BoxConstraints(maxHeight: 120),
-                    child: TextFormField(
+                    const SizedBox(height: 12),
+                    TextFormField(
                       controller: _notesController,
                       decoration: InputDecoration(
                         hintText: 'Describe your concerns or what you\'d like to discuss...',
                         hintStyle: GoogleFonts.poppins(
-                          color: Colors.grey[600],
+                          color: Colors.grey[500],
                           fontSize: 13,
                         ),
                         filled: true,
-                        fillColor: Colors.white,
+                        fillColor: Colors.grey[50],
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade200),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade200),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFF7C83FD)),
+                          borderSide: const BorderSide(color: Color(0xFF7C83FD), width: 2),
                         ),
                         contentPadding: const EdgeInsets.all(16),
                       ),
                       style: GoogleFonts.poppins(fontSize: 14),
-                      maxLines: 3,
+                      maxLines: 4,
                       textInputAction: TextInputAction.done,
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  
-                  // Action Buttons
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.pop(context),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            side: const BorderSide(color: Color(0xFF7C83FD)),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: Text(
-                            'Cancel',
-                            style: GoogleFonts.poppins(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                              color: const Color(0xFF7C83FD),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        flex: 2,
-                        child: ElevatedButton(
-                          onPressed: _isSubmitting ? null : _submitAppointment,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF7C83FD),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            elevation: 0,
-                          ),
-                          child: _isSubmitting
-                              ? Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'Booking...',
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w500,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              : Text(
-                                  'Book',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
-        ),
+          // Action Buttons
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, -4),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      side: BorderSide(color: Colors.grey[300]!, width: 2),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      'Cancel',
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF5D5D72),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  flex: 2,
+                  child: ElevatedButton(
+                    onPressed: _isSubmitting ? null : _submitAppointment,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF7C83FD),
+                      disabledBackgroundColor: Colors.grey[300],
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 2,
+                    ),
+                    child: _isSubmitting
+                        ? Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                'Booking...',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          )
+                        : Text(
+                            'Book Appointment',
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

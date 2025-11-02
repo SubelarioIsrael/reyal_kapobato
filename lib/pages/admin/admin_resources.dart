@@ -165,10 +165,24 @@ class _AdminResourcesState extends State<AdminResources> {
                   children: [
                     ModernTextFormField(
                       controller: _mediaUrlController,
-                      labelText: 'Media URL (Optional)',
+                      labelText: 'Media URL',
                       hintText: 'Link to video, image, or external resource',
                       prefixIcon: Icons.link,
                       keyboardType: TextInputType.url,
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Please enter a media URL';
+                        }
+                        // Basic URL validation
+                        final urlPattern = RegExp(
+                          r'^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$',
+                          caseSensitive: false,
+                        );
+                        if (!urlPattern.hasMatch(value.trim())) {
+                          return 'Please enter a valid URL';
+                        }
+                        return null;
+                      },
                     ),
                     const SizedBox(height: 20),
                     Container(
@@ -390,10 +404,24 @@ class _AdminResourcesState extends State<AdminResources> {
                   children: [
                     ModernTextFormField(
                       controller: _mediaUrlController,
-                      labelText: 'Media URL (Optional)',
+                      labelText: 'Media URL',
                       hintText: 'Link to video, image, or external resource',
                       prefixIcon: Icons.link,
                       keyboardType: TextInputType.url,
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Please enter a media URL';
+                        }
+                        // Basic URL validation
+                        final urlPattern = RegExp(
+                          r'^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$',
+                          caseSensitive: false,
+                        );
+                        if (!urlPattern.hasMatch(value.trim())) {
+                          return 'Please enter a valid URL';
+                        }
+                        return null;
+                      },
                     ),
                     const SizedBox(height: 20),
                     Container(
@@ -675,86 +703,126 @@ class _AdminResourcesState extends State<AdminResources> {
                                 ),
                               ],
                             ),
-                            child: ListTile(
-                              contentPadding: const EdgeInsets.all(16),
-                              leading: Icon(
-                                resource['resource_type'] == 'video'
-                                    ? Icons.ondemand_video
-                                    : Icons.article,
-                                color: resource['resource_type'] == 'video'
-                                    ? Colors.redAccent
-                                    : Colors.blueAccent,
-                                size: 36,
-                              ),
-                              title: Text(
-                                resource['title'] ?? 'No Title',
-                                style: GoogleFonts.poppins(
-                                  fontWeight: FontWeight.w600,
-                                  color: const Color(0xFF3A3A50),
-                                ),
-                              ),
-                              subtitle: Column(
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const SizedBox(height: 4),
-                                  if (resource['tags'] != null &&
-                                      resource['tags'].toString().isNotEmpty)
-                                    Text(
-                                      'Tags: ${resource['tags']}',
-                                      style: GoogleFonts.poppins(
-                                        color: Colors.grey[600],
-                                      ),
-                                    ),
-                                  if (resource['publish_date'] != null)
-                                    Text(
-                                      'Published: '
-                                      "${DateTime.tryParse(resource['publish_date'].toString())?.toLocal().toString().split(' ')[0] ?? ''}",
-                                      style: GoogleFonts.poppins(
-                                        color: Colors.grey[600],
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    resource['content'] ?? '',
-                                    maxLines: 3,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: GoogleFonts.poppins(
-                                      color: Colors.grey[800],
-                                    ),
-                                  ),
-                                  if (resource['media_url'] != null &&
-                                      resource['media_url']
-                                          .toString()
-                                          .isNotEmpty)
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 8.0),
-                                      child: Text(
-                                        'Media: ${resource['media_url']}',
-                                        style: GoogleFonts.poppins(
-                                          color: Colors.blue,
-                                          decoration: TextDecoration.underline,
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        // Title
+                                        Text(
+                                          resource['title'] ?? 'No Title',
+                                          style: GoogleFonts.poppins(
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 16,
+                                            color: const Color(0xFF3A3A50),
+                                          ),
                                         ),
-                                      ),
+                                        const SizedBox(height: 8),
+                                        // Description
+                                        Text(
+                                          resource['description'] ?? '',
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.poppins(
+                                            color: Colors.grey[700],
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        // Tags and Type Row
+                                        Row(
+                                          children: [
+                                            // Resource Type Tag
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 10,
+                                                vertical: 5,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: resource['resource_type'] == 'video'
+                                                    ? const Color(0xFF7C83FD).withOpacity(0.1)
+                                                    : const Color(0xFF81C784).withOpacity(0.1),
+                                                borderRadius: BorderRadius.circular(12),
+                                              ),
+                                              child: Text(
+                                                (resource['resource_type'] ?? 'article').toUpperCase(),
+                                                style: GoogleFonts.poppins(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: resource['resource_type'] == 'video'
+                                                      ? const Color(0xFF7C83FD)
+                                                      : const Color(0xFF81C784),
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            // Tags
+                                            if (resource['tags'] != null &&
+                                                resource['tags'].toString().isNotEmpty)
+                                              Flexible(
+                                                child: Container(
+                                                  padding: const EdgeInsets.symmetric(
+                                                    horizontal: 10,
+                                                    vertical: 5,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.grey[100],
+                                                    borderRadius: BorderRadius.circular(12),
+                                                  ),
+                                                  child: Text(
+                                                    resource['tags'],
+                                                    maxLines: 1,
+                                                    overflow: TextOverflow.ellipsis,
+                                                    style: GoogleFonts.poppins(
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.w500,
+                                                      color: Colors.grey[700],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                        // Publish Date
+                                        if (resource['publish_date'] != null)
+                                          Padding(
+                                            padding: const EdgeInsets.only(top: 8),
+                                            child: Text(
+                                              'Published: '
+                                              "${DateTime.tryParse(resource['publish_date'].toString())?.toLocal().toString().split(' ')[0] ?? ''}",
+                                              style: GoogleFonts.poppins(
+                                                color: Colors.grey[500],
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ),
+                                      ],
                                     ),
-                                ],
-                              ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.edit,
-                                        color: Color(0xFF7C83FD)),
-                                    tooltip: 'Edit',
-                                    onPressed: () =>
-                                        _showEditResourceDialog(resource),
                                   ),
-                                  IconButton(
-                                    icon: const Icon(Icons.delete,
-                                        color: Colors.red),
-                                    tooltip: 'Delete',
-                                    onPressed: () => _confirmDeleteResource(
-                                        resource['resource_id'] as int),
+                                  const SizedBox(width: 12),
+                                  // Action Buttons
+                                  Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.edit,
+                                            color: Color(0xFF7C83FD)),
+                                        tooltip: 'Edit',
+                                        onPressed: () =>
+                                            _showEditResourceDialog(resource),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.delete,
+                                            color: Colors.red),
+                                        tooltip: 'Delete',
+                                        onPressed: () => _confirmDeleteResource(
+                                            resource['resource_id'] as int),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),

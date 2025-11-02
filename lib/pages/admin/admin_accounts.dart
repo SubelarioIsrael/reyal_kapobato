@@ -113,241 +113,448 @@ class _AdminAccountsState extends State<AdminAccounts> {
   }
 
   void _showAddAccountDialog() {
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Add New Account',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF3A3A50),
-          ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.9,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        content: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Full Name',
-                  prefixIcon: Icon(Icons.person_outline),
-                ),
-                validator: (value) =>
-                    value?.isEmpty ?? true ? 'Please enter a name' : null,
+        child: Column(
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: const Color(0xFF7C83FD).withOpacity(0.1),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
               ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Email Address',
-                  prefixIcon: Icon(Icons.email_outlined),
-                ),
-                validator: (value) {
-                  if (value?.isEmpty ?? true) {
-                    return 'Please enter an email';
-                  }
-                  final emailRegex = RegExp(
-                    r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$',
-                  );
-                  if (!emailRegex.hasMatch(value!)) {
-                    return 'Enter a valid email';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: _selectedRole,
-                decoration: const InputDecoration(
-                  labelText: 'Role',
-                  prefixIcon: Icon(Icons.work_outline),
-                ),
-                items: const [
-                  DropdownMenuItem(
-                    value: 'counselor',
-                    child: Text('Counselor'),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF7C83FD).withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.person_add,
+                      color: Color(0xFF7C83FD),
+                      size: 28,
+                    ),
                   ),
-                  DropdownMenuItem(
-                    value: 'admin',
-                    child: Text('Admin'),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      'Add New Account',
+                      style: GoogleFonts.poppins(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF3A3A50),
+                      ),
+                    ),
                   ),
-                  DropdownMenuItem(
-                    value: 'student',
-                    child: Text('Student'),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Color(0xFF5D5D72)),
+                    onPressed: () => Navigator.pop(context),
                   ),
                 ],
-                onChanged: (value) {
-                  setState(() {
-                    _selectedRole = value!;
-                  });
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Password',
-                  prefixIcon: Icon(Icons.lock_outline),
-                ),
-                validator: (value) => value == null || value.isEmpty
-                    ? 'Please enter a password'
-                    : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _confirmPasswordController,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Confirm Password',
-                  prefixIcon: Icon(Icons.lock_outline),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please confirm your password';
-                  }
-                  if (value != _passwordController.text) {
-                    return 'Passwords do not match';
-                  }
-                  return null;
-                },
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: GoogleFonts.poppins(
-                color: Colors.grey[600],
               ),
             ),
-          ),
-          ElevatedButton(
-            onPressed: _isLoading
-                ? null
-                : () async {
-                    if (_formKey.currentState?.validate() ?? false) {
-                      setState(() {
-                        _isLoading = true;
-                      });
-
-                      try {
-                        // Create auth user
-                        final authResponse =
-                            await Supabase.instance.client.auth.signUp(
-                          email: _emailController.text.trim(),
-                          password: _passwordController.text.trim(),
-                        );
-
-                        if (authResponse.user != null) {
-                          // Create user record
-                          await Supabase.instance.client.from('users').insert({
-                            'user_id': authResponse.user!.id,
-                            'username': _nameController.text.trim(),
-                            'email': _emailController.text.trim(),
-                            'user_type': _selectedRole,
-                            'status': 'active',
-                            'registration_date':
-                                DateTime.now().toIso8601String(),
-                          });
-                          if (_selectedRole == 'counselor') {
-                            // Split the full name into first and last name
-                            final nameParts = _nameController.text.trim().split(' ');
-                            final firstName = nameParts.first;
-                            final lastName = nameParts.length > 1 
-                                ? nameParts.sublist(1).join(' ') 
-                                : '';
-
-                            await Supabase.instance.client
-                                .from('counselors')
-                                .insert({
-                              'first_name': firstName,
-                              'last_name': lastName,
-                              'email': _emailController.text.trim(),
-                              'specialization': 'General Counseling',
-                              'availability_status': 'available',
-                              'bio': 'Professional counselor ready to help you.',
-                              'profile_picture': null, // Will be set later if needed
-                              'user_id': authResponse.user!.id,
-                            });
-                          } else if (_selectedRole == 'student') {
-                            // Split the full name into first and last name
-                            final nameParts = _nameController.text.trim().split(' ');
-                            final firstName = nameParts.first;
-                            final lastName = nameParts.length > 1 
-                                ? nameParts.sublist(1).join(' ') 
-                                : '';
-
-                            // Generate a unique student code
-                            final studentCode = 'STU${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
-
-                            await Supabase.instance.client
-                                .from('students')
-                                .insert({
-                              'student_code': studentCode,
-                              'course': 'Not Set', // Default course
-                              'year_level': 1, // Default year level
-                              'user_id': authResponse.user!.id,
-                              'first_name': firstName,
-                              'last_name': lastName,
-                              'strand': 'Not Set', // Default strand
-                              'education_level': 'basic_education', // Default education level
-                            });
+            // Form Content
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextFormField(
+                        controller: _nameController,
+                        style: GoogleFonts.poppins(fontSize: 14, color: const Color(0xFF3A3A50)),
+                        decoration: InputDecoration(
+                          labelText: 'Full Name *',
+                          hintText: 'Enter full name',
+                          labelStyle: GoogleFonts.poppins(color: const Color(0xFF5D5D72)),
+                          hintStyle: GoogleFonts.poppins(color: Colors.grey[500]),
+                          prefixIcon: const Icon(Icons.person_outline, color: Color(0xFF7C83FD)),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Color(0xFF7C83FD), width: 2),
+                          ),
+                          contentPadding: const EdgeInsets.all(16),
+                        ),
+                        validator: (value) =>
+                            value?.isEmpty ?? true ? 'Please enter a name' : null,
+                      ),
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        controller: _emailController,
+                        style: GoogleFonts.poppins(fontSize: 14, color: const Color(0xFF3A3A50)),
+                        decoration: InputDecoration(
+                          labelText: 'Email Address *',
+                          hintText: 'example@email.com',
+                          labelStyle: GoogleFonts.poppins(color: const Color(0xFF5D5D72)),
+                          hintStyle: GoogleFonts.poppins(color: Colors.grey[500]),
+                          prefixIcon: const Icon(Icons.email_outlined, color: Color(0xFF7C83FD)),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Color(0xFF7C83FD), width: 2),
+                          ),
+                          contentPadding: const EdgeInsets.all(16),
+                        ),
+                        validator: (value) {
+                          if (value?.isEmpty ?? true) {
+                            return 'Please enter an email';
                           }
-
-                          if (mounted) {
-                            Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Account created successfully'),
-                              ),
-                            );
-                            _loadAccounts(); // Reload the accounts list
-                          }
-                        }
-                      } catch (e) {
-                        print('Error creating account: $e');
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Failed to create account: ${e.toString()}'),
-                              duration: const Duration(seconds: 5),
-                            ),
+                          final emailRegex = RegExp(
+                            r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$',
                           );
-                        }
-                      } finally {
-                        setState(() {
-                          _isLoading = false;
-                          _emailController.clear();
-                          _nameController.clear();
-                          _passwordController.clear();
-                          _confirmPasswordController.clear();
-                          _selectedRole = 'counselor';
-                        });
-                      }
-                    }
-                  },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF7C83FD),
-              foregroundColor: Colors.white,
+                          if (!emailRegex.hasMatch(value!)) {
+                            return 'Enter a valid email';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                      DropdownButtonFormField<String>(
+                        value: _selectedRole,
+                        style: GoogleFonts.poppins(fontSize: 14, color: const Color(0xFF3A3A50)),
+                        decoration: InputDecoration(
+                          labelText: 'Role *',
+                          labelStyle: GoogleFonts.poppins(color: const Color(0xFF5D5D72)),
+                          prefixIcon: const Icon(Icons.work_outline, color: Color(0xFF7C83FD)),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Color(0xFF7C83FD), width: 2),
+                          ),
+                          contentPadding: const EdgeInsets.all(16),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'counselor',
+                            child: Text('Counselor'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'admin',
+                            child: Text('Admin'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'student',
+                            child: Text('Student'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedRole = value!;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        controller: _passwordController,
+                        obscureText: true,
+                        style: GoogleFonts.poppins(fontSize: 14, color: const Color(0xFF3A3A50)),
+                        decoration: InputDecoration(
+                          labelText: 'Password *',
+                          hintText: 'Enter password',
+                          labelStyle: GoogleFonts.poppins(color: const Color(0xFF5D5D72)),
+                          hintStyle: GoogleFonts.poppins(color: Colors.grey[500]),
+                          prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFF7C83FD)),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Color(0xFF7C83FD), width: 2),
+                          ),
+                          contentPadding: const EdgeInsets.all(16),
+                        ),
+                        validator: (value) => value == null || value.isEmpty
+                            ? 'Please enter a password'
+                            : null,
+                      ),
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        controller: _confirmPasswordController,
+                        obscureText: true,
+                        style: GoogleFonts.poppins(fontSize: 14, color: const Color(0xFF3A3A50)),
+                        decoration: InputDecoration(
+                          labelText: 'Confirm Password *',
+                          hintText: 'Re-enter password',
+                          labelStyle: GoogleFonts.poppins(color: const Color(0xFF5D5D72)),
+                          hintStyle: GoogleFonts.poppins(color: Colors.grey[500]),
+                          prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFF7C83FD)),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Color(0xFF7C83FD), width: 2),
+                          ),
+                          contentPadding: const EdgeInsets.all(16),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please confirm your password';
+                          }
+                          if (value != _passwordController.text) {
+                            return 'Passwords do not match';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.blue.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Account details will be created in the system and the user will receive access credentials.',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  color: const Color(0xFF5D5D72),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
-            child: _isLoading
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            // Action Buttons
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, -4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        side: BorderSide(color: Colors.grey[300]!, width: 2),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        'Cancel',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF5D5D72),
+                        ),
+                      ),
                     ),
-                  )
-                : const Text('Add Account'),
-          ),
-        ],
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _isLoading
+                          ? null
+                          : () async {
+                              if (_formKey.currentState?.validate() ?? false) {
+                                setState(() {
+                                  _isLoading = true;
+                                });
+
+                                try {
+                                  // Create auth user
+                                  final authResponse =
+                                      await Supabase.instance.client.auth.signUp(
+                                    email: _emailController.text.trim(),
+                                    password: _passwordController.text.trim(),
+                                  );
+
+                                  if (authResponse.user != null) {
+                                    // Create user record
+                                    await Supabase.instance.client.from('users').insert({
+                                      'user_id': authResponse.user!.id,
+                                      'username': _nameController.text.trim(),
+                                      'email': _emailController.text.trim(),
+                                      'user_type': _selectedRole,
+                                      'status': 'active',
+                                      'registration_date':
+                                          DateTime.now().toIso8601String(),
+                                    });
+                                    if (_selectedRole == 'counselor') {
+                                      // Split the full name into first and last name
+                                      final nameParts = _nameController.text.trim().split(' ');
+                                      final firstName = nameParts.first;
+                                      final lastName = nameParts.length > 1 
+                                          ? nameParts.sublist(1).join(' ') 
+                                          : '';
+
+                                      await Supabase.instance.client
+                                          .from('counselors')
+                                          .insert({
+                                        'first_name': firstName,
+                                        'last_name': lastName,
+                                        'email': _emailController.text.trim(),
+                                        'department_assigned': 'Volunteer',
+                                        'availability_status': 'available',
+                                        'bio': 'Professional counselor ready to help you.',
+                                        'profile_picture': null, // Will be set later if needed
+                                        'user_id': authResponse.user!.id,
+                                      });
+                                    } else if (_selectedRole == 'student') {
+                                      // Split the full name into first and last name
+                                      final nameParts = _nameController.text.trim().split(' ');
+                                      final firstName = nameParts.first;
+                                      final lastName = nameParts.length > 1 
+                                          ? nameParts.sublist(1).join(' ') 
+                                          : '';
+
+                                      // Generate a unique student code
+                                      final studentCode = 'STU${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
+
+                                      await Supabase.instance.client
+                                          .from('students')
+                                          .insert({
+                                        'student_code': studentCode,
+                                        'course': 'Not Set', // Default course
+                                        'year_level': 1, // Default year level
+                                        'user_id': authResponse.user!.id,
+                                        'first_name': firstName,
+                                        'last_name': lastName,
+                                        'strand': 'Not Set', // Default strand
+                                        'education_level': 'basic_education', // Default education level
+                                      });
+                                    }
+
+                                    if (mounted) {
+                                      Navigator.pop(context);
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Account created successfully'),
+                                        ),
+                                      );
+                                      _loadAccounts(); // Reload the accounts list
+                                    }
+                                  }
+                                } catch (e) {
+                                  print('Error creating account: $e');
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Failed to create account: ${e.toString()}'),
+                                        duration: const Duration(seconds: 5),
+                                      ),
+                                    );
+                                  }
+                                } finally {
+                                  setState(() {
+                                    _isLoading = false;
+                                    _emailController.clear();
+                                    _nameController.clear();
+                                    _passwordController.clear();
+                                    _confirmPasswordController.clear();
+                                    _selectedRole = 'counselor';
+                                  });
+                                }
+                              }
+                            },
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        backgroundColor: const Color(0xFF7C83FD),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 2,
+                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : Text(
+                              'Add Account',
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

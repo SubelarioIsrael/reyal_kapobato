@@ -150,52 +150,44 @@ class _AdminExercisesState extends State<AdminExercises> {
                               : null,
                         ),
                         const SizedBox(height: 20),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ModernTextFormField(
-                                controller: _durationController,
-                                labelText: 'Duration',
-                                hintText: 'Total seconds',
-                                prefixIcon: Icons.timer,
-                                keyboardType: TextInputType.number,
-                                validator: (value) {
-                                  if (value?.isEmpty ?? true) {
-                                    return 'Please enter duration';
-                                  }
-                                  if (int.tryParse(value!) == null) {
-                                    return 'Please enter a valid number';
-                                  }
-                                  return null;
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: ModernDropdownFormField<String>(
-                                value: _selectedIconName,
-                                labelText: 'Icon Style',
-                                prefixIcon: Icons.image,
-                                items: _iconOptions
-                                    .map((icon) => DropdownMenuItem(
-                                          value: icon,
-                                          child: Row(
-                                            children: [
-                                              Icon(_getIconFromName(icon), size: 18),
-                                              const SizedBox(width: 8),
-                                              Text(icon.replaceAll('_', ' ').toUpperCase()),
-                                            ],
-                                          ),
-                                        ))
-                                    .toList(),
-                                onChanged: (value) {
-                                  localSetState(() {
-                                    _selectedIconName = value ?? 'air';
-                                  });
-                                },
-                              ),
-                            ),
-                          ],
+                        ModernTextFormField(
+                          controller: _durationController,
+                          labelText: 'Duration',
+                          hintText: 'Total seconds',
+                          prefixIcon: Icons.timer,
+                          keyboardType: TextInputType.number,
+                          validator: (value) {
+                            if (value?.isEmpty ?? true) {
+                              return 'Please enter duration';
+                            }
+                            if (int.tryParse(value!) == null) {
+                              return 'Please enter a valid number';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 20),
+                        ModernDropdownFormField<String>(
+                          value: _selectedIconName,
+                          labelText: 'Icon Style',
+                          prefixIcon: Icons.image,
+                          items: _iconOptions
+                              .map((icon) => DropdownMenuItem(
+                                    value: icon,
+                                    child: Row(
+                                      children: [
+                                        Icon(_getIconFromName(icon), size: 18),
+                                        const SizedBox(width: 8),
+                                        Text(icon.replaceAll('_', ' ').toUpperCase()),
+                                      ],
+                                    ),
+                                  ))
+                              .toList(),
+                          onChanged: (value) {
+                            localSetState(() {
+                              _selectedIconName = value ?? 'air';
+                            });
+                          },
                         ),
                       ],
                     ),
@@ -454,10 +446,6 @@ class _AdminExercisesState extends State<AdminExercises> {
     );
   }
 
-  void _showAddExerciseDialog() {
-    _showExerciseDialog();
-  }
-
   void _showExerciseActions(Map<String, dynamic> exercise) {
     showModalBottomSheet(
       context: context,
@@ -552,20 +540,6 @@ class _AdminExercisesState extends State<AdminExercises> {
                       ),
                       filled: true,
                       fillColor: Colors.grey[100],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                ElevatedButton.icon(
-                  onPressed: _showAddExerciseDialog,
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add Exercise'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF7C83FD),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 12,
                     ),
                   ),
                 ),
@@ -680,6 +654,11 @@ class _AdminExercisesState extends State<AdminExercises> {
                   ),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showExerciseDialog(),
+        backgroundColor: const Color(0xFF7C83FD),
+        child: const Icon(Icons.add),
       ),
     );
   }

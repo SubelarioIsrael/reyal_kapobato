@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/profile_image_service.dart';
+import '../../utils/department_mapping.dart';
 
 class CounselorProfileSetup extends StatefulWidget {
   const CounselorProfileSetup({super.key});
@@ -18,7 +19,7 @@ class _CounselorProfileSetupState extends State<CounselorProfileSetup> {
   final _emailController = TextEditingController();
   final _bioController = TextEditingController();
   
-  String _selectedSpecialization = 'General Counseling';
+  String _selectedDepartment = 'College of Engineering';
   String _availability = 'available';
   bool _isLoading = false;
   bool _isUploading = false;
@@ -26,18 +27,7 @@ class _CounselorProfileSetupState extends State<CounselorProfileSetup> {
   String? _profileImageUrl;
   int? _counselorId;
 
-  final List<String> _specializationOptions = const [
-    'General Counseling',
-    'Academic Counseling',
-    'Career Counseling',
-    'Mental Health Counseling',
-    'Behavioral Counseling',
-    'Family Counseling',
-    'Group Counseling',
-    'Crisis Counseling',
-    'Substance Abuse Counseling',
-    'Grief Counseling',
-  ];
+  final List<String> _departmentOptions = DepartmentMapping.departments;
 
   @override
   void initState() {
@@ -67,7 +57,7 @@ class _CounselorProfileSetupState extends State<CounselorProfileSetup> {
         _counselorId = result['counselor_id'] as int?;
         _firstNameController.text = result['first_name'] ?? '';
         _lastNameController.text = result['last_name'] ?? '';
-        _selectedSpecialization = result['specialization'] ?? 'General Counseling';
+        _selectedDepartment = result['department_assigned'] ?? 'College of Engineering';
         _bioController.text = result['bio'] ?? '';
         _availability = result['availability_status'] ?? 'available';
       }
@@ -164,7 +154,7 @@ class _CounselorProfileSetupState extends State<CounselorProfileSetup> {
         'first_name': _firstNameController.text.trim(),
         'last_name': _lastNameController.text.trim(),
         'email': _emailController.text.trim(),
-        'specialization': _selectedSpecialization,
+        'department_assigned': _selectedDepartment,
         'availability_status': _availability,
         'bio': _bioController.text.trim(),
         'user_id': user.id,
@@ -322,68 +312,246 @@ class _CounselorProfileSetupState extends State<CounselorProfileSetup> {
                       const SizedBox(height: 32),
 
                       // Form Fields
-                      _buildTextField(
-                        controller: _firstNameController,
-                        label: 'First Name',
-                        validator: (value) => value == null || value.trim().isEmpty
-                            ? 'Please enter your first name'
-                            : null,
-                      ),
-                      const SizedBox(height: 16),
-
-                      _buildTextField(
-                        controller: _lastNameController,
-                        label: 'Last Name',
-                        validator: (value) => value == null || value.trim().isEmpty
-                            ? 'Please enter your last name'
-                            : null,
-                      ),
-                      const SizedBox(height: 16),
-
-                      _buildTextField(
-                        controller: _emailController,
-                        label: 'Email',
-                        enabled: false,
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Specialization Dropdown
-                      DropdownButtonFormField<String>(
-                        value: _selectedSpecialization,
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          color: const Color(0xFF3A3A50),
-                        ),
-                        decoration: InputDecoration(
-                          labelText: 'Specialization',
-                          labelStyle: GoogleFonts.poppins(
-                            color: const Color(0xFF3A3A50),
+                      // First Name Field
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'First Name',
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: const Color(0xFF3A3A50),
+                            ),
                           ),
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
+                          const SizedBox(height: 8),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: TextFormField(
+                              controller: _firstNameController,
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                color: const Color(0xFF3A3A50),
+                              ),
+                              decoration: InputDecoration(
+                                hintText: 'Enter your first name',
+                                hintStyle: GoogleFonts.poppins(
+                                  color: Colors.grey[400],
+                                  fontSize: 14,
+                                ),
+                                filled: true,
+                                fillColor: Colors.white,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
+                                contentPadding: const EdgeInsets.all(16),
+                              ),
+                              validator: (value) => value == null || value.trim().isEmpty
+                                  ? 'Please enter your first name'
+                                  : null,
+                            ),
                           ),
-                        ),
-                        items: _specializationOptions.map((String value) {
-                          return DropdownMenuItem<String>(
-                            value: value,
-                            child: Text(value),
-                          );
-                        }).toList(),
-                        onChanged: (String? newValue) {
-                          setState(() {
-                            _selectedSpecialization = newValue ?? 'General Counseling';
-                          });
-                        },
+                        ],
                       ),
                       const SizedBox(height: 16),
 
-                      _buildTextField(
-                        controller: _bioController,
-                        label: 'Bio (Optional)',
-                        maxLines: 3,
+                      // Last Name Field
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Last Name',
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: const Color(0xFF3A3A50),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: TextFormField(
+                              controller: _lastNameController,
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                color: const Color(0xFF3A3A50),
+                              ),
+                              decoration: InputDecoration(
+                                hintText: 'Enter your last name',
+                                hintStyle: GoogleFonts.poppins(
+                                  color: Colors.grey[400],
+                                  fontSize: 14,
+                                ),
+                                filled: true,
+                                fillColor: Colors.white,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
+                                contentPadding: const EdgeInsets.all(16),
+                              ),
+                              validator: (value) => value == null || value.trim().isEmpty
+                                  ? 'Please enter your last name'
+                                  : null,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Email Field (Disabled)
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Email',
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: const Color(0xFF3A3A50),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: TextFormField(
+                              controller: _emailController,
+                              enabled: false,
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                color: Colors.grey[600],
+                              ),
+                              decoration: InputDecoration(
+                                filled: true,
+                                fillColor: Colors.grey[100],
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
+                                contentPadding: const EdgeInsets.all(16),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Department Assignment Dropdown
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Department Assigned',
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: const Color(0xFF3A3A50),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: DropdownButtonFormField<String>(
+                              value: _selectedDepartment,
+                              isExpanded: true,
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                color: const Color(0xFF3A3A50),
+                              ),
+                              decoration: InputDecoration(
+                                hintText: 'Select your department',
+                                hintStyle: GoogleFonts.poppins(
+                                  color: Colors.grey[400],
+                                  fontSize: 14,
+                                ),
+                                filled: true,
+                                fillColor: Colors.white,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 16,
+                                ),
+                              ),
+                              items: _departmentOptions.map((String value) {
+                                return DropdownMenuItem<String>(
+                                  value: value,
+                                  child: Text(
+                                    value,
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 2,
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: (String? newValue) {
+                                setState(() {
+                                  _selectedDepartment = newValue ?? 'College of Engineering';
+                                });
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Bio Text Area
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Bio (Optional)',
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: const Color(0xFF3A3A50),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: TextFormField(
+                              controller: _bioController,
+                              maxLines: 5,
+                              minLines: 5,
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                color: const Color(0xFF3A3A50),
+                              ),
+                              decoration: InputDecoration(
+                                hintText: 'Write a brief bio about yourself and your experience...',
+                                hintStyle: GoogleFonts.poppins(
+                                  color: Colors.grey[400],
+                                  fontSize: 14,
+                                ),
+                                filled: true,
+                                fillColor: Colors.white,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
+                                contentPadding: const EdgeInsets.all(16),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 32),
 
@@ -423,37 +591,6 @@ class _CounselorProfileSetupState extends State<CounselorProfileSetup> {
                 ),
               ),
       ),
-    );
-  }
-
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    String? Function(String?)? validator,
-    bool enabled = true,
-    int maxLines = 1,
-  }) {
-    return TextFormField(
-      controller: controller,
-      enabled: enabled,
-      maxLines: maxLines,
-      style: GoogleFonts.poppins(
-        fontSize: 16,
-        color: enabled ? const Color(0xFF3A3A50) : Colors.grey[600],
-      ),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: GoogleFonts.poppins(
-          color: const Color(0xFF3A3A50),
-        ),
-        filled: true,
-        fillColor: enabled ? Colors.white : Colors.grey[100],
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-      ),
-      validator: validator,
     );
   }
 }
