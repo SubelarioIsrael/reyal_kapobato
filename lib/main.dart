@@ -8,6 +8,34 @@ import 'firebase_options.dart';
 import 'package:breathe_better/services/push_noti_service.dart';
 import 'routes.dart';
 
+Future<void> initApp() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
+  OneSignal.initialize("c0c552e3-f8d6-49fc-9d0c-a7b23267b9f0");
+  await OneSignal.Notifications.requestPermission(true);
+
+  await dotenv.load(fileName: 'important_stuff.env');
+
+  final url = dotenv.env['SUPABASE_URL'];
+  final anonKey = dotenv.env['SUPABASE_ANON_KEY'];
+
+  if (url == null || url.isEmpty || anonKey == null || anonKey.isEmpty) {
+    throw Exception('Missing SUPABASE_URL or SUPABASE_ANON_KEY');
+  }
+
+  await Supabase.initialize(url: url, anonKey: anonKey);
+
+  final pushNotiService = PushNotiService();
+  await pushNotiService.initNotification();
+
+  // You can keep your registerDeviceWithSupabase() logic here
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -69,6 +97,7 @@ void main() async {
     }
   });
   
+  await initApp();
   runApp(MyApp());
 }
 
