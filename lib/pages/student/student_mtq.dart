@@ -286,7 +286,7 @@ class _StudentMtqState extends State<StudentMtq> {
             onPressed: () => Navigator.of(context).pop(),
           ),
           title: Text(
-            "MTQ Questionnaire",
+            "Questionnaire",
             style: GoogleFonts.poppins(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -893,7 +893,7 @@ class _StudentMtqState extends State<StudentMtq> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          "BreatheBetter",
+          "Questionnaire",
           style: GoogleFonts.poppins(
             fontSize: 20,
             fontWeight: FontWeight.bold,

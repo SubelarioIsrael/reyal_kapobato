@@ -46,7 +46,12 @@ class _AdminQuestionnaireState extends State<AdminQuestionnaire> {
       setState(() {
         _versions = List<Map<String, dynamic>>.from(versionsResponse);
         if (_versions.isNotEmpty) {
-          _selectedVersionId = _versions[0]['version_id'] as int;
+          // Try to find the active version first
+          final activeVersion = _versions.firstWhere(
+            (v) => v['is_active'] == true,
+            orElse: () => _versions[0], // fallback to first version if no active version
+          );
+          _selectedVersionId = activeVersion['version_id'] as int;
           _loadQuestions();
         }
       });
@@ -511,13 +516,104 @@ class _AdminQuestionnaireState extends State<AdminQuestionnaire> {
 
         final activeVersions = List<Map<String, dynamic>>.from(activeVersionsResponse);
         
-        // If this is the only active version, prevent deactivation
+        // If this is the only active version, prevent deactivation with AlertDialog
         if (activeVersions.length <= 1) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Cannot deactivate the last active version. At least one version must remain active.'),
-                backgroundColor: Colors.red,
+            showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                title: Row(
+                  children: [
+                    const Icon(
+                      Icons.warning_amber_rounded,
+                      color: Colors.orange,
+                      size: 28,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Cannot Deactivate',
+                        style: GoogleFonts.poppins(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF3A3A50),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'This is the only active version. At least one version must remain active for students to access the questionnaire.',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        color: const Color(0xFF3A3A50),
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: Colors.orange.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.info_outline,
+                            color: Colors.orange,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Create and activate another version first before deactivating this one.',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.orange.shade700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                actions: [
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF7C83FD),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: Text(
+                        'Understood',
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             );
           }
@@ -540,6 +636,7 @@ class _AdminQuestionnaireState extends State<AdminQuestionnaire> {
           SnackBar(
             content: Text(
                 'Version ${!currentStatus ? 'activated' : 'deactivated'} successfully'),
+            backgroundColor: Colors.green,
           ),
         );
         _loadVersions();
@@ -548,13 +645,144 @@ class _AdminQuestionnaireState extends State<AdminQuestionnaire> {
       print('Error updating version status: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to update version status')),
+          const SnackBar(
+            content: Text('Failed to update version status'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
   }
 
   Future<void> _deleteQuestion(int questionId) async {
+    // Show confirmation dialog first
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            const Icon(
+              Icons.delete_forever_rounded,
+              color: Colors.red,
+              size: 28,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Delete Question',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF3A3A50),
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Are you sure you want to delete this question from the selected version?',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                color: const Color(0xFF3A3A50),
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: Colors.red.withOpacity(0.3),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.warning_amber_rounded,
+                    color: Colors.red,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'This action will permanently delete the question and all associated answers.',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.red.shade700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF3A3A50),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    side: const BorderSide(
+                      color: Color(0xFFE0E0E0),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: Text(
+                    'Cancel',
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: Text(
+                    'Delete',
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    // If user confirmed, proceed with deletion
+    if (confirmed != true) return;
+
     try {
       // First delete related answers
       await Supabase.instance.client
@@ -577,7 +805,10 @@ class _AdminQuestionnaireState extends State<AdminQuestionnaire> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Question deleted successfully')),
+          const SnackBar(
+            content: Text('Question deleted successfully'),
+            backgroundColor: Colors.green,
+          ),
         );
         _loadQuestions();
       }
@@ -585,7 +816,10 @@ class _AdminQuestionnaireState extends State<AdminQuestionnaire> {
       print('Error deleting question: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to delete question')),
+          const SnackBar(
+            content: Text('Failed to delete question'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -603,7 +837,7 @@ class _AdminQuestionnaireState extends State<AdminQuestionnaire> {
       backgroundColor: const Color.fromARGB(255, 242, 241, 248),
       appBar: AppBar(
         title: Text(
-          "MTQ Management",
+          "Questionnaires",
           style: GoogleFonts.poppins(
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -622,61 +856,147 @@ class _AdminQuestionnaireState extends State<AdminQuestionnaire> {
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
                     children: [
-                      DropdownButtonFormField<int>(
-                        value: _selectedVersionId,
-                        decoration: const InputDecoration(
-                          labelText: 'Select Version',
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 16,
-                          ),
-                        ),
-                        isExpanded: true,
-                        items: _versions.map((version) {
-                          return DropdownMenuItem<int>(
-                            value: version['version_id'] as int,
-                            child: Text(
-                              version['version_name'] as String,
-                              overflow: TextOverflow.ellipsis,
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Select Version',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF3A3A50),
                             ),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          if (value != null) {
-                            setState(() {
-                              _selectedVersionId = value;
-                            });
-                            _loadQuestions();
-                          }
-                        },
+                          ),
+                          const SizedBox(height: 8),
+                          DropdownButtonFormField<int>(
+                            value: _selectedVersionId,
+                            isExpanded: true,
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              color: const Color(0xFF3A3A50),
+                            ),
+                            decoration: InputDecoration(
+                              hintText: 'Choose a questionnaire version',
+                              hintStyle: GoogleFonts.poppins(
+                                color: Colors.grey[400],
+                                fontSize: 14,
+                              ),
+                              filled: true,
+                              fillColor: Colors.white,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 16,
+                              ),
+                            ),
+                            items: _versions.map((version) {
+                              final isActive = version['is_active'] as bool? ?? false;
+                              return DropdownMenuItem<int>(
+                                value: version['version_id'] as int,
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        version['version_name'] as String,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    if (isActive)
+                                      Container(
+                                        margin: const EdgeInsets.only(left: 8),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.green.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(
+                                            color: Colors.green,
+                                            width: 1,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          'Active',
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.green[700],
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (value) {
+                              if (value != null) {
+                                setState(() {
+                                  _selectedVersionId = value;
+                                });
+                                _loadQuestions();
+                              }
+                            },
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 16),
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          ElevatedButton.icon(
-                            onPressed: _showCreateVersionDialog,
-                            icon: const Icon(Icons.add),
-                            label: const Text('New Version'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF7C83FD),
-                              foregroundColor: Colors.white,
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: _showCreateVersionDialog,
+                              icon: const Icon(Icons.add_rounded, size: 20),
+                              label: Text(
+                                'Add Version',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF7C83FD),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: 0,
+                              ),
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          ElevatedButton.icon(
-                            onPressed: () => _toggleVersionStatus(
-                                _selectedVersionId, isVersionActive),
-                            icon: Icon(isVersionActive
-                                ? Icons.toggle_off
-                                : Icons.toggle_on),
-                            label: Text(
-                                isVersionActive ? 'Deactivate' : 'Activate'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor:
-                                  isVersionActive ? Colors.red : Colors.green,
-                              foregroundColor: Colors.white,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () => _toggleVersionStatus(
+                                  _selectedVersionId, isVersionActive),
+                              icon: Icon(
+                                isVersionActive
+                                    ? Icons.cancel_rounded
+                                    : Icons.check_circle_rounded,
+                                size: 20,
+                              ),
+                              label: Text(
+                                isVersionActive ? 'Deactivate' : 'Activate',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isVersionActive
+                                    ? Colors.red
+                                    : Colors.green,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: 0,
+                              ),
                             ),
                           ),
                         ],
@@ -699,70 +1019,157 @@ class _AdminQuestionnaireState extends State<AdminQuestionnaire> {
                             final question = _filteredQuestions[index];
 
                             return Container(
-                              margin: const EdgeInsets.only(bottom: 16),
+                              margin: const EdgeInsets.only(bottom: 12),
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Colors.grey.withOpacity(0.1),
+                                  width: 1,
+                                ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
+                                    color: Colors.black.withOpacity(0.03),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
                                   ),
                                 ],
                               ),
-                              child: ListTile(
-                                contentPadding: const EdgeInsets.all(16),
-                                title: Text(
-                                  question['question_text'] ??
-                                      'No Question Text',
-                                  style: GoogleFonts.poppins(
-                                    fontWeight: FontWeight.w500,
-                                    color: const Color(0xFF3A3A50),
-                                  ),
-                                ),
-                                subtitle: Padding(
-                                  padding: const EdgeInsets.only(top: 8.0),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: question['category'] == 'PHQ-9'
-                                          ? Colors.blue.withOpacity(0.1)
-                                          : Colors.green.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Text(
-                                      question['category'] ?? 'No Category',
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w500,
-                                        color: question['category'] == 'PHQ-9'
-                                            ? Colors.blue[700]
-                                            : Colors.green[700],
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Row(
+                                  children: [
+                                    // Question number badge
+                                    Container(
+                                      width: 36,
+                                      height: 36,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF7C83FD).withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          '${index + 1}',
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                            color: const Color(0xFF7C83FD),
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ),
-                                trailing: PopupMenuButton<String>(
-                                  itemBuilder: (context) => [
-                                    const PopupMenuItem(
-                                      value: 'edit',
-                                      child: Text('Edit Question'),
+                                    const SizedBox(width: 12),
+                                    // Question content
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            question['question_text'] ?? 'No Question Text',
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w500,
+                                              color: const Color(0xFF3A3A50),
+                                              height: 1.4,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          // Category badge
+                                          Align(
+                                            alignment: Alignment.centerLeft,
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 10,
+                                                vertical: 4,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: question['category'] == 'PHQ-9'
+                                                    ? Colors.blue.withOpacity(0.1)
+                                                    : Colors.green.withOpacity(0.1),
+                                                borderRadius: BorderRadius.circular(6),
+                                                border: Border.all(
+                                                  color: question['category'] == 'PHQ-9'
+                                                      ? Colors.blue.withOpacity(0.3)
+                                                      : Colors.green.withOpacity(0.3),
+                                                  width: 1,
+                                                ),
+                                              ),
+                                              child: Text(
+                                                question['category'] ?? 'No Category',
+                                                style: GoogleFonts.poppins(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: question['category'] == 'PHQ-9'
+                                                      ? Colors.blue[700]
+                                                      : Colors.green[700],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                    const PopupMenuItem(
-                                      value: 'delete',
-                                      child: Text('Delete Question'),
+                                    // Action menu
+                                    PopupMenuButton<String>(
+                                      icon: const Icon(
+                                        Icons.more_vert_rounded,
+                                        color: Color(0xFF3A3A50),
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      elevation: 3,
+                                      itemBuilder: (context) => [
+                                        PopupMenuItem(
+                                          value: 'edit',
+                                          child: Row(
+                                            children: [
+                                              const Icon(
+                                                Icons.edit_outlined,
+                                                size: 18,
+                                                color: Color(0xFF7C83FD),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Text(
+                                                'Edit Question',
+                                                style: GoogleFonts.poppins(
+                                                  fontSize: 14,
+                                                  color: const Color(0xFF3A3A50),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        PopupMenuItem(
+                                          value: 'delete',
+                                          child: Row(
+                                            children: [
+                                              const Icon(
+                                                Icons.delete_outline_rounded,
+                                                size: 18,
+                                                color: Colors.red,
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Text(
+                                                'Delete Question',
+                                                style: GoogleFonts.poppins(
+                                                  fontSize: 14,
+                                                  color: const Color(0xFF3A3A50),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                      onSelected: (value) async {
+                                        if (value == 'edit') {
+                                          _showEditQuestionDialog(question);
+                                        } else if (value == 'delete') {
+                                          await _deleteQuestion(question['question_id']);
+                                        }
+                                      },
                                     ),
                                   ],
-                                  onSelected: (value) async {
-                                    if (value == 'edit') {
-                                      _showEditQuestionDialog(question);
-                                    } else if (value == 'delete') {
-                                      await _deleteQuestion(
-                                          question['question_id']);
-                                    }
-                                  },
                                 ),
                               ),
                             );
@@ -771,10 +1178,18 @@ class _AdminQuestionnaireState extends State<AdminQuestionnaire> {
                 ),
               ],
             ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddQuestionDialog,
         backgroundColor: const Color(0xFF7C83FD),
-        child: const Icon(Icons.add),
+        elevation: 2,
+        icon: const Icon(Icons.add_rounded, color: Colors.white),
+        label: Text(
+          'Add Question',
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
+        ),
       ),
     );
   }

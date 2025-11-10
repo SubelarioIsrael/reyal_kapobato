@@ -285,7 +285,7 @@ class _QuestionnaireSummaryState extends State<QuestionnaireSummary> {
           },
         ),
         title: Text(
-          "BreatheBetter",
+          "",
           style: GoogleFonts.poppins(
             fontSize: 20,
             fontWeight: FontWeight.bold,

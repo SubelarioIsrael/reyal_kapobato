@@ -242,25 +242,6 @@ class _CounselorProfileSetupState extends State<CounselorProfileSetup> {
                   key: _formKey,
                   child: Column(
                     children: [
-                      // Welcome Section
-                      Text(
-                        'Welcome, Counselor!',
-                        style: GoogleFonts.poppins(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF3A3A50),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Let\'s set up your profile to get started',
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          color: Colors.grey[600],
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 32),
 
                       // Profile Picture Section
                       Stack(
@@ -555,7 +536,7 @@ class _CounselorProfileSetupState extends State<CounselorProfileSetup> {
                       ),
                       const SizedBox(height: 32),
 
-                      // Complete Setup Button
+                      // Save Changes Button
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
@@ -577,7 +558,7 @@ class _CounselorProfileSetupState extends State<CounselorProfileSetup> {
                                   ),
                                 )
                               : Text(
-                                  'Complete Setup',
+                                  'Save Changes',
                                   style: GoogleFonts.poppins(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,

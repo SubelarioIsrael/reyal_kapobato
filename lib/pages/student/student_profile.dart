@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/profile_image_service.dart';
-import '../../components/student_drawer.dart';
 import '../../components/student_notification_button.dart';
 import '../../utils/department_mapping.dart';
 
@@ -231,39 +230,40 @@ class _StudentProfileState extends State<StudentProfile> {
       }
     }
   }
+  
 
   @override
   Widget build(BuildContext context) {
+    const pastelBlue = Color.fromARGB(255, 242, 241, 248);
     final studentName = studentData != null
         ? '${studentData!['first_name']} ${studentData!['last_name']}'
         : '';
     final studentCode = studentData?['student_code'] ?? '';
 
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 242, 241, 248),
-      appBar: AppBar(
-        backgroundColor: const Color.fromARGB(255, 242, 241, 248),
-        elevation: 0,
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu, color: Color(0xFF5D5D72)),
-            onPressed: () => Scaffold.of(context).openDrawer(),
+
+      backgroundColor: pastelBlue,
+        appBar: AppBar(
+          backgroundColor: pastelBlue,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                color: Color(0xFF5D5D72)),
+            onPressed: () => Navigator.of(context).pop(),
           ),
-        ),
-        title: Text(
-          "BreatheBetter",
-          style: GoogleFonts.poppins(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: const Color(0xFF3A3A50),
+          title: Text(
+            "Student Profile",
+            style: GoogleFonts.poppins(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF3A3A50),
+            ),
           ),
+          centerTitle: true,
+          actions: [
+            const StudentNotificationButton(),
+          ],
         ),
-        centerTitle: true,
-        actions: [
-          const StudentNotificationButton(),
-        ],
-      ),
-      drawer: const StudentDrawer(),
       body: SafeArea(
         child: isLoading
             ? const Center(child: CircularProgressIndicator())
@@ -273,26 +273,6 @@ class _StudentProfileState extends State<StudentProfile> {
                   key: _formKey,
                   child: Column(
                     children: [
-                      // Welcome Section
-                      Text(
-                        'Student Profile',
-                        style: GoogleFonts.poppins(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF3A3A50),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Manage your profile information',
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          color: Colors.grey[600],
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 10),
-
                       // Profile Picture Section
                       Stack(
                         children: [
@@ -759,7 +739,7 @@ class _StudentProfileState extends State<StudentProfile> {
 
                       const SizedBox(height: 32),
 
-                      // Update Profile Button
+                      // Save Changes Button
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
@@ -781,7 +761,7 @@ class _StudentProfileState extends State<StudentProfile> {
                                   ),
                                 )
                               : Text(
-                                  'Update Profile',
+                                  'Save Changes',
                                   style: GoogleFonts.poppins(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,

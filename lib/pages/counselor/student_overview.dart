@@ -32,23 +32,23 @@ class _StudentOverviewState extends State<StudentOverview>
   Map<String, dynamic>? _studentProfile;
 
   // Dashboard Statistics
-  int _totalActivitiesCompleted = 0;
   int _totalJournalEntries = 0;
   int _totalQuestionnaires = 0;
   int _totalSessions = 0;
 
   // Recent Data
-  List<Map<String, dynamic>> _activityCounts = [];
+  List<Map<String, dynamic>> _recentActivities = [];
   List<Map<String, dynamic>> _recentJournalEntries = [];
   List<Map<String, dynamic>> _recentQuestionnaires = [];
   List<Map<String, dynamic>> _sessionNotes = [];
+  List<Map<String, dynamic>> _emergencyContacts = [];
 
   late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
     _loadStudentData();
   }
 
@@ -97,44 +97,52 @@ class _StudentOverviewState extends State<StudentOverview>
   }
 
   Future<void> _loadActivityStats() async {
-    // Get total activities completed
-    final completedResponse = await Supabase.instance.client
+    // Combine activity completions and appointments into a unified list
+    List<Map<String, dynamic>> allActivities = [];
+
+    // Get recent activity completions with details
+    final recentActivitiesResponse = await Supabase.instance.client
         .from('activity_completions')
-        .select('completion_id')
-        .eq('user_id', widget.userId);
+        .select('completion_id, completed_at, completion_date, activities(name, description, points)')
+        .eq('user_id', widget.userId)
+        .order('completed_at', ascending: false)
+        .limit(20);
 
-    _totalActivitiesCompleted = completedResponse.length;
-
-    // Get activity counts grouped by activity type
-    final activityCountsResponse = await Supabase.instance.client
-        .from('activity_completions')
-        .select('activity_id, activities(name, description, points)')
-        .eq('user_id', widget.userId);
-
-    // Group completions by activity and count them
-    Map<int, Map<String, dynamic>> activityMap = {};
-
-    for (var completion in activityCountsResponse) {
-      final activityId = completion['activity_id'] as int;
-      final activityInfo = completion['activities'] as Map<String, dynamic>;
-
-      if (activityMap.containsKey(activityId)) {
-        activityMap[activityId]!['count'] =
-            (activityMap[activityId]!['count'] as int) + 1;
-      } else {
-        activityMap[activityId] = {
-          'activity_id': activityId,
-          'activity_info': activityInfo,
-          'count': 1,
-        };
-      }
+    // Add activity completions with type marker
+    for (var activity in recentActivitiesResponse) {
+      allActivities.add({
+        ...activity,
+        'activity_type': 'completion',
+        'timestamp': activity['completed_at'],
+      });
     }
 
-    _activityCounts = activityMap.values.toList();
+    // Get counseling appointments
+    final appointmentsResponse = await Supabase.instance.client
+        .from('counseling_appointments')
+        .select('appointment_id, appointment_date, start_time, status, counselors(first_name, last_name)')
+        .eq('user_id', widget.userId)
+        .order('appointment_date', ascending: false)
+        .limit(20);
 
-    // Sort by count (highest first)
-    _activityCounts
-        .sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
+    // Add appointments with type marker
+    for (var appointment in appointmentsResponse) {
+      allActivities.add({
+        ...appointment,
+        'activity_type': 'appointment',
+        'timestamp': appointment['appointment_date'],
+      });
+    }
+
+    // Sort all activities by timestamp (most recent first)
+    allActivities.sort((a, b) {
+      final aTime = DateTime.tryParse(a['timestamp']?.toString() ?? '') ?? DateTime(2000);
+      final bTime = DateTime.tryParse(b['timestamp']?.toString() ?? '') ?? DateTime(2000);
+      return bTime.compareTo(aTime);
+    });
+
+    // Take only the most recent 20 items after combining
+    _recentActivities = allActivities.take(20).toList();
   }
 
   Future<void> _loadJournalStats() async {
@@ -194,7 +202,19 @@ class _StudentOverviewState extends State<StudentOverview>
   }
 
   Future<void> _loadRecentData() async {
-    // This method can be used to load any additional recent data if needed
+    // Load emergency contacts
+    try {
+      final response = await Supabase.instance.client
+          .from('emergency_contacts')
+          .select('*')
+          .eq('user_id', widget.userId)
+          .order('contact_id', ascending: true);
+
+      _emergencyContacts = List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      print('Error loading emergency contacts: $e');
+      _emergencyContacts = [];
+    }
   }
 
   @override
@@ -274,7 +294,14 @@ class _StudentOverviewState extends State<StudentOverview>
     if (_studentProfile == null) return const SizedBox.shrink();
 
     final student = _studentProfile!;
-    final userInfo = student['users'] as Map<String, dynamic>?;
+    
+    // Abbreviate course name
+    String courseDisplay = student['course'] ?? 'No Course';
+    if (courseDisplay.length > 10) {
+      // Extract abbreviation from course name (e.g., "Bachelor of Science in Information Technology" -> "BSIT")
+      courseDisplay = _abbreviateCourse(courseDisplay);
+    }
+    courseDisplay = '$courseDisplay - ${student['year_level'] ?? 'N/A'}';
 
     return Container(
       margin: const EdgeInsets.all(16),
@@ -284,9 +311,9 @@ class _StudentOverviewState extends State<StudentOverview>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(0.1),
             blurRadius: 10,
-            offset: const Offset(0, 2),
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -305,7 +332,7 @@ class _StudentOverviewState extends State<StudentOverview>
                 Text(
                   widget.studentName,
                   style: GoogleFonts.poppins(
-                    fontSize: 20,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: const Color(0xFF3A3A50),
                   ),
@@ -321,41 +348,56 @@ class _StudentOverviewState extends State<StudentOverview>
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${student['course'] ?? 'No Course'} • Year ${student['year_level'] ?? 'N/A'}',
+                  courseDisplay,
                   style: GoogleFonts.poppins(
                     fontSize: 14,
                     color: const Color(0xFF5D5D72),
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  userInfo?['email'] ?? 'No Email',
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    color: const Color(0xFF7C83FD),
-                  ),
-                ),
               ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.green.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              userInfo?['status']?.toString().toUpperCase() ?? 'ACTIVE',
-              style: GoogleFonts.poppins(
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                color: Colors.green,
-              ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  String _abbreviateCourse(String courseName) {
+    // Common course abbreviations
+    final Map<String, String> courseAbbreviations = {
+      'Bachelor of Science in Information Technology': 'BSIT',
+      'Bachelor of Science in Computer Science': 'BSCS',
+      'Bachelor of Science in Accountancy': 'BSA',
+      'Bachelor of Science in Business Administration': 'BSBA',
+      'Bachelor of Science in Nursing': 'BSN',
+      'Bachelor of Science in Civil Engineering': 'BSCE',
+      'Bachelor of Science in Mechanical Engineering': 'BSME',
+      'Bachelor of Science in Electrical Engineering': 'BSEE',
+      'Bachelor of Science in Electronics Engineering': 'BSEcE',
+      'Bachelor of Science in Psychology': 'BS Psychology',
+      'Bachelor of Science in Education': 'BSEd',
+      'Bachelor of Arts in Communication': 'AB Communication',
+      'Accountancy': 'ACT',
+    };
+
+    // Check if the course has a direct abbreviation
+    if (courseAbbreviations.containsKey(courseName)) {
+      return courseAbbreviations[courseName]!;
+    }
+
+    // Otherwise, try to create abbreviation from first letters
+    if (courseName.contains('Bachelor')) {
+      final words = courseName.split(' ');
+      String abbrev = '';
+      for (var word in words) {
+        if (word.isNotEmpty && word[0] == word[0].toUpperCase() && word != 'in' && word != 'of') {
+          abbrev += word[0];
+        }
+      }
+      return abbrev.isNotEmpty ? abbrev : courseName;
+    }
+
+    return courseName;
   }
 
   Widget _buildStatsCards() {
@@ -367,29 +409,16 @@ class _StudentOverviewState extends State<StudentOverview>
             children: [
               Expanded(
                 child: _buildStatCard(
-                  'Activities Completed',
-                  _totalActivitiesCompleted.toString(),
-                  Icons.check_circle,
-                  Colors.green,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildStatCard(
                   'Journal Entries',
                   _totalJournalEntries.toString(),
                   Icons.book,
                   Colors.blue,
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
+              const SizedBox(width: 12),
               Expanded(
                 child: _buildStatCard(
-                  'Questionnaires',
+                  'Assessments',
                   _totalQuestionnaires.toString(),
                   Icons.quiz,
                   Colors.orange,
@@ -398,7 +427,7 @@ class _StudentOverviewState extends State<StudentOverview>
               const SizedBox(width: 12),
               Expanded(
                 child: _buildStatCard(
-                  'Counseling Sessions',
+                  'Sessions',
                   _totalSessions.toString(),
                   Icons.psychology,
                   Colors.purple,
@@ -420,7 +449,7 @@ class _StudentOverviewState extends State<StudentOverview>
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -467,7 +496,7 @@ class _StudentOverviewState extends State<StudentOverview>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(0.1),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -480,19 +509,12 @@ class _StudentOverviewState extends State<StudentOverview>
             labelColor: const Color(0xFF7C83FD),
             unselectedLabelColor: const Color(0xFF5D5D72),
             indicatorColor: const Color(0xFF7C83FD),
-            labelStyle: GoogleFonts.poppins(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-            unselectedLabelStyle: GoogleFonts.poppins(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
             tabs: const [
-              Tab(text: 'Activities'),
-              Tab(text: 'Journals'),
-              Tab(text: 'Assessments'),
-              Tab(text: 'Sessions'),
+              Tab(icon: Icon(Icons.view_timeline)),
+              Tab(icon: Icon(Icons.book)),
+              Tab(icon: Icon(Icons.quiz)),
+              Tab(icon: Icon(Icons.psychology)),
+              Tab(icon: Icon(Icons.contact_emergency)),
             ],
           ),
           SizedBox(
@@ -504,6 +526,7 @@ class _StudentOverviewState extends State<StudentOverview>
                 _buildJournalsTab(),
                 _buildQuestionnairesTab(),
                 _buildSessionsTab(),
+                _buildEmergencyContactsTab(),
               ],
             ),
           ),
@@ -513,124 +536,313 @@ class _StudentOverviewState extends State<StudentOverview>
   }
 
   Widget _buildActivitiesTab() {
-    if (_activityCounts.isEmpty) {
-      return _buildEmptyState(
-          'No activities completed yet', Icons.fitness_center);
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _activityCounts.length,
-      itemBuilder: (context, index) {
-        final activityData = _activityCounts[index];
-        final activityInfo =
-            activityData['activity_info'] as Map<String, dynamic>;
-        final count = activityData['count'] as int;
-
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.green.withOpacity(0.05),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.green.withOpacity(0.2)),
+          child: Text(
+            'Recent Activities',
+            style: GoogleFonts.poppins(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF3A3A50),
+            ),
           ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
+        ),
+        Expanded(
+          child: _recentActivities.isEmpty
+              ? _buildEmptyState('No activities completed yet', Icons.fitness_center)
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: _recentActivities.length,
+                  itemBuilder: (context, index) {
+                    final activity = _recentActivities[index];
+                    final activityType = activity['activity_type'];
+
+                    // Determine if this is an appointment or activity completion
+                    if (activityType == 'appointment') {
+                      return _buildAppointmentCard(activity);
+                    } else {
+                      return _buildActivityCompletionCard(activity);
+                    }
+                  },
                 ),
-                child: _getActivityIcon(activityInfo['name']),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActivityCompletionCard(Map<String, dynamic> activity) {
+    final activityInfo = activity['activities'] as Map<String, dynamic>?;
+    final completedAt = activity['completed_at'];
+    final completionDate = activity['completion_date'];
+    final activityName = activityInfo?['name'] ?? 'unknown';
+
+    // Get color and icon based on activity type
+    final activityColor = _getActivityColor(activityName);
+    final activityIcon = _getActivityIcon(activityName);
+
+    // Generate description
+    final description = _generateActivityDescription(activityName);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: activityColor.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: activityColor.withOpacity(0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: activityColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: activityIcon,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  description,
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF3A3A50),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(
                   children: [
-                    Text(
-                      _getActivityDisplayName(activityInfo['name']),
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF3A3A50),
-                      ),
+                    Icon(
+                      Icons.access_time,
+                      size: 12,
+                      color: activityColor,
                     ),
-                    if (activityInfo['description'] != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        activityInfo['description'],
-                        style: GoogleFonts.poppins(
-                          fontSize: 12,
-                          color: const Color(0xFF5D5D72),
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                    const SizedBox(height: 4),
+                    const SizedBox(width: 4),
                     Text(
-                      'Completed $count time${count == 1 ? '' : 's'}',
+                      _formatDate(completionDate ?? completedAt),
                       style: GoogleFonts.poppins(
                         fontSize: 11,
-                        color: const Color(0xFF7C83FD),
+                        color: activityColor,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
                 ),
-              ),
-              Column(
-                children: [
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.green,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      count.toString(),
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                  if (activityInfo['points'] != null) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      '${activityInfo['points']} pts each',
-                      style: GoogleFonts.poppins(
-                        fontSize: 10,
-                        color: const Color(0xFF5D5D72),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 
-  Widget _buildJournalsTab() {
-    if (_recentJournalEntries.isEmpty) {
-      return _buildEmptyState('No journal entries yet', Icons.book);
+  Widget _buildAppointmentCard(Map<String, dynamic> appointment) {
+    final appointmentDate = appointment['appointment_date'];
+    final startTime = appointment['start_time'];
+    final status = appointment['status'];
+    final counselor = appointment['counselors'] as Map<String, dynamic>?;
+    
+    final counselorName = counselor != null && 
+                          counselor['first_name'] != null && 
+                          counselor['last_name'] != null
+        ? '${counselor['first_name']} ${counselor['last_name']}'
+        : 'a counselor';
+
+    // Generate description based on status
+    String description;
+    if (status == 'scheduled' || status == 'confirmed') {
+      description = '${widget.studentName} booked an appointment with $counselorName';
+    } else if (status == 'completed') {
+      description = '${widget.studentName} completed a counseling session with $counselorName';
+    } else if (status == 'cancelled') {
+      description = '${widget.studentName} cancelled an appointment with $counselorName';
+    } else {
+      description = '${widget.studentName} scheduled an appointment with $counselorName';
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _recentJournalEntries.length,
-      itemBuilder: (context, index) {
-        final journal = _recentJournalEntries[index];
-        final sentiment = (journal['sentiment'] as String?)?.toLowerCase();
+    // Color based on status
+    Color appointmentColor;
+    IconData appointmentIcon;
+    if (status == 'completed') {
+      appointmentColor = Colors.teal;
+      appointmentIcon = Icons.check_circle;
+    } else if (status == 'cancelled') {
+      appointmentColor = Colors.red;
+      appointmentIcon = Icons.cancel;
+    } else {
+      appointmentColor = Colors.purple;
+      appointmentIcon = Icons.event;
+    }
 
+<<<<<<< HEAD
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: appointmentColor.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: appointmentColor.withOpacity(0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: appointmentColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(appointmentIcon, color: appointmentColor, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  description,
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF3A3A50),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.access_time,
+                      size: 12,
+                      color: appointmentColor,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${_formatDate(appointmentDate)}${startTime != null ? ' • $startTime' : ''}',
+                      style: GoogleFonts.poppins(
+                        fontSize: 11,
+                        color: appointmentColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _generateActivityDescription(String activityName) {
+    final studentName = widget.studentName;
+    
+    switch (activityName) {
+      case 'daily_checkin':
+        return '$studentName completed daily check-in';
+      case 'mood_journal':
+        return '$studentName completed mood journal entry';
+      case 'breathing_exercise':
+        return '$studentName performed breathing exercise';
+      case 'track_mood':
+        return '$studentName tracked their mood';
+      case 'mental_health_assessment':
+        return '$studentName completed mental health assessment';
+      case 'stress_management':
+        return '$studentName completed stress management activity';
+      case 'relaxation_technique':
+        return '$studentName practiced relaxation technique';
+      case 'mindfulness_exercise':
+        return '$studentName practiced mindfulness exercise';
+      default:
+        // Convert snake_case to Title Case
+        final displayName = activityName
+            .replaceAll('_', ' ')
+            .split(' ')
+            .map((word) => word[0].toUpperCase() + word.substring(1))
+            .join(' ');
+        return '$studentName completed $displayName';
+    }
+  }
+
+  Color _getActivityColor(String activityName) {
+    switch (activityName) {
+      case 'daily_checkin':
+        return Colors.blue;
+      case 'mood_journal':
+        return Colors.indigo;
+      case 'breathing_exercise':
+        return Colors.cyan;
+      case 'track_mood':
+        return Colors.orange;
+      case 'mental_health_assessment':
+        return Colors.deepOrange;
+      case 'stress_management':
+        return Colors.amber;
+      case 'relaxation_technique':
+        return Colors.lightGreen;
+      case 'mindfulness_exercise':
+        return Colors.teal;
+      default:
+        return Colors.green;
+    }
+  }
+
+  Widget _buildJournalsTab() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            'Journal Entries',
+            style: GoogleFonts.poppins(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF3A3A50),
+            ),
+          ),
+        ),
+        Expanded(
+          child: _recentJournalEntries.isEmpty
+              ? _buildEmptyState('No journal entries yet', Icons.book)
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemBuilder: (context, index) {
+                    final journal = _recentJournalEntries[index];
+                    final sentiment = (journal['sentiment'] as String?)?.toLowerCase();
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.blue.withOpacity(0.2)),
+                      ),
+          child: Column(
+=======
         return Container(
           key: const Key('journal_entry'),
           margin: const EdgeInsets.only(bottom: 12),
@@ -641,6 +853,7 @@ class _StudentOverviewState extends State<StudentOverview>
             border: Border.all(color: Colors.blue.withOpacity(0.2)),
           ),
           child: Column( 
+>>>>>>> 3db08b8b1d70fc2e2298d0d518ea71a535ea4ac3
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
@@ -714,23 +927,39 @@ class _StudentOverviewState extends State<StudentOverview>
               ),
             ],
           ),
-        );
-      },
+                    );
+                  },
+                ),
+        ),
+      ],
     );
   }
 
   Widget _buildQuestionnairesTab() {
-    if (_recentQuestionnaires.isEmpty) {
-      return _buildEmptyState('No questionnaires completed yet', Icons.quiz);
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _recentQuestionnaires.length,
-      itemBuilder: (context, index) {
-        final questionnaire = _recentQuestionnaires[index];
-        final summaries = questionnaire['questionnaire_summaries'] as List?;
-        final summary = summaries?.isNotEmpty == true ? summaries!.first : null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            'Mental Health Assessments',
+            style: GoogleFonts.poppins(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF3A3A50),
+            ),
+          ),
+        ),
+        Expanded(
+          child: _recentQuestionnaires.isEmpty
+              ? _buildEmptyState('No questionnaires completed yet', Icons.quiz)
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: _recentQuestionnaires.length,
+                  itemBuilder: (context, index) {
+                    final questionnaire = _recentQuestionnaires[index];
+                    final summaries = questionnaire['questionnaire_summaries'] as List?;
+                    final summary = summaries?.isNotEmpty == true ? summaries!.first : null;
 
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
@@ -820,21 +1049,37 @@ class _StudentOverviewState extends State<StudentOverview>
           ),
         );
       },
+    ),
+        ),
+      ],
     );
   }
 
   Widget _buildSessionsTab() {
-    if (_sessionNotes.isEmpty) {
-      return _buildEmptyState('No counseling sessions yet', Icons.psychology);
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _sessionNotes.length,
-      itemBuilder: (context, index) {
-        final session = _sessionNotes[index];
-        final appointment =
-            session['counseling_appointments'] as Map<String, dynamic>?;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            'Counseling Sessions',
+            style: GoogleFonts.poppins(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF3A3A50),
+            ),
+          ),
+        ),
+        Expanded(
+          child: _sessionNotes.isEmpty
+              ? _buildEmptyState('No counseling sessions yet', Icons.psychology)
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: _sessionNotes.length,
+                  itemBuilder: (context, index) {
+                    final session = _sessionNotes[index];
+                    final appointment =
+                        session['counseling_appointments'] as Map<String, dynamic>?;
 
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
@@ -935,6 +1180,9 @@ class _StudentOverviewState extends State<StudentOverview>
           ),
         );
       },
+    ),
+        ),
+      ],
     );
   }
 
@@ -1135,6 +1383,147 @@ class _StudentOverviewState extends State<StudentOverview>
     );
   }
 
+  Widget _buildEmergencyContactsTab() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            'Emergency Contacts',
+            style: GoogleFonts.poppins(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF3A3A50),
+            ),
+          ),
+        ),
+        Expanded(
+          child: _emergencyContacts.isEmpty
+              ? _buildEmptyState('No emergency contacts added yet', Icons.contact_emergency)
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: _emergencyContacts.length,
+                  itemBuilder: (context, index) {
+                    final contact = _emergencyContacts[index];
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.red.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.red.withOpacity(0.2)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.contact_emergency, color: Colors.red, size: 24),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      contact['contact_name'] ?? 'Unknown Contact',
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF3A3A50),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.family_restroom,
+                          size: 14,
+                          color: const Color(0xFF7C83FD),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          contact['relationship'] ?? 'N/A',
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            color: const Color(0xFF5D5D72),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.phone,
+                          size: 14,
+                          color: const Color(0xFF7C83FD),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          contact['contact_number'] ?? 'N/A',
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            color: const Color(0xFF5D5D72),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (contact['is_notified'] == true) ...[
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.check_circle,
+                              size: 12,
+                              color: Colors.green,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Notified',
+                              style: GoogleFonts.poppins(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.green,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildEmptyState(String message, IconData icon) {
     return Center(
       child: Column(
@@ -1220,38 +1609,47 @@ class _StudentOverviewState extends State<StudentOverview>
 
   Widget _getActivityIcon(String activityName) {
     IconData icon;
+    Color iconColor;
+    
     switch (activityName) {
       case 'daily_checkin':
         icon = Icons.check_circle;
+        iconColor = Colors.blue;
         break;
       case 'mood_journal':
         icon = Icons.book;
+        iconColor = Colors.indigo;
+        break;
+      case 'breathing_exercise':
+        icon = Icons.air;
+        iconColor = Colors.cyan;
         break;
       case 'track_mood':
+        icon = Icons.mood;
+        iconColor = Colors.orange;
+        break;
+      case 'mental_health_assessment':
         icon = Icons.quiz;
+        iconColor = Colors.deepOrange;
+        break;
+      case 'stress_management':
+        icon = Icons.spa;
+        iconColor = Colors.amber;
+        break;
+      case 'relaxation_technique':
+        icon = Icons.self_improvement;
+        iconColor = Colors.lightGreen;
+        break;
+      case 'mindfulness_exercise':
+        icon = Icons.psychology_alt;
+        iconColor = Colors.teal;
         break;
       default:
         icon = Icons.fitness_center;
+        iconColor = Colors.green;
     }
 
-    return Icon(icon, color: Colors.green, size: 20);
-  }
-
-  String _getActivityDisplayName(String activityName) {
-    switch (activityName) {
-      case 'daily_checkin':
-        return 'Daily Check-ins';
-      case 'mood_journal':
-        return 'Mood Journal Entries';
-      case 'track_mood':
-        return 'Mental Health Assessments';
-      default:
-        return activityName
-            .replaceAll('_', ' ')
-            .split(' ')
-            .map((word) => word[0].toUpperCase() + word.substring(1))
-            .join(' ');
-    }
+    return Icon(icon, color: iconColor, size: 20);
   }
 
   void _showDownloadConfirmation() {
@@ -1420,17 +1818,9 @@ class _StudentOverviewState extends State<StudentOverview>
                     pw.Row(
                       children: [
                         pw.Expanded(
-                          child: _buildPdfStatCard('Activities Completed', _totalActivitiesCompleted.toString(), PdfColors.green),
-                        ),
-                        pw.SizedBox(width: 20),
-                        pw.Expanded(
                           child: _buildPdfStatCard('Journal Entries', _totalJournalEntries.toString(), PdfColors.blue),
                         ),
-                      ],
-                    ),
-                    pw.SizedBox(height: 15),
-                    pw.Row(
-                      children: [
+                        pw.SizedBox(width: 20),
                         pw.Expanded(
                           child: _buildPdfStatCard('Mental Health Assessments', _totalQuestionnaires.toString(), PdfColors.orange),
                         ),
@@ -1446,8 +1836,8 @@ class _StudentOverviewState extends State<StudentOverview>
               
               pw.SizedBox(height: 30),
               
-              // Activity Details Section
-              if (_activityCounts.isNotEmpty) ...[
+              // Recent Activity Details Section
+              if (_recentActivities.isNotEmpty) ...[
                 pw.Container(
                   padding: const pw.EdgeInsets.all(20),
                   decoration: pw.BoxDecoration(
@@ -1458,7 +1848,7 @@ class _StudentOverviewState extends State<StudentOverview>
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Text(
-                        'Activity Breakdown',
+                        'Recent Activities',
                         style: pw.TextStyle(
                           fontSize: 18,
                           fontWeight: pw.FontWeight.bold,
@@ -1466,9 +1856,29 @@ class _StudentOverviewState extends State<StudentOverview>
                         ),
                       ),
                       pw.SizedBox(height: 15),
-                      ..._activityCounts.take(5).map((activity) {
-                        final activityInfo = activity['activity_info'] as Map<String, dynamic>;
-                        final count = activity['count'] as int;
+                      ..._recentActivities.take(10).map((activity) {
+                        final activityType = activity['activity_type'];
+                        String description;
+                        String dateStr;
+                        
+                        if (activityType == 'appointment') {
+                          final counselor = activity['counselors'] as Map<String, dynamic>?;
+                          final counselorName = counselor != null && 
+                                                counselor['first_name'] != null && 
+                                                counselor['last_name'] != null
+                              ? '${counselor['first_name']} ${counselor['last_name']}'
+                              : 'a counselor';
+                          description = '${widget.studentName} booked an appointment with $counselorName';
+                          dateStr = _formatDate(activity['appointment_date']);
+                        } else {
+                          final activityInfo = activity['activities'] as Map<String, dynamic>?;
+                          final activityName = activityInfo?['name'] ?? 'unknown';
+                          description = _generateActivityDescription(activityName);
+                          final completedAt = activity['completed_at'];
+                          final completionDate = activity['completion_date'];
+                          dateStr = _formatDate(completionDate ?? completedAt);
+                        }
+                        
                         return pw.Padding(
                           padding: const pw.EdgeInsets.only(bottom: 8),
                           child: pw.Row(
@@ -1477,7 +1887,7 @@ class _StudentOverviewState extends State<StudentOverview>
                                 width: 4,
                                 height: 4,
                                 decoration: pw.BoxDecoration(
-                                  color: PdfColors.green,
+                                  color: PdfColors.indigo,
                                   shape: pw.BoxShape.circle,
                                 ),
                                 margin: const pw.EdgeInsets.only(right: 8, top: 4),
@@ -1485,22 +1895,22 @@ class _StudentOverviewState extends State<StudentOverview>
                               pw.Expanded(
                                 flex: 3,
                                 child: pw.Text(
-                                  _getActivityDisplayName(activityInfo['name']),
+                                  description,
                                   style: pw.TextStyle(
-                                    fontSize: 12,
+                                    fontSize: 11,
                                     color: PdfColors.grey800,
-                                    fontWeight: pw.FontWeight.bold,
                                   ),
                                 ),
                               ),
                               pw.Expanded(
-                                flex: 1,
+                                flex: 2,
                                 child: pw.Text(
-                                  '$count times',
+                                  dateStr,
                                   style: pw.TextStyle(
-                                    fontSize: 12,
+                                    fontSize: 10,
                                     color: PdfColors.grey600,
                                   ),
+                                  textAlign: pw.TextAlign.right,
                                 ),
                               ),
                             ],
@@ -1691,6 +2101,109 @@ class _StudentOverviewState extends State<StudentOverview>
                                 ),
                               ),
                             ],
+                          ),
+                        );
+                      }).toList(),
+                    ],
+                  ),
+                ),
+                pw.SizedBox(height: 30),
+              ],
+              
+              // Emergency Contacts Section
+              if (_emergencyContacts.isNotEmpty) ...[
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(20),
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: PdfColors.grey300),
+                    borderRadius: pw.BorderRadius.circular(8),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        'Emergency Contacts',
+                        style: pw.TextStyle(
+                          fontSize: 18,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.indigo,
+                        ),
+                      ),
+                      pw.SizedBox(height: 15),
+                      ..._emergencyContacts.map((contact) {
+                        return pw.Padding(
+                          padding: const pw.EdgeInsets.only(bottom: 12),
+                          child: pw.Container(
+                            padding: const pw.EdgeInsets.all(12),
+                            decoration: pw.BoxDecoration(
+                              color: PdfColors.red50,
+                              border: pw.Border.all(color: PdfColors.red200),
+                              borderRadius: pw.BorderRadius.circular(6),
+                            ),
+                            child: pw.Column(
+                              crossAxisAlignment: pw.CrossAxisAlignment.start,
+                              children: [
+                                pw.Text(
+                                  contact['contact_name'] ?? 'Unknown Contact',
+                                  style: pw.TextStyle(
+                                    fontSize: 13,
+                                    color: PdfColors.grey900,
+                                    fontWeight: pw.FontWeight.bold,
+                                  ),
+                                ),
+                                pw.SizedBox(height: 4),
+                                pw.Row(
+                                  children: [
+                                    pw.Text(
+                                      'Relationship: ',
+                                      style: pw.TextStyle(
+                                        fontSize: 11,
+                                        color: PdfColors.grey700,
+                                        fontWeight: pw.FontWeight.bold,
+                                      ),
+                                    ),
+                                    pw.Text(
+                                      contact['relationship'] ?? 'N/A',
+                                      style: pw.TextStyle(
+                                        fontSize: 11,
+                                        color: PdfColors.grey700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                pw.SizedBox(height: 2),
+                                pw.Row(
+                                  children: [
+                                    pw.Text(
+                                      'Contact Number: ',
+                                      style: pw.TextStyle(
+                                        fontSize: 11,
+                                        color: PdfColors.grey700,
+                                        fontWeight: pw.FontWeight.bold,
+                                      ),
+                                    ),
+                                    pw.Text(
+                                      contact['contact_number'] ?? 'N/A',
+                                      style: pw.TextStyle(
+                                        fontSize: 11,
+                                        color: PdfColors.grey700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (contact['is_notified'] == true) ...[
+                                  pw.SizedBox(height: 4),
+                                  pw.Text(
+                                    '✓ Has been notified',
+                                    style: pw.TextStyle(
+                                      fontSize: 10,
+                                      color: PdfColors.green,
+                                      fontWeight: pw.FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
                           ),
                         );
                       }).toList(),
