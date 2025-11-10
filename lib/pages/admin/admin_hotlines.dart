@@ -148,6 +148,7 @@ class _AdminHotlinesState extends State<AdminHotlines> {
         builder: (context, setState) => Form(
           key: _formKey,
           child: Column(
+            key: const Key('addHotlineDialog'),
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               FormSection(
@@ -275,6 +276,7 @@ class _AdminHotlinesState extends State<AdminHotlines> {
                     ),
                     const SizedBox(height: 20),
                     ModernTextFormField(
+                      key: const Key('addHotline_name'),
                       controller: _nameController,
                       labelText: 'Service Name',
                       hintText: 'e.g., National Suicide Prevention Lifeline',
@@ -285,6 +287,7 @@ class _AdminHotlinesState extends State<AdminHotlines> {
                     ),
                     const SizedBox(height: 20),
                     ModernTextFormField(
+                      key: const Key('addHotline_phone'),
                       controller: _phoneController,
                       labelText: 'Phone Number',
                       hintText: 'e.g., 988 or (555) 123-4567',
@@ -327,10 +330,12 @@ class _AdminHotlinesState extends State<AdminHotlines> {
       ),
       actions: [
         ModernActionButton(
+          key: const Key('addHotline_cancel'),
           text: 'Cancel',
           onPressed: () => Navigator.pop(context),
         ),
         ModernActionButton(
+          key: const Key('addHotline_submit'),
           text: 'Add Hotline',
           isPrimary: true,
           isLoading: _isLoading,
@@ -435,6 +440,7 @@ class _AdminHotlinesState extends State<AdminHotlines> {
         builder: (context, setState) => Form(
           key: _formKey,
           child: Column(
+            key: const Key('editHotlineDialog'),
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               FormSection(
@@ -562,6 +568,7 @@ class _AdminHotlinesState extends State<AdminHotlines> {
                     ),
                     const SizedBox(height: 20),
                     ModernTextFormField(
+                      key: const Key('editHotline_name'),
                       controller: _nameController,
                       labelText: 'Service Name',
                       hintText: 'e.g., National Suicide Prevention Lifeline',
@@ -572,6 +579,7 @@ class _AdminHotlinesState extends State<AdminHotlines> {
                     ),
                     const SizedBox(height: 20),
                     ModernTextFormField(
+                      key: const Key('editHotline_phone'),
                       controller: _phoneController,
                       labelText: 'Phone Number',
                       hintText: 'e.g., 988 or (555) 123-4567',
@@ -614,10 +622,12 @@ class _AdminHotlinesState extends State<AdminHotlines> {
       ),
       actions: [
         ModernActionButton(
+          key: const Key('editHotline_cancel'),
           text: 'Cancel',
           onPressed: () => Navigator.pop(context),
         ),
         ModernActionButton(
+          key: const Key('editHotline_submit'),
           text: 'Save Changes',
           isPrimary: true,
           isLoading: _isLoading,
