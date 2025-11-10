@@ -398,6 +398,7 @@ class _AdminHomeState extends State<AdminHome> {
     return Scaffold(
       key: const Key('adminHomeScreen'),
       drawer: Drawer(
+        key: const Key('drawer_button'),
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
@@ -420,6 +421,7 @@ class _AdminHomeState extends State<AdminHome> {
               ),
             ),
             ListTile(
+              key: const Key('logout_button'),
               leading: const Icon(Icons.logout, color: Color(0xFF7C83FD)),
               title: Text('Logout', style: GoogleFonts.poppins()),
               onTap: () async {
@@ -438,6 +440,7 @@ class _AdminHomeState extends State<AdminHome> {
         elevation: 0,
         leading: Builder(
           builder: (context) => IconButton(
+            key: const Key('drawer_button'),
             icon: const Icon(Icons.menu, color: Color(0xFF5D5D72)),
             onPressed: () => Scaffold.of(context).openDrawer(),
           ),

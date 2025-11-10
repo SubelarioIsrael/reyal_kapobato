@@ -632,6 +632,7 @@ class _StudentOverviewState extends State<StudentOverview>
         final sentiment = (journal['sentiment'] as String?)?.toLowerCase();
 
         return Container(
+          key: const Key('journal_entry'),
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -639,7 +640,7 @@ class _StudentOverviewState extends State<StudentOverview>
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: Colors.blue.withOpacity(0.2)),
           ),
-          child: Column(
+          child: Column( 
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(

@@ -79,6 +79,7 @@ class _StudentMoodJournalState extends State<StudentMoodJournal> {
       setState(() {
         _isSharedWithCounselor = false;
       });
+      Navigator.of(context).pop();
     } catch (e) {
       print("Insert error: $e");
       ScaffoldMessenger.of(
@@ -130,6 +131,7 @@ class _StudentMoodJournalState extends State<StudentMoodJournal> {
 
                 // Title input
                 TextFormField(
+                  key: const Key('journal_title_field'),
                   controller: _titleController,
                   style: GoogleFonts.poppins(fontSize: 16, color: darkText),
                   decoration: InputDecoration(
@@ -151,6 +153,7 @@ class _StudentMoodJournalState extends State<StudentMoodJournal> {
                 // Content input
                 Expanded(
                   child: TextFormField(
+                    key: const Key('journal_content_field'),
                     controller: _contentController,
                     style: GoogleFonts.poppins(fontSize: 15, color: darkText),
                     decoration: InputDecoration(
@@ -208,6 +211,7 @@ class _StudentMoodJournalState extends State<StudentMoodJournal> {
                       ),
                     ),
                     child: Text(
+                      key: const Key('save_journal_entry_button'),
                       _isSubmitting ? 'Saving...' : 'Save Entry',
                       style: GoogleFonts.poppins(
                         fontSize: 16,

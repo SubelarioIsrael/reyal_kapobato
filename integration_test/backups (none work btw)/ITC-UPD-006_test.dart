@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:breathe_better/main.dart';
-import 'package:breathe_better/main.dart' as app;
 import 'package:breathe_better/pages/student/student_profile.dart';
 
 void main() {

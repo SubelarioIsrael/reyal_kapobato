@@ -490,6 +490,7 @@ class _StudentJournalEntriesState extends State<StudentJournalEntries> {
               ),
       ),
       floatingActionButton: FloatingActionButton(
+        key: const Key('write_journal_entry_fab'),
         onPressed: () {
           Navigator.pushNamed(context, 'student-mood-journal-write').then((_) {
             // Refresh the journal entries when returning from writing

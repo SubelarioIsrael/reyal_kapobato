@@ -11,9 +11,7 @@ import 'routes.dart';
 Future<void> initApp() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
   OneSignal.initialize("c0c552e3-f8d6-49fc-9d0c-a7b23267b9f0");
@@ -23,8 +21,7 @@ Future<void> initApp() async {
 
   final url = dotenv.env['SUPABASE_URL'];
   final anonKey = dotenv.env['SUPABASE_ANON_KEY'];
-
-  if (url == null || url.isEmpty || anonKey == null || anonKey.isEmpty) {
+  if (url == null || anonKey == null || url.isEmpty || anonKey.isEmpty) {
     throw Exception('Missing SUPABASE_URL or SUPABASE_ANON_KEY');
   }
 
@@ -33,72 +30,40 @@ Future<void> initApp() async {
   final pushNotiService = PushNotiService();
   await pushNotiService.initNotification();
 
-  // You can keep your registerDeviceWithSupabase() logic here
-}
+  await _registerDeviceWithSupabase(pushNotiService);
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-
-  OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
-  OneSignal.initialize("c0c552e3-f8d6-49fc-9d0c-a7b23267b9f0");
-  await OneSignal.Notifications.requestPermission(true);
-
-  await dotenv.load(fileName: 'important_stuff.env');
-
-  final String? url = dotenv.env['SUPABASE_URL'];
-  final String? anonKey = dotenv.env['SUPABASE_ANON_KEY'];
-
-  if (url == null || url.isEmpty || anonKey == null || anonKey.isEmpty) {
-    throw Exception('Missing SUPABASE_URL or SUPABASE_ANON_KEY');
-  }
-
-  await Supabase.initialize(url: url, anonKey: anonKey);
-
-  final pushNotiService = PushNotiService();
-  await pushNotiService.initNotification();
-
-  Future<void> registerDeviceWithSupabase() async {
-    final supabase = Supabase.instance.client;
-    final userId = supabase.auth.currentUser?.id;
-    if (userId == null) return;
-
-    // Set current user ID in push notification service
-    pushNotiService.setCurrentUserId(userId);
-
-    final playerId = OneSignal.User.pushSubscription.id;
-    if (playerId == null) return;
-
-    try {
-      await supabase.from('device_push_tokens').upsert({
-        'user_id': userId,
-        'onesignal_player_id': playerId,
-        'platform': 'android',
-        'last_seen': DateTime.now().toIso8601String(),
-      }, onConflict: 'user_id,onesignal_player_id');
-    } catch (_) {}
-  }
-
-  // Register immediately if already logged in
-  await registerDeviceWithSupabase();
-
-  // Also register whenever auth state changes to a signed-in user
   Supabase.instance.client.auth.onAuthStateChange.listen((data) async {
     final event = data.event;
     if (event == AuthChangeEvent.signedIn ||
         event == AuthChangeEvent.tokenRefreshed) {
-      await registerDeviceWithSupabase();
+      await _registerDeviceWithSupabase(pushNotiService);
     } else if (event == AuthChangeEvent.signedOut) {
-      // Clear user ID when signing out
       pushNotiService.setCurrentUserId('');
     }
   });
-  
+}
+
+Future<void> _registerDeviceWithSupabase(PushNotiService pushNotiService) async {
+  final supabase = Supabase.instance.client;
+  final userId = supabase.auth.currentUser?.id;
+  if (userId == null) return;
+
+  pushNotiService.setCurrentUserId(userId);
+
+  final playerId = OneSignal.User.pushSubscription.id;
+  if (playerId == null) return;
+
+  await supabase.from('device_push_tokens').upsert({
+    'user_id': userId,
+    'onesignal_player_id': playerId,
+    'platform': 'android',
+    'last_seen': DateTime.now().toIso8601String(),
+  }, onConflict: 'user_id,onesignal_player_id');
+}
+
+Future<void> main() async {
   await initApp();
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatefulWidget {
@@ -164,19 +129,15 @@ class _MyAppState extends State<MyApp> {
 
   void _setupDeepLinkListener() {
     _appLinks = AppLinks();
+    final links = _appLinks; // local reference ensures it’s ready
 
-    // Handle app launch from deep link
-    _appLinks.getInitialLink().then((Uri? uri) {
-      if (uri != null) {
-        _handleDeepLink(uri);
-      }
+    links.getInitialLink().then((uri) {
+      if (uri != null) _handleDeepLink(uri);
     });
 
-    // Handle deep links while app is running
-    _appLinks.uriLinkStream.listen((Uri uri) {
-      _handleDeepLink(uri);
-    });
+    links.uriLinkStream.listen(_handleDeepLink);
   }
+
 
   void _handleDeepLink(Uri uri) {
     print('Received deep link: $uri');

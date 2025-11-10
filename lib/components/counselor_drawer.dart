@@ -186,6 +186,7 @@ class _CounselorDrawerState extends State<CounselorDrawer> {
             ),
           ),
           _buildDrawerItem(
+            key: const Key('drawer_button'),
             icon: Icons.home_rounded,
             title: 'Home',
             onTap: () {
@@ -233,6 +234,7 @@ class _CounselorDrawerState extends State<CounselorDrawer> {
             child: Divider(color: Color(0xFFE5E5E5)),
           ),
           _buildDrawerItem(
+            key: const Key('logout_button'),
             icon: Icons.logout_rounded,
             title: 'Logout',
             iconColor: Colors.red[400]!,
@@ -254,6 +256,7 @@ class _CounselorDrawerState extends State<CounselorDrawer> {
   }
 
   Widget _buildDrawerItem({
+    Key? key,
     required IconData icon,
     required String title,
     required VoidCallback onTap,
@@ -270,6 +273,7 @@ class _CounselorDrawerState extends State<CounselorDrawer> {
         borderRadius: BorderRadius.circular(12),
       ),
       child: ListTile(
+        key: key,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),

@@ -339,6 +339,7 @@ class _StudentChatbotState extends State<StudentChatbot> {
               children: [
                 Expanded(
                   child: TextField(
+                    key: const Key('chat_input_field'),
                     controller: _controller,
                     decoration: InputDecoration(
                       hintText: "Type your message...",
