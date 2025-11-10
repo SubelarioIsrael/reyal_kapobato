@@ -52,7 +52,7 @@ class _LoginPageState extends State<LoginPage> {
         if (mounted) {
           // Redirect based on user_type
           if (userType == 'student') {
-            Navigator.pushReplacementNamed(context, 'student-home-new');
+            Navigator.pushReplacementNamed(context, 'student-home');
           } else if (userType == 'counselor') {
             Navigator.pushReplacementNamed(context, 'counselor-home');
           } else if (userType == 'admin') {
