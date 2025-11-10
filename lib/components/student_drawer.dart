@@ -214,6 +214,7 @@ class _StudentDrawerState extends State<StudentDrawer> {
             },
           ),
           _buildDrawerItem(
+            key: const Key('chatbot_item'),
             icon: Icons.chat_bubble_rounded,
             title: 'Chatbot',
             onTap: () {
@@ -246,6 +247,7 @@ class _StudentDrawerState extends State<StudentDrawer> {
             child: Divider(color: Color(0xFFE5E5E5)),
           ),
           _buildDrawerItem(
+            key: const Key('logout_button'),
             icon: Icons.logout_rounded,
             title: 'Logout',
             iconColor: Colors.red[400]!,
@@ -267,6 +269,7 @@ class _StudentDrawerState extends State<StudentDrawer> {
   }
 
   Widget _buildDrawerItem({
+    Key? key,
     required IconData icon,
     required String title,
     required VoidCallback onTap,

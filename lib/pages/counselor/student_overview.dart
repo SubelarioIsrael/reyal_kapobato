@@ -689,6 +689,7 @@ class _StudentOverviewState extends State<StudentOverview>
       appointmentIcon = Icons.event;
     }
 
+<<<<<<< HEAD
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -841,6 +842,18 @@ class _StudentOverviewState extends State<StudentOverview>
                         border: Border.all(color: Colors.blue.withOpacity(0.2)),
                       ),
           child: Column(
+=======
+        return Container(
+          key: const Key('journal_entry'),
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.blue.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.blue.withOpacity(0.2)),
+          ),
+          child: Column( 
+>>>>>>> 3db08b8b1d70fc2e2298d0d518ea71a535ea4ac3
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(

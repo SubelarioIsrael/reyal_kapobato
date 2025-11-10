@@ -67,6 +67,7 @@ class _StudentHomeState extends State<StudentHome> {
   ];
   final List<_FeatureCardData> _supportTools = [
     const _FeatureCardData(
+      key: Key('breathing_exercises_card'),
       title: 'Breathing Exercises',
       image:
           'https://www.bhf.org.uk/-/media/images/information-support/heart-matters/2023/december/wellbeing/deep-breathing-620x400.png?rev=4506ebd34dab4476b56c225b6ff3ad60&la=en&h=400&w=620&hash=725D49F995EDEA5C3934CB671E023CA2',
@@ -659,6 +660,7 @@ class _StudentHomeState extends State<StudentHome> {
           elevation: 0,
           leading: Builder(
             builder: (context) => IconButton(
+              key: const Key('drawer_button'),
               icon: const Icon(Icons.menu, color: Color(0xFF5D5D72)),
               onPressed: () => Scaffold.of(context).openDrawer(),
             ),
@@ -688,6 +690,7 @@ class _StudentHomeState extends State<StudentHome> {
             ]);
           },
           child: SingleChildScrollView(
+            key: const Key('studentHomeScrollView'),
             physics: const AlwaysScrollableScrollPhysics(),
             child: Padding(
               padding: const EdgeInsets.all(20.0),
@@ -745,6 +748,7 @@ class _StudentHomeState extends State<StudentHome> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
+                                      key: const Key('dailyUpliftQuote'),
                                       dailyUplift!['quote'] ??
                                           'Stay positive and keep going!',
                                       style: GoogleFonts.poppins(
@@ -924,11 +928,12 @@ class _StudentHomeState extends State<StudentHome> {
 }
 
 class _FeatureCardData {
+  final Key? key;
   final String title;
   final String image;
   final String route;
   const _FeatureCardData(
-      {required this.title, required this.image, required this.route});
+      {this.key, required this.title, required this.image, required this.route});
 }
 
 class _FeatureCard extends StatelessWidget {
@@ -985,6 +990,7 @@ class _FeatureCard extends StatelessWidget {
 
     // Default for other cards
     return GestureDetector(
+      key: feature.key,
       onTap: () => Navigator.pushNamed(context, feature.route),
       child: Card(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

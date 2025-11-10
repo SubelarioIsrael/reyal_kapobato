@@ -417,6 +417,7 @@ class _CounselorHomeState extends State<CounselorHome> {
         elevation: 0,
         leading: Builder(
           builder: (context) => IconButton(
+            key: const Key('drawer_button'),
             icon: const Icon(Icons.menu, color: Color(0xFF5D5D72)),
             onPressed: () => Scaffold.of(context).openDrawer(),
           ),
@@ -933,6 +934,7 @@ class _CounselorHomeState extends State<CounselorHome> {
             ),
             const SizedBox(width: 16),
             Expanded(
+              key: const Key('my_students_card'),
               child: _buildQuickActionCard(
                 'My \nStudents',
                 Icons.people,
