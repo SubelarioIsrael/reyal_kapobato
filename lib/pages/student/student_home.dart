@@ -24,6 +24,7 @@ class _StudentHomeState extends State<StudentHome> {
   bool isLoading = true;
   StreamSubscription? _studentNameSubscription;
   int _selectedIndex = 1;
+  final ScrollController _scrollController = ScrollController();
   final _refreshKey = GlobalKey<RefreshIndicatorState>();
 
   Map<String, dynamic>? todayCheckIn;
@@ -124,6 +125,7 @@ class _StudentHomeState extends State<StudentHome> {
   @override
   void dispose() {
     _studentNameSubscription?.cancel();
+    _scrollController.dispose();
     super.dispose();
   }
 

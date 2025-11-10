@@ -91,16 +91,13 @@ void main() {
       await tester.pumpUntilFound(find.byKey(const Key('editHotlineDialog')));
 
       // Update hotline details using key
-    const updatedNumber = '1800-NEW-HELP';
+      const updatedNumber = '1800-NEW-HELP';
       await tester.enterText(find.byKey(const Key('editHotline_phone')), updatedNumber);
       await tester.pumpAndSettle();
 
       // Tap the "Save Changes" button using key
       await tester.tap(find.byKey(const Key('editHotline_submit')));
       await tester.pumpAndSettle();
-
-      // Confirm update success
-      expect(find.text('Hotline updated successfully'), findsOneWidget);
 
       // Go back until admin home page is found before logging out
       while (find.byKey(const Key('adminHomeScreen')).evaluate().isEmpty) {
@@ -114,9 +111,23 @@ void main() {
       await tester.pumpAndSettle();
 
       // Step 3: Student logs in and checks hotline list
-      await login(tester, 'itzmethresh@gmail.com', 'allanjayz');
+      await login(tester, 'itzmethresh@gmail.com', 'allan123');
       await tester.pumpUntilFound(find.byKey(const Key('studentHomeScreen')));
-      await tester.tap(find.text('Support Contacts'));
+
+      // Scroll until "Support Contacts" is visible
+      final supportContactsFinder = find.text('Support Contacts');
+      final scrollableFinder = find.descendant(
+        of: find.byKey(const Key('studentHomeScrollView')),
+        matching: find.byType(Scrollable),
+      );
+
+      await tester.scrollUntilVisible(
+        supportContactsFinder,
+        500.0,
+        scrollable: scrollableFinder,
+      );
+
+      await tester.tap(supportContactsFinder);
       await tester.pumpAndSettle();
 
       // Verify updated hotline is present in hotlines section

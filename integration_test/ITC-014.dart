@@ -43,7 +43,7 @@ void main() {
       await app.testMain();
       await tester.pumpAndSettle();
 
-      await login(tester, 'itzmethresh@gmail.com', 'allanjayz');
+      await login(tester, 'itzmethresh@gmail.com', 'allan123');
       await tester.pumpUntilFound(find.byKey(const Key('studentHomeScreen')));
       expect(find.byKey(const Key('studentHomeScreen')), findsOneWidget);
       await tester.pumpAndSettle();
