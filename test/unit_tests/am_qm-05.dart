@@ -106,6 +106,7 @@ Map<int, List<MockQuestion>> _versionQuestionsDatabase = {
 };
 
 Future<MockUser> mockAuthenticateAdmin() async {
+	// Use provided admin credentials
 	return MockUser(email: 'admin@email.com', id: 'admin-123', userType: 'admin');
 }
 

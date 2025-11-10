@@ -72,7 +72,8 @@ class MockSubmissionResult {
 }
 
 Future<MockUser> mockAuthenticateStudent() async {
-	return MockUser(email: 'student@college.edu', id: 'student-123', userType: 'student');
+	// Use provided student credentials
+	return MockUser(email: 'itzmethresh@gmail.com', id: 'student-123', userType: 'student');
 }
 
 Future<MockNLPInsight> mockProcessAnswersWithNLP({

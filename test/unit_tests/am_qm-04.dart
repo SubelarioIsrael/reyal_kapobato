@@ -24,7 +24,7 @@ class MockValidationResult {
 class MockQuestionnaireVersion {
 	final int versionId;
 	final String versionName;
-	final bool isActive;
+	bool isActive;
 	final DateTime createdAt;
 	
 	MockQuestionnaireVersion({
@@ -36,6 +36,7 @@ class MockQuestionnaireVersion {
 }
 
 Future<MockUser> mockAuthenticateAdmin() async {
+	// Use provided admin credentials
 	return MockUser(email: 'admin@email.com', id: 'admin-123', userType: 'admin');
 }
 
@@ -71,7 +72,7 @@ Future<MockQuestionnaireVersion> mockCreateVersion({
 	}
 	
 	// Check for duplicate version name
-	final versions = versionList ?? _existingVersions;
+	final versions = versionList ?? _versions;
 	final isDuplicate = await mockCheckDuplicateVersionName(versionName: versionName, versionList: versions);
 	if (isDuplicate) {
 		throw Exception('Version name already exists');
@@ -93,7 +94,7 @@ Future<bool> mockDeleteVersion({
 	required int versionId,
 	List<MockQuestionnaireVersion>? versionList,
 }) async {
-	final versions = versionList ?? _existingVersions;
+	final versions = versionList ?? _versions;
 	final version = versions.firstWhere((v) => v.versionId == versionId, orElse: () => throw Exception('Version not found'));
 	if (version == null) throw Exception('Version not found');
 	if (version.isActive) throw Exception('Cannot delete currently activated version');
@@ -105,12 +106,12 @@ Future<bool> mockCheckDuplicateVersionName({
 	required String versionName,
 	List<MockQuestionnaireVersion>? versionList,
 }) async {
-	final versions = versionList ?? _existingVersions;
+	final versions = versionList ?? _versions;
 	return versions.any((v) => v.versionName.trim().toLowerCase() == versionName.trim().toLowerCase());
 }
 
 // Mock existing versions
-List<MockQuestionnaireVersion> _existingVersions = [
+List<MockQuestionnaireVersion> _versions = [
 	MockQuestionnaireVersion(
 		versionId: 1,
 		versionName: 'Student Mental Health Questionnaire v1',
@@ -127,6 +128,23 @@ List<MockQuestionnaireVersion> _existingVersions = [
 
 void main() {
 	group('AM-QM-04: Admin can add and delete a new version of questionnaire', () {
+		setUp(() {
+			_versions = [
+				MockQuestionnaireVersion(
+					versionId: 1,
+					versionName: 'Student Mental Health Questionnaire v1',
+					isActive: true,
+					createdAt: DateTime.now().subtract(const Duration(days: 30)),
+				),
+				MockQuestionnaireVersion(
+					versionId: 2,
+					versionName: 'Student Mental Health Questionnaire v2',
+					isActive: false,
+					createdAt: DateTime.now().subtract(const Duration(days: 15)),
+				),
+			];
+		});
+
 		test('Empty version name fails validation with required message', () async {
 			final admin = await mockAuthenticateAdmin();
 			
@@ -219,21 +237,21 @@ void main() {
 		test('Duplicate version name fails validation', () async {
 			final admin = await mockAuthenticateAdmin();
 			final versionName = 'Student Mental Health Questionnaire v1';
-			final isDuplicate = await mockCheckDuplicateVersionName(versionName: versionName, versionList: _existingVersions);
+			final isDuplicate = await mockCheckDuplicateVersionName(versionName: versionName, versionList: _versions);
 			expect(isDuplicate, true);
 		});
 
 		test('Deleting active version fails', () async {
 			final admin = await mockAuthenticateAdmin();
 			expect(
-				() => mockDeleteVersion(adminId: admin.id, versionId: 1, versionList: _existingVersions),
+				() => mockDeleteVersion(adminId: admin.id, versionId: 1, versionList: _versions),
 				throwsA(predicate((e) => e.toString().contains('Cannot delete currently activated version'))),
 			);
 		});
 
 		test('Deleting inactive version succeeds', () async {
 			final admin = await mockAuthenticateAdmin();
-			final result = await mockDeleteVersion(adminId: admin.id, versionId: 2, versionList: _existingVersions);
+			final result = await mockDeleteVersion(adminId: admin.id, versionId: 2, versionList: _versions);
 			expect(result, true);
 		});
 	});
