@@ -300,14 +300,14 @@ class _StudentHomeState extends State<StudentHome> {
       _selectedIndex = index;
     });
     switch (index) {
-      case 0: // Breathing Exercises
-        Navigator.pushNamed(context, 'student-breathing-exercises');
+      case 0: // Wellness Resources (replacing Breathing Exercises in bottom nav)
+        Navigator.pushNamed(context, 'student-mental-health-resources');
         break;
       case 1: // Home (stay on this page)
         // No navigation needed, already on home
         break;
-      case 2: // Mood Journal
-        Navigator.pushNamed(context, 'student-mood-journal');
+      case 2: // Connect with a Counselor (replacing Mood Journal in bottom nav)
+        Navigator.pushNamed(context, 'student-counselors');
         break;
     }
   }
@@ -677,38 +677,6 @@ class _StudentHomeState extends State<StudentHome> {
           ),
           centerTitle: true,
           actions: [
-            Stack(
-              children: [
-                IconButton(
-                  key: const Key('chatButton'),
-                  icon: const Icon(Icons.chat),
-                  onPressed: () {
-                    Navigator.pushNamed(context, 'student-chat-list');
-                  },
-                ),
-                if (_unreadMessagesCount > 0)
-                  Positioned(
-                    right: 8,
-                    top: 8,
-                    child: Container(
-                      key: const Key('chatNotificationBadge'),
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Text(
-                        '$_unreadMessagesCount',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
             const StudentNotificationButton(),
           ],
         ),
@@ -904,11 +872,10 @@ class _StudentHomeState extends State<StudentHome> {
           onTap: _onItemTapped,
           items: const [
             BottomNavigationBarItem(
-                icon: Icon(Icons.self_improvement),
-                label: 'Breathing Exercises'),
+                icon: Icon(Icons.menu_book), label: 'Wellness Resources'),
             BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
             BottomNavigationBarItem(
-                icon: Icon(Icons.book), label: 'Mood Journal'),
+                icon: Icon(Icons.support_agent), label: 'Connect'),
           ],
         ),
         floatingActionButton: FloatingActionButton(

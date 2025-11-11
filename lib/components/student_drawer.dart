@@ -228,6 +228,14 @@ class _StudentDrawerState extends State<StudentDrawer> {
               Navigator.pushNamed(context, 'student-journal-entries');
             },
           ),
+          // Added quick access to Appointments to reduce scrolling
+          _buildDrawerItem(
+            icon: Icons.calendar_today_rounded,
+            title: 'My Appointments',
+            onTap: () {
+              Navigator.pushNamed(context, 'student-appointments');
+            },
+          ),
           _buildDrawerItem(
             icon: Icons.contacts_rounded,
             title: 'Emergency Contacts',
