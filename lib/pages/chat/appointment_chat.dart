@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/appointment.dart';
 import '../../widgets/student_avatar.dart';
+import '../../services/chat_message_service.dart';
 
 class AppointmentChat extends StatefulWidget {
   final Appointment appointment;
@@ -27,6 +28,7 @@ class _AppointmentChatState extends State<AppointmentChat> {
   String? _errorMessage;
   String? _otherUserName;
   String? _otherUserRole;
+  String? _otherUserId; // Store the other user's user_id for marking messages as read
 
   @override
   void initState() {
@@ -68,6 +70,7 @@ class _AppointmentChatState extends State<AppointmentChat> {
             }
             
             setState(() {
+              _otherUserId = widget.appointment.userId; // Store student's user_id
               _otherUserName =
                   '${formatName(studentResponse['first_name'])} ${formatName(studentResponse['last_name'])}';
               _otherUserRole = 'student';
@@ -113,6 +116,7 @@ class _AppointmentChatState extends State<AppointmentChat> {
           print('Counselor response: $counselorResponse'); // Debug log
 
           setState(() {
+            _otherUserId = counselorResponse['user_id']; // Store counselor's user_id
             _otherUserName =
                 '${counselorResponse['first_name']} ${counselorResponse['last_name']}';
             _otherUserRole = 'counselor';
@@ -275,7 +279,7 @@ class _AppointmentChatState extends State<AppointmentChat> {
       final currentUserId = _supabase.auth.currentUser?.id;
       if (currentUserId == null) return;
 
-      // Use the RPC function for reliable marking as read
+      // Use the RPC function for reliable marking as read for this appointment
       final rpcResult = await _supabase.rpc('mark_messages_read', params: {
         'p_appointment_id': widget.appointment.id,
         'p_user_id': currentUserId,
@@ -284,6 +288,13 @@ class _AppointmentChatState extends State<AppointmentChat> {
       if (rpcResult != null && rpcResult > 0) {
         print(
             'Marked $rpcResult messages as read for ${widget.isCounselor ? "counselor" : "student"}');
+      }
+
+      // Additionally, if we're a student and have the counselor's user_id,
+      // mark ALL messages from this counselor as read (across all appointments)
+      if (!widget.isCounselor && _otherUserId != null) {
+        await ChatMessageService.markMessagesAsRead(_otherUserId!);
+        print('Marked all messages from counselor $_otherUserId as read');
       }
     } catch (e) {
       print('Error marking messages as read: $e');
