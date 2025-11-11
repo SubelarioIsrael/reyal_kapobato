@@ -403,16 +403,131 @@ class _StudentContactsPageState extends State<StudentContactsPage> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Contact'),
-        content: const Text('Are you sure you want to delete this contact?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        contentPadding: const EdgeInsets.all(24),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.delete_outline_rounded,
+                color: Colors.red,
+                size: 32,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                'Delete Contact',
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF3A3A50),
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 8),
+            Text(
+              'Are you sure you want to delete this emergency contact?',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                color: const Color(0xFF3A3A50),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.red.shade200,
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    color: Colors.red.shade700,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'This action cannot be undone. The contact will be permanently removed.',
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        color: const Color(0xFF5D5D72),
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: const BorderSide(
+                      color: Color(0xFF7C83FD),
+                      width: 2,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    'Cancel',
+                    style: GoogleFonts.poppins(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF7C83FD),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 2,
+                  ),
+                  child: Text(
+                    'Delete',
+                    style: GoogleFonts.poppins(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -423,96 +538,185 @@ class _StudentContactsPageState extends State<StudentContactsPage> {
           .delete()
           .eq('contact_id', contactId);
       _loadContacts();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Contact deleted successfully',
+              style: GoogleFonts.poppins(),
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
   Widget _buildEmergencyContactCard(Map<String, dynamic> contact) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.grey.withOpacity(0.1),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _launchContact(contact['contact_number']),
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF81C784).withOpacity(0.1),
-                    shape: BoxShape.circle,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: const Color(0xFF81C784).withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.person_rounded,
+                color: Color(0xFF81C784),
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    contact['contact_name'] ?? '',
+                    style: GoogleFonts.poppins(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF3A3A50),
+                    ),
                   ),
-                  child: const Icon(
-                    Icons.person,
-                    color: Color(0xFF81C784),
-                    size: 30,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        contact['contact_name'] ?? '',
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF3A3A50),
-                        ),
+                  const SizedBox(height: 2),
+                  if (contact['relationship'] != null && contact['relationship'].toString().isNotEmpty)
+                    Text(
+                      contact['relationship'],
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        color: Colors.grey[600],
                       ),
-                      if (contact['relationship'] != null && contact['relationship'].toString().isNotEmpty)
-                        Text(
-                          contact['relationship'],
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
-                        ),
+                    ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.phone,
+                        size: 14,
+                        color: Colors.grey[600],
+                      ),
+                      const SizedBox(width: 4),
                       Text(
                         contact['contact_number'] ?? '',
                         style: GoogleFonts.poppins(
-                          fontSize: 14,
+                          fontSize: 13,
                           color: Colors.grey[700],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            // Call button
+            Container(
+              margin: const EdgeInsets.only(right: 8),
+              child: Material(
+                color: const Color(0xFF81C784).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                child: InkWell(
+                  onTap: () => _launchContact(contact['contact_number']),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Icon(
+                      Icons.call_rounded,
+                      color: const Color(0xFF81C784),
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            // Popup menu for edit/delete
+            PopupMenuButton<String>(
+              icon: const Icon(
+                Icons.more_vert_rounded,
+                color: Color(0xFF3A3A50),
+                size: 20,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              elevation: 3,
+              offset: const Offset(0, 40),
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'edit',
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.edit_outlined,
+                        size: 18,
+                        color: Color(0xFF7C83FD),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Edit Contact',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          color: const Color(0xFF3A3A50),
                         ),
                       ),
                     ],
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.edit, color: Color(0xFF7C83FD)),
-                  tooltip: 'Edit',
-                  onPressed: () => _showContactDialog(contact: contact),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  tooltip: 'Delete',
-                  onPressed: () => _deleteContact(contact['contact_id']),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.call, color: Color(0xFF81C784)),
-                  onPressed: () => _launchContact(contact['contact_number']),
-                  tooltip: 'Call',
+                PopupMenuItem(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.delete_outline_rounded,
+                        size: 18,
+                        color: Colors.red,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Delete Contact',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          color: const Color(0xFF3A3A50),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
+              onSelected: (value) async {
+                if (value == 'edit') {
+                  _showContactDialog(contact: contact);
+                } else if (value == 'delete') {
+                  await _deleteContact(contact['contact_id']);
+                }
+              },
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -520,63 +724,85 @@ class _StudentContactsPageState extends State<StudentContactsPage> {
 
   Widget _buildContactCard(Map<String, dynamic> contact, {bool isEmergency = false}) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.grey.withOpacity(0.1),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _launchContact(contact['phone']),
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                HotlineAvatar(
-                  profilePictureUrl: contact['profile_picture'],
-                  size: 60,
-                  isEmergency: isEmergency,
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        contact['name'] ?? '',
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF3A3A50),
-                        ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            HotlineAvatar(
+              profilePictureUrl: contact['profile_picture'],
+              size: 48,
+              isEmergency: isEmergency,
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    contact['name'] ?? '',
+                    style: GoogleFonts.poppins(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF3A3A50),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  if (contact['notes'] != null && contact['notes'].toString().isNotEmpty)
+                    Text(
+                      contact['notes'],
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        color: Colors.grey[600],
+                        height: 1.3,
                       ),
-                      if (contact['notes'] != null && contact['notes'].toString().isNotEmpty)
-                        Text(
-                          contact['notes'],
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
-                        ),
+                    ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.phone,
+                        size: 14,
+                        color: Colors.grey[600],
+                      ),
+                      const SizedBox(width: 4),
                       Text(
                         contact['phone'] ?? '',
                         style: GoogleFonts.poppins(
-                          fontSize: 14,
+                          fontSize: 13,
                           color: Colors.grey[700],
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                      if (contact['city_or_region'] != null && contact['city_or_region'].toString().isNotEmpty)
+                    ],
+                  ),
+                  if (contact['city_or_region'] != null && contact['city_or_region'].toString().isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.location_on_outlined,
+                          size: 14,
+                          color: Colors.grey[500],
+                        ),
+                        const SizedBox(width: 4),
                         Text(
                           contact['city_or_region'],
                           style: GoogleFonts.poppins(
@@ -584,19 +810,32 @@ class _StudentContactsPageState extends State<StudentContactsPage> {
                             color: Colors.grey[500],
                           ),
                         ),
-                    ],
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            // Call button
+            Material(
+              color: const Color(0xFF7C83FD).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              child: InkWell(
+                onTap: () => _launchContact(contact['phone']),
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Icon(
+                    Icons.call_rounded,
+                    color: const Color(0xFF7C83FD),
+                    size: 20,
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.call, color: Color(0xFF7C83FD)),
-                  onPressed: () => _launchContact(contact['phone']),
-                  tooltip: 'Call',
-                ),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
-      )
+      ),
     );
   }
 
@@ -604,53 +843,69 @@ class _StudentContactsPageState extends State<StudentContactsPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: GoogleFonts.poppins(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF3A3A50),
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 12),
+          child: Text(
+            title,
+            style: GoogleFonts.poppins(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF3A3A50),
+            ),
           ),
         ),
-        const SizedBox(height: 16),
         if (contacts.isEmpty)
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+            padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Colors.grey.withOpacity(0.1),
+                width: 1,
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+                  color: Colors.black.withOpacity(0.03),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
             child: Column(
               children: [
-                Icon(
-                  isEmergency ? Icons.support_agent : Icons.person_off,
-                  size: 48,
-                  color: Colors.grey[400],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  isEmergency
-                      ? 'No mental health hotlines available yet' // Updated message
-                      : 'No emergency contacts available yet',
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w500,
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    isEmergency ? Icons.support_agent_rounded : Icons.person_add_outlined,
+                    size: 40,
+                    color: Colors.grey[400],
                   ),
                 ),
+                const SizedBox(height: 16),
                 Text(
-                  'Check back later for new contacts',
+                  isEmergency
+                      ? 'No mental health hotlines available'
+                      : 'No emergency contacts added yet',
                   style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    color: Colors.grey[500],
+                    fontSize: 15,
+                    color: const Color(0xFF3A3A50),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  isEmergency
+                      ? 'Check back later for updates'
+                      : 'Tap the + button to add your first contact',
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    color: Colors.grey[600],
                   ),
                 ),
               ],
@@ -708,10 +963,11 @@ class _StudentContactsPageState extends State<StudentContactsPage> {
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showContactDialog(),
         backgroundColor: const Color(0xFF7C83FD),
-        child: const Icon(Icons.add),
-        tooltip: 'Add Emergency Contact',
+        elevation: 2,
+        child: const Icon(Icons.add_rounded, color: Colors.white),
       ),
     );
   }
 }
+
 
