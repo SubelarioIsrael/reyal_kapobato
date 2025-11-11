@@ -141,8 +141,9 @@ class _StudentChatListState extends State<StudentChatList> {
     }
   }
 
-  Widget _buildChatCard(Map<String, dynamic> chat) {
+  Widget _buildChatCard(Map<String, dynamic> chat, int index) {
     return Container(
+      key: Key('studentChatCard_$index'), // <-- Added for test
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -315,13 +316,14 @@ class _StudentChatListState extends State<StudentChatList> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: const Key('studentChatListScreen'), // <-- Added for test
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         backgroundColor: const Color(0xFFF8FAFC),
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: Color(0xFF5D5D72)),
+          key: const Key('backButton'),
+          icon: Icon(Icons.arrow_back_ios_new_rounded), // or Icons.arrow_back
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
@@ -343,102 +345,12 @@ class _StudentChatListState extends State<StudentChatList> {
           : RefreshIndicator(
               color: const Color(0xFF7C83FD),
               onRefresh: _fetchCounselorChats,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    
-
-                    // Error Message
-                    if (_errorMessage != null)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.red[50],
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.red[200]!),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.error_outline, color: Colors.red[600]),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                _errorMessage!,
-                                style: GoogleFonts.inter(
-                                  color: Colors.red[700],
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                    // Empty State
-                    if (_counselorChats.isEmpty && _errorMessage == null)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(48),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.04),
-                              blurRadius: 15,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(20),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF7C83FD).withOpacity(0.1),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.chat_bubble_outline,
-                                size: 48,
-                                color: Color(0xFF7C83FD),
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            Text(
-                              'No Conversations Yet',
-                              style: GoogleFonts.inter(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFF2D3748),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Your conversations with counselors will appear here',
-                              style: GoogleFonts.inter(
-                                fontSize: 14,
-                                color: const Color(0xFF718096),
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      ),
-
-                    // Chat List
-                    if (_counselorChats.isNotEmpty)
-                      Column(
-                        children: _counselorChats
-                            .map((chat) => _buildChatCard(chat))
-                            .toList(),
-                      ),
-                  ],
-                ),
+              child: ListView.builder(
+                itemCount: _counselorChats.length,
+                itemBuilder: (context, index) {
+                  final chat = _counselorChats[index];
+                  return _buildChatCard(chat, index); // Pass index for key
+                },
               ),
             ),
     );

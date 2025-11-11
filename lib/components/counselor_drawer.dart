@@ -186,7 +186,6 @@ class _CounselorDrawerState extends State<CounselorDrawer> {
             ),
           ),
           _buildDrawerItem(
-            key: const Key('drawer_button'),
             icon: Icons.home_rounded,
             title: 'Home',
             onTap: () {
@@ -215,6 +214,7 @@ class _CounselorDrawerState extends State<CounselorDrawer> {
             },
           ),
           _buildDrawerItem(
+            key: const Key('studentChatsDrawerItem'),
             icon: Icons.chat_bubble_rounded,
             title: 'Student Chats',
             onTap: () {
@@ -263,43 +263,25 @@ class _CounselorDrawerState extends State<CounselorDrawer> {
     Color? iconColor,
     Color? textColor,
   }) {
-    final defaultColor = const Color(0xFF3A3A50);
-    final finalIconColor = iconColor ?? defaultColor;
-    final finalTextColor = textColor ?? defaultColor;
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: ListTile(
-        key: key,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+    return InkWell(
+      key: key, // <-- Use the key here
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+        child: Row(
+          children: [
+            Icon(icon, color: iconColor ?? const Color(0xFF3A3A50)),
+            const SizedBox(width: 16),
+            Text(
+              title,
+              style: GoogleFonts.poppins(
+                color: textColor ?? const Color(0xFF3A3A50),
+                fontWeight: FontWeight.w500,
+                fontSize: 15,
+              ),
+            ),
+          ],
         ),
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: finalIconColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(
-            icon,
-            color: finalIconColor,
-            size: 20,
-          ),
-        ),
-        title: Text(
-          title,
-          style: GoogleFonts.poppins(
-            color: finalTextColor,
-            fontWeight: FontWeight.w500,
-            fontSize: 15,
-          ),
-        ),
-        onTap: onTap,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        horizontalTitleGap: 12,
       ),
     );
   }

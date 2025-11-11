@@ -455,6 +455,7 @@ class _AppointmentChatState extends State<AppointmentChat> {
           ],
         ),
         leading: IconButton(
+          key: const Key('backButton'),
           icon: const Icon(Icons.arrow_back, color: Color(0xFF5D5D72)),
           onPressed: () => Navigator.pop(context),
         ),
@@ -530,6 +531,7 @@ class _AppointmentChatState extends State<AppointmentChat> {
               children: [
                 Expanded(
                   child: TextField(
+                    key: const Key('chatInputField'),
                     controller: _messageController,
                     decoration: InputDecoration(
                       hintText: 'Type a message...',
@@ -549,6 +551,7 @@ class _AppointmentChatState extends State<AppointmentChat> {
                 ),
                 const SizedBox(width: 8),
                 IconButton(
+                  key: const Key('sendMessageButton'),
                   onPressed: _sendMessage,
                   icon: const Icon(Icons.send),
                   color: const Color(0xFF5D5D72),

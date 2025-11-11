@@ -246,7 +246,145 @@ class _CounselorChatListState extends State<CounselorChatList> {
     });
   }
 
-  Widget _buildChatCard(Map<String, dynamic> appointmentData) {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      key: const Key('counselorChatListScreen'), // <-- Added for test
+      backgroundColor: const Color.fromARGB(255, 242, 241, 248),
+      appBar: AppBar(
+        backgroundColor: const Color.fromARGB(255, 242, 241, 248),
+        elevation: 0,
+        title: Text(
+          'Student Chats',
+          style: GoogleFonts.poppins(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFF3A3A50),
+          ),
+        ),
+        centerTitle: true,
+        leading: IconButton(
+          key: const Key('backButton'),
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF5D5D72)),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        size: 64,
+                        color: Colors.red[300],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Error Loading Chats',
+                        style: GoogleFonts.poppins(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.red[700],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: Text(
+                          _errorMessage!,
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _loadAppointmentsWithMessages,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF5D5D72),
+                          foregroundColor: Colors.white,
+                        ),
+                        child: Text(
+                          'Retry',
+                          style: GoogleFonts.poppins(),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : _appointmentsWithMessages.isEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(48),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.04),
+                              blurRadius: 15,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF7C83FD).withOpacity(0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.chat_bubble_outline,
+                                size: 48,
+                                color: Color(0xFF7C83FD),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            Text(
+                              'No Conversations Yet',
+                              style: GoogleFonts.inter(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF2D3748),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Student conversations will appear here when they send messages',
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                color: const Color(0xFF718096),
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _loadAppointmentsWithMessages,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(20),
+                        itemCount: _appointmentsWithMessages.length,
+                        itemBuilder: (context, index) {
+                          final appointmentData = _appointmentsWithMessages[index];
+                          return _buildChatCard(appointmentData, index); // Pass index for key
+                        },
+                      ),
+                    ),
+    );
+  }
+
+  Widget _buildChatCard(Map<String, dynamic> appointmentData, int index) {
     final unreadCount = appointmentData['unread_count'] as int;
     final lastMessage = appointmentData['last_message'] as String?;
     final lastMessageTime = appointmentData['last_message_time'] as DateTime?;
@@ -254,6 +392,7 @@ class _CounselorChatListState extends State<CounselorChatList> {
     final hasUnread = unreadCount > 0;
 
     return Container(
+      key: Key('counselorChatCard_$index'), // <-- Added for test
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -425,140 +564,5 @@ class _CounselorChatListState extends State<CounselorChatList> {
     } else {
       return 'just now';
     }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 242, 241, 248),
-      appBar: AppBar(
-        backgroundColor: const Color.fromARGB(255, 242, 241, 248),
-        elevation: 0,
-        title: Text(
-          'Student Chats',
-          style: GoogleFonts.poppins(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: const Color(0xFF3A3A50),
-          ),
-        ),
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF5D5D72)),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.error_outline,
-                        size: 64,
-                        color: Colors.red[300],
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Error Loading Chats',
-                        style: GoogleFonts.poppins(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.red[700],
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 32),
-                        child: Text(
-                          _errorMessage!,
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _loadAppointmentsWithMessages,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF5D5D72),
-                          foregroundColor: Colors.white,
-                        ),
-                        child: Text(
-                          'Retry',
-                          style: GoogleFonts.poppins(),
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : _appointmentsWithMessages.isEmpty
-                  ? Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(48),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.04),
-                              blurRadius: 15,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(20),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF7C83FD).withOpacity(0.1),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.chat_bubble_outline,
-                                size: 48,
-                                color: Color(0xFF7C83FD),
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            Text(
-                              'No Conversations Yet',
-                              style: GoogleFonts.inter(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFF2D3748),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Student conversations will appear here when they send messages',
-                              style: GoogleFonts.inter(
-                                fontSize: 14,
-                                color: const Color(0xFF718096),
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
-                  : RefreshIndicator(
-                      onRefresh: _loadAppointmentsWithMessages,
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(20),
-                        itemCount: _appointmentsWithMessages.length,
-                        itemBuilder: (context, index) {
-                          return _buildChatCard(_appointmentsWithMessages[index]);
-                        },
-                      ),
-                    ),
-    );
   }
 }
