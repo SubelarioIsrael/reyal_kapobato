@@ -677,6 +677,38 @@ class _StudentHomeState extends State<StudentHome> {
           ),
           centerTitle: true,
           actions: [
+            Stack(
+              children: [
+                IconButton(
+                  key: const Key('chatButton'),
+                  icon: const Icon(Icons.chat),
+                  onPressed: () {
+                    Navigator.pushNamed(context, 'student-chat-list');
+                  },
+                ),
+                if (_unreadMessagesCount > 0)
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      key: const Key('chatNotificationBadge'),
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        '$_unreadMessagesCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
             const StudentNotificationButton(),
           ],
         ),
