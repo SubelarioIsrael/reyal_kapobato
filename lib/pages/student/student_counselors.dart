@@ -742,6 +742,7 @@ class _AppointmentBookingDialogState extends State<AppointmentBookingDialog> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
+                        key: const Key('bookAppointmentDialogTitle'),
                         'Book Appointment',
                         style: GoogleFonts.poppins(
                           fontSize: 20,
@@ -1044,6 +1045,7 @@ class _AppointmentBookingDialogState extends State<AppointmentBookingDialog> {
                             ],
                           )
                         : Text(
+                          key: const Key('submitAppointmentButton'),
                             'Book Appointment',
                             style: GoogleFonts.poppins(
                               fontSize: 16,
