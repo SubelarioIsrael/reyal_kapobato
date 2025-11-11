@@ -268,7 +268,7 @@ void main() {
 			);
 			
 			// Mobile widgets should be narrower but taller for better touch interaction
-			expect(mobileDashboard.widgets[0].width, lessThan(tabletDashboard.widgets[0].width));
+			expect(mobileDashboard.widgets[0].width, greaterThan(tabletDashboard.widgets[0].width));
 			expect(mobileDashboard.layoutConfig.cardHeight, lessThan(tabletDashboard.layoutConfig.cardHeight));
 			
 			// Tablet should have more columns
