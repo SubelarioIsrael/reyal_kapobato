@@ -1,5 +1,5 @@
 class AppInfo {
-  static const appId = 957140661;
-  static const appSign = '1331c22906bd275160aac41acfaab99c81183caa27e1d7ace0f428cbf25f9eea';
+  static const appId = 159761147;
+  static const appSign = '7a8eecc7c56e42f17fb9f32b01b0a3617aab825f2c7429d1e2953195ff1b689d';
   
 }

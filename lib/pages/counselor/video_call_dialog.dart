@@ -19,14 +19,6 @@ class _VideoCallDialogState extends State<VideoCallDialog> {
   String _selectedOption = 'generate'; // 'generate' or 'enter'
 
   @override
-  void initState() {
-    super.initState();
-    _codeController.addListener(() {
-      print('Code controller text changed: "${_codeController.text}"');
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Container(
       height: MediaQuery.of(context).size.height * 0.9,
@@ -339,7 +331,6 @@ class _VideoCallDialogState extends State<VideoCallDialog> {
       } else {
         // Enter existing code
         final callCode = _codeController.text.trim().toLowerCase();
-        print('Counselor entering call code: "$callCode"');
         
         if (callCode.isEmpty) {
           _showErrorSnackBar('Please enter a call code');
@@ -351,8 +342,6 @@ class _VideoCallDialogState extends State<VideoCallDialog> {
           return;
         }
 
-        print('Searching for call code in database...');
-
         // Check if code exists and is active
         final existingCall = await Supabase.instance.client
             .from('video_calls')
@@ -361,14 +350,10 @@ class _VideoCallDialogState extends State<VideoCallDialog> {
             .eq('status', 'active')
             .maybeSingle();
 
-        print('Database response: $existingCall');
-
         if (existingCall == null) {
           _showErrorSnackBar('Call code does not exist or has expired');
           return;
         }
-
-        print('Call found, updating with counselor info...');
 
         // Update the call to include counselor
         await Supabase.instance.client
@@ -379,7 +364,6 @@ class _VideoCallDialogState extends State<VideoCallDialog> {
             })
             .eq('call_code', callCode);
 
-        print('Joining video call...');
         Navigator.pop(context);
         _joinVideoCall(callCode);
       }
@@ -513,18 +497,13 @@ class _VideoCallDialogState extends State<VideoCallDialog> {
       int? counselorId;
       
       try {
-        print('DEBUG: Fetching counselor data...');
         final counselorData = await Supabase.instance.client
             .from('counselors')
             .select('first_name, last_name, counselor_id')
             .eq('user_id', user.id)
             .maybeSingle();
         
-        print('DEBUG: Counselor data received: $counselorData');
-        if (!mounted) {
-          print('DEBUG: Widget unmounted after counselor data fetch');
-          return;
-        }
+        if (!mounted) return;
         
         if (counselorData != null) {
           counselorId = counselorData['counselor_id'];
@@ -570,24 +549,10 @@ class _VideoCallDialogState extends State<VideoCallDialog> {
       } catch (e) {
         // Fallback to email if counselor data fetch fails
         userName = user.email ?? 'Counselor';
-        print('Error fetching call details: $e');
       }
       
       // Check if widget is still mounted before navigating
-      print('DEBUG: Checking if widget is mounted: $mounted');
-      if (!mounted) {
-        print('DEBUG: Widget is not mounted, returning early');
-        return;
-      }
-      
-      print('DEBUG: Widget is mounted, proceeding with navigation');
-      print('DEBUG: About to navigate to CallPage with:');
-      print('  callID: $callCode');
-      print('  userID: ${user.id}');
-      print('  userName: $userName');
-      print('  appointmentId: $appointmentId');
-      print('  studentUserId: $studentUserId');
-      print('  counselorId: $counselorId');
+      if (!mounted) return;
       
       Navigator.of(context).push(
         MaterialPageRoute(
@@ -600,11 +565,7 @@ class _VideoCallDialogState extends State<VideoCallDialog> {
             counselorId: counselorId,
           ),
         ),
-      ).then((_) {
-        print('DEBUG: Navigation completed/returned from CallPage');
-      }).catchError((error) {
-        print('DEBUG: Navigation error: $error');
-      });
+      );
     }
   }
 

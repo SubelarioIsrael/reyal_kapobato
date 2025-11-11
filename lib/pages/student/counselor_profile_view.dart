@@ -56,13 +56,7 @@ class _CounselorProfileViewState extends State<CounselorProfileView> {
         : '${(_data!['first_name'] ?? '').toString()} ${(_data!['last_name'] ?? '').toString()}'
             .trim();
     final departmentAssigned = _data?['department_assigned']?.toString() ?? '';
-    final availability = _data?['availability_status']?.toString() ?? '';
-    final bio = _data?['bio']?.toString();
-    final email = _data?['users']?['email']?.toString() ?? '';
-    final yearsOfExperience = _data?['years_of_experience']?.toString() ?? '';
-    final education = _data?['education']?.toString() ?? '';
-    final languages = _data?['languages']?.toString() ?? '';
-    final workSchedule = _data?['work_schedule']?.toString() ?? '';
+    final bio = _data?['bio']?.toString() ?? '';
 
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 242, 241, 248),
@@ -95,80 +89,89 @@ class _CounselorProfileViewState extends State<CounselorProfileView> {
               padding: const EdgeInsets.all(24),
               child: Column(
                 children: [
-
-                  // Profile Picture Section - Centered
-                  CounselorAvatar(
-                    counselorId: widget.counselorId,
-                    radius: 60,
-                    fallbackName: name,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Name
-                  Text(
-                    name,
-                    style: GoogleFonts.poppins(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF3A3A50),
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-
-                  // Department Assigned
-                  Text(
-                    departmentAssigned,
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      color: Colors.grey[600],
-                      fontWeight: FontWeight.w500,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Availability Status
+                  // Profile Card
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: (availability.toLowerCase() == 'available'
-                              ? Colors.green
-                              : Colors.orange)
-                          .withOpacity(0.1),
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.08),
+                          blurRadius: 20,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
-                    child: Text(
-                      availability,
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: availability.toLowerCase() == 'available'
-                            ? Colors.green
-                            : Colors.orange,
-                      ),
+                    child: Column(
+                      children: [
+                        // Profile Picture
+                        Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: const Color(0xFF7C83FD).withOpacity(0.3),
+                              width: 4,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF7C83FD).withOpacity(0.2),
+                                blurRadius: 15,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
+                          child: CounselorAvatar(
+                            counselorId: widget.counselorId,
+                            radius: 60,
+                            fallbackName: name,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Name
+                        Text(
+                          name.isEmpty ? 'Counselor' : name,
+                          style: GoogleFonts.poppins(
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF3A3A50),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+
+                        // Department Badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: departmentAssigned == 'Volunteer'
+                                ? Colors.orange.withOpacity(0.1)
+                                : const Color(0xFF7C83FD).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            departmentAssigned.isEmpty ? 'No Department' : departmentAssigned,
+                            style: GoogleFonts.poppins(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: departmentAssigned == 'Volunteer'
+                                  ? Colors.orange[700]
+                                  : const Color(0xFF7C83FD),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 32),
 
-                  // Professional Information
-                  if (yearsOfExperience.isNotEmpty)
-                    _buildSimpleInfoCard('Experience', '$yearsOfExperience years'),
-                  if (education.isNotEmpty)
-                    _buildSimpleInfoCard('Education', education),
-                  if (languages.isNotEmpty)
-                    _buildSimpleInfoCard('Languages', languages),
-                  if (workSchedule.isNotEmpty)
-                    _buildSimpleInfoCard('Schedule', workSchedule),
-                  if (email.isNotEmpty)
-                    _buildSimpleInfoCard('Email', email),
-
-                  // Bio/About Section
-                  if (bio != null && bio.isNotEmpty) ...[
-                    const SizedBox(height: 16),
+                  // Bio Section
+                  if (bio.isNotEmpty) ...[
+                    const SizedBox(height: 20),
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.all(20),
+                      padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
@@ -176,28 +179,72 @@ class _CounselorProfileViewState extends State<CounselorProfileView> {
                           BoxShadow(
                             color: Colors.black.withOpacity(0.05),
                             blurRadius: 10,
-                            offset: const Offset(0, 4),
+                            offset: const Offset(0, 2),
                           ),
                         ],
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'About',
-                            style: GoogleFonts.poppins(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFF3A3A50),
-                            ),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF7C83FD).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  Icons.info_outline,
+                                  color: Color(0xFF7C83FD),
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                'Bio',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: const Color(0xFF3A3A50),
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 16),
                           Text(
                             bio,
                             style: GoogleFonts.poppins(
                               fontSize: 14,
-                              color: Colors.grey[700],
-                              height: 1.6,
+                              color: const Color(0xFF5D5D72),
+                              height: 1.7,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ] else ...[
+                    const SizedBox(height: 20),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            color: Colors.grey[400],
+                            size: 48,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'No bio available',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              color: Colors.grey[600],
                             ),
                           ),
                         ],
@@ -207,43 +254,6 @@ class _CounselorProfileViewState extends State<CounselorProfileView> {
                 ],
               ),
             ),
-    );
-  }
-
-
-
-  Widget _buildSimpleInfoCard(String label, String value) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[300]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: GoogleFonts.poppins(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: Colors.grey[600],
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: GoogleFonts.poppins(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: const Color(0xFF3A3A50),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
