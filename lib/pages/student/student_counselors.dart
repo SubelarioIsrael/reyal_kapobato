@@ -8,6 +8,7 @@ import '../../components/student_drawer.dart';
 import '../../components/student_notification_button.dart';
 import '../../widgets/counselor_avatar.dart';
 import '../../utils/department_mapping.dart';
+import 'counselor_profile_view.dart';
 
 class StudentCounselors extends StatefulWidget {
   const StudentCounselors({super.key});
@@ -287,38 +288,26 @@ class _StudentCounselorsState extends State<StudentCounselors> {
                               color: const Color(0xFF3A3A50),
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: counselor.departmentAssigned == 'Volunteer'
-                                      ? Colors.orange[50]
-                                      : const Color(0xFF7C83FD).withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  counselor.departmentAssigned,
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                    color: counselor.departmentAssigned == 'Volunteer'
-                                        ? Colors.orange[700]
-                                        : const Color(0xFF7C83FD),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
                         ],
                       ),
                     ),
-                    Icon(
-                      Icons.arrow_forward_ios,
-                      color: Colors.grey[400],
-                      size: 20,
+                    IconButton(
+                      icon: const Icon(
+                        Icons.person_outline,
+                        color: Color(0xFF7C83FD),
+                        size: 24,
+                      ),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => CounselorProfileView(
+                              counselorId: counselor.id,
+                            ),
+                          ),
+                        );
+                      },
+                      tooltip: 'View Profile',
                     ),
                   ],
                 ),
@@ -427,6 +416,173 @@ class _AppointmentBookingDialogState extends State<AppointmentBookingDialog> {
         return;
       }
 
+      // Check for time conflicts with existing appointments
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId != null) {
+        final existingAppointments = await Supabase.instance.client
+            .from('counseling_appointments')
+            .select('appointment_date, start_time, end_time')
+            .eq('user_id', userId)
+            .inFilter('status', ['pending', 'accepted']);
+
+        // Check for conflicts
+        for (final appointment in existingAppointments) {
+          // Parse the date and time
+          final appointmentDate = appointment['appointment_date'] as String;
+          final startTimeStr = appointment['start_time'] as String;
+          final endTimeStr = appointment['end_time'] as String;
+          
+          // Combine date with time to create DateTime objects
+          final dateParts = appointmentDate.split('-');
+          final startTimeParts = startTimeStr.split(':');
+          final endTimeParts = endTimeStr.split(':');
+          
+          final existingStart = DateTime(
+            int.parse(dateParts[0]),
+            int.parse(dateParts[1]),
+            int.parse(dateParts[2]),
+            int.parse(startTimeParts[0]),
+            int.parse(startTimeParts[1]),
+          );
+          
+          final existingEnd = DateTime(
+            int.parse(dateParts[0]),
+            int.parse(dateParts[1]),
+            int.parse(dateParts[2]),
+            int.parse(endTimeParts[0]),
+            int.parse(endTimeParts[1]),
+          );
+
+          // Check if the new appointment overlaps with existing one
+          bool hasConflict = (startDateTime.isBefore(existingEnd) && 
+                             endDateTime.isAfter(existingStart));
+
+          if (hasConflict) {
+            setState(() => _isSubmitting = false);
+            
+            if (mounted) {
+              showDialog(
+                context: context,
+                builder: (BuildContext context) {
+                  return AlertDialog(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    contentPadding: const EdgeInsets.all(24),
+                    title: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.warning_amber_rounded,
+                            color: Colors.orange,
+                            size: 32,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Text(
+                            'Time Conflict',
+                            style: GoogleFonts.poppins(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF3A3A50),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 8),
+                        Text(
+                          'The selected time slot conflicts with an existing appointment.',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            color: const Color(0xFF3A3A50),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.blue.shade200,
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.info_outline,
+                                color: Colors.blue.shade700,
+                                size: 24,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  'You already have an appointment scheduled from ${DateFormat('MMM d, h:mm a').format(existingStart)} to ${DateFormat('h:mm a').format(existingEnd)}.',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 13,
+                                    color: const Color(0xFF5D5D72),
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Please choose a different time slot.',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            color: const Color(0xFF5D5D72),
+                          ),
+                        ),
+                      ],
+                    ),
+                    actions: [
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF7C83FD),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Text(
+                            'Choose Different Time',
+                            style: GoogleFonts.poppins(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              );
+            }
+            return;
+          }
+        }
+      }
+
       await CounselorService().createAppointment(
         counselorId: widget.counselor.id,
         appointmentDate: _selectedDate!,
@@ -442,12 +598,27 @@ class _AppointmentBookingDialogState extends State<AppointmentBookingDialog> {
         );
       }
     } catch (e) {
+      print('ERROR BOOKING APPOINTMENT: $e');
+      print('ERROR TYPE: ${e.runtimeType}');
+      
       if (mounted) {
         String errorMessage = 'Error booking appointment';
         String title = 'Error';
+        
+        // Check for specific error types
         if (e.toString().contains('pending or accepted appointment')) {
           errorMessage = 'You already have a pending or accepted appointment. Please wait for it to be completed or cancelled before booking another one.';
           title = 'Limit Reached';
+        } else if (e.toString().contains('duplicate key') || e.toString().contains('unique constraint')) {
+          errorMessage = 'An appointment with this time slot already exists. Please choose a different time.';
+          title = 'Time Slot Taken';
+        } else if (e.toString().contains('not authenticated')) {
+          errorMessage = 'You must be logged in to book an appointment.';
+          title = 'Authentication Required';
+        } else {
+          // Show the actual error for debugging
+          errorMessage = 'Unable to book appointment. ${e.toString()}';
+          title = 'Booking Error';
         }
         
         showDialog(
@@ -455,43 +626,70 @@ class _AppointmentBookingDialogState extends State<AppointmentBookingDialog> {
           builder: (BuildContext context) {
             return AlertDialog(
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(20),
               ),
+              contentPadding: const EdgeInsets.all(24),
               title: Row(
                 children: [
-                  Icon(
-                    Icons.warning_amber_rounded,
-                    color: Colors.orange,
-                    size: 28,
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.warning_amber_rounded,
+                      color: Colors.orange,
+                      size: 32,
+                    ),
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    title,
-                    style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF3A3A50),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: GoogleFonts.poppins(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF3A3A50),
+                      ),
                     ),
                   ),
                 ],
               ),
-              content: Text(
-                errorMessage,
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  color: const Color(0xFF5D5D72),
-                ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 8),
+                  Text(
+                    errorMessage,
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      color: const Color(0xFF3A3A50),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
               actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFF7C83FD),
-                  ),
-                  child: Text(
-                    'OK',
-                    style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.w600,
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF7C83FD),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      'OK',
+                      style: GoogleFonts.poppins(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),
