@@ -1260,7 +1260,7 @@ class _AdminUsersState extends State<AdminUsers> {
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddUserDialog,
         backgroundColor: const Color(0xFF7C83FD),
-        child: const Icon(Icons.add),
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }

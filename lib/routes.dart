@@ -37,12 +37,12 @@ import 'pages/admin_new/admin_home.dart';
 import 'pages/admin/admin_accounts.dart';
 import 'pages/admin_new/admin_users.dart';
 import 'pages/admin_new/admin_mental_health_resources.dart';
-import 'pages/admin/admin_exercises.dart';
+import 'pages/admin_new/admin_breathing_exercises.dart';
 import 'pages/admin/admin_notifications.dart';
 import 'pages/admin/admin_profile.dart';
-import 'pages/admin/admin_questionnaire.dart';
-import 'pages/admin/admin_hotlines.dart';
-import 'pages/admin/admin_daily_uplifts.dart';
+import 'pages/admin_new/admin_questionnaire.dart';
+import 'pages/admin_new/admin_mental_health_hotlines.dart';
+import 'pages/admin_new/admin_daily_uplifts.dart';
 import 'pages/counselor/counselor_home.dart';
 import 'pages/counselor/student_overview.dart';
 import 'pages/counselor/all_appointments.dart';
@@ -179,13 +179,13 @@ final Map<String, WidgetBuilder> appRoutes = {
   'admin-accounts': (context) => const AuthGuard(child: AdminAccounts()),
   'admin-users': (context) => const AuthGuard(child: AdminUsers()),
   'admin-resources': (context) => const AuthGuard(child: AdminMentalHealthResources()),
-  'admin-exercises': (context) => const AuthGuard(child: AdminExercises()),
+  'admin-exercises': (context) => const AuthGuard(child: AdminBreathingExercises()),
   'admin-notifications': (context) =>
       const AuthGuard(child: AdminNotifications()),
   'admin-profile': (context) => const AuthGuard(child: AdminProfile()),
   '/admin-questionnaire': (context) =>
       const AuthGuard(child: AdminQuestionnaire()),
-  'admin-hotlines': (context) => const AuthGuard(child: AdminHotlines()),
+  'admin-hotlines': (context) => const AuthGuard(child: AdminMentalHealthHotlines()),
   'admin-daily-uplifts': (context) => const AuthGuard(child: AdminDailyUplifts()),
 
   // universal pages (accessible by all user types)

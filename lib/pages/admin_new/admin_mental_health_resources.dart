@@ -1094,6 +1094,7 @@ class _AdminMentalHealthResourcesState extends State<AdminMentalHealthResources>
             fontWeight: FontWeight.bold,
           ),
         ),
+        centerTitle: true,
         backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF3A3A50),
         elevation: 0,
@@ -1339,7 +1340,7 @@ class _AdminMentalHealthResourcesState extends State<AdminMentalHealthResources>
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddResourceModal,
         backgroundColor: const Color(0xFF7C83FD),
-        child: const Icon(Icons.add),
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
