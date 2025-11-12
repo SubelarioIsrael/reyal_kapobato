@@ -33,10 +33,10 @@ import 'pages/chat/appointment_chat.dart';
 import 'models/appointment.dart';
 
 //admin
-import 'pages/admin/admin_home.dart';
+import 'pages/admin_new/admin_home.dart';
 import 'pages/admin/admin_accounts.dart';
-import 'pages/admin/admin_users.dart';
-import 'pages/admin/admin_resources.dart';
+import 'pages/admin_new/admin_users.dart';
+import 'pages/admin_new/admin_mental_health_resources.dart';
 import 'pages/admin/admin_exercises.dart';
 import 'pages/admin/admin_notifications.dart';
 import 'pages/admin/admin_profile.dart';
@@ -178,7 +178,7 @@ final Map<String, WidgetBuilder> appRoutes = {
   // admin page routes
   'admin-accounts': (context) => const AuthGuard(child: AdminAccounts()),
   'admin-users': (context) => const AuthGuard(child: AdminUsers()),
-  'admin-resources': (context) => const AuthGuard(child: AdminResources()),
+  'admin-resources': (context) => const AuthGuard(child: AdminMentalHealthResources()),
   'admin-exercises': (context) => const AuthGuard(child: AdminExercises()),
   'admin-notifications': (context) =>
       const AuthGuard(child: AdminNotifications()),
