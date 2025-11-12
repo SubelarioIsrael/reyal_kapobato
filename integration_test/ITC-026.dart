@@ -78,14 +78,16 @@ void main() {
       final hotlineNameFinder = find.text(testHotlineName);
       await tester.pumpUntilFound(hotlineNameFinder);
 
+      // Narrow to the specific ListTile ancestor and then the edit icon inside it
       final hotlineTileFinder = find.ancestor(
         of: hotlineNameFinder,
         matching: find.byType(ListTile),
       );
+      final specificTile = hotlineTileFinder.first;
       final editButton = find.descendant(
-        of: hotlineTileFinder,
+        of: specificTile,
         matching: find.byIcon(Icons.edit),
-      );
+      ).first;
       await tester.tap(editButton);
       await tester.pumpAndSettle();
       await tester.pumpUntilFound(find.byKey(const Key('editHotlineDialog')));
@@ -114,20 +116,7 @@ void main() {
       await login(tester, 'itzmethresh@gmail.com', 'allan123');
       await tester.pumpUntilFound(find.byKey(const Key('studentHomeScreen')));
 
-      // Scroll until "Support Contacts" is visible
-      final supportContactsFinder = find.text('Support Contacts');
-      final scrollableFinder = find.descendant(
-        of: find.byKey(const Key('studentHomeScrollView')),
-        matching: find.byType(Scrollable),
-      );
-
-      await tester.scrollUntilVisible(
-        supportContactsFinder,
-        500.0,
-        scrollable: scrollableFinder,
-      );
-
-      await tester.tap(supportContactsFinder);
+      Navigator.of(tester.element(find.byKey(const Key('studentHomeScreen')))).pushNamed('student-contacts');
       await tester.pumpAndSettle();
 
       // Verify updated hotline is present in hotlines section

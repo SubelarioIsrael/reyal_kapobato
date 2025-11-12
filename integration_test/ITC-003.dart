@@ -31,7 +31,7 @@ void main() {
     );
   });
 
-  group('ITC-002: User Login and Dashboard Redirection', () {
+  group('ITC-003: User Login and Dashboard Redirection', () {
     Future<void> login(WidgetTester tester, String email, String password) async {
       await tester.pumpAndSettle();
       await tester.pumpUntilFound(find.byKey(const Key('login_email')));
@@ -54,7 +54,7 @@ void main() {
       await app.testMain();
       await tester.pumpAndSettle();
 
-      await login(tester, 'itzmethresh@gmail.com', 'allanjayz');
+      await login(tester, 'itzmethresh@gmail.com', 'allan123');
       await tester.pumpUntilFound(find.byKey(const Key('studentHomeScreen')));
       expect(find.byKey(const Key('studentHomeScreen')), findsOneWidget);
 

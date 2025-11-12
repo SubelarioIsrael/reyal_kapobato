@@ -65,7 +65,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // tap on the tab named 'Journals'
-      await tester.tap(find.text('Journals'));
+      await tester.tap(find.byKey(const Key('journals_tab')));
       await tester.pumpAndSettle();
 
       // Ensure the journal entry is visible (scroll if needed)

@@ -20,11 +20,30 @@ Future<void> navigateBackToHome(WidgetTester tester, Key homeKey) async {
   int attempts = 0;
   while (tester.any(find.byKey(homeKey)) == false && attempts < 10) {
     bool wentBack = false;
-    if (tester.any(find.byKey(const Key('backButton')))) {
-      await tester.tap(find.byKey(const Key('backButton')));
+
+    // 1) Try explicit keyed back button if present
+    final backButtonKey = find.byKey(const Key('backButton'));
+    if (tester.any(backButtonKey)) {
+      await tester.tap(backButtonKey);
       wentBack = true;
+    } else {
+      // 2) Try IconButton with common back icons
+      final backIconIos = find.widgetWithIcon(IconButton, Icons.arrow_back_ios_new_rounded);
+      final backIcon = find.widgetWithIcon(IconButton, Icons.arrow_back);
+      if (tester.any(backIconIos)) {
+        await tester.tap(backIconIos.first);
+        wentBack = true;
+      } else if (tester.any(backIcon)) {
+        await tester.tap(backIcon.first);
+        wentBack = true;
+      }
     }
-    if (!wentBack) await tester.pageBack();
+
+    // 3) Last resort - Navigator.pop via pageBack
+    if (!wentBack) {
+      await tester.pageBack();
+    }
+
     await tester.pumpAndSettle();
     attempts++;
   }
@@ -143,7 +162,7 @@ void main() {
     await tester.pumpUntilFound(find.byKey(const Key('studentHomeScreen')));
 
     // Navigate to Appointments screen
-    Navigator.of(tester.element(find.byKey(const Key('studentHomeScreen')))).pushNamed('/student-appointments');
+    Navigator.of(tester.element(find.byKey(const Key('studentHomeScreen')))).pushNamed('student-appointments');
     await tester.pumpAndSettle();
 
     // Wait and assert that 'ACCEPTED' appears somewhere in the appointments list

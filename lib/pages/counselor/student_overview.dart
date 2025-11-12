@@ -510,11 +510,11 @@ class _StudentOverviewState extends State<StudentOverview>
             unselectedLabelColor: const Color(0xFF5D5D72),
             indicatorColor: const Color(0xFF7C83FD),
             tabs: const [
-              Tab(icon: Icon(Icons.view_timeline)),
-              Tab(icon: Icon(Icons.book)),
-              Tab(icon: Icon(Icons.quiz)),
-              Tab(icon: Icon(Icons.psychology)),
-              Tab(icon: Icon(Icons.contact_emergency)),
+              Tab(key: const Key('activities_tab'), icon: Icon(Icons.view_timeline)),
+              Tab(key: const Key('journals_tab'), icon: Icon(Icons.book)),
+              Tab(key: const Key('questionnaires_tab'), icon: Icon(Icons.quiz)),
+              Tab(key: const Key('sessions_tab'), icon: Icon(Icons.psychology)),
+              Tab(key: const Key('emergency_contacts_tab'), icon: Icon(Icons.contact_emergency)),
             ],
           ),
           SizedBox(
@@ -833,7 +833,9 @@ class _StudentOverviewState extends State<StudentOverview>
                     final journal = _recentJournalEntries[index];
                     final sentiment = (journal['sentiment'] as String?)?.toLowerCase();
 
+                    // Add a stable key so integration tests can find journal entries
                     return Container(
+                      key: const Key('journal_entry'),
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -876,8 +878,6 @@ class _StudentOverviewState extends State<StudentOverview>
                       child: Text(
                         'Shared',
                         style: GoogleFonts.poppins(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
                           color: Colors.green,
                         ),
                       ),
@@ -1993,7 +1993,7 @@ class _StudentOverviewState extends State<StudentOverview>
                 pw.Container(
                   padding: const pw.EdgeInsets.all(20),
                   decoration: pw.BoxDecoration(
-                    border: pw.Border.all(color: PdfColors.grey300),
+                    border: pw.Border.all(color: PdfColors.grey500),
                     borderRadius: pw.BorderRadius.circular(8),
                   ),
                   child: pw.Column(
@@ -2008,15 +2008,24 @@ class _StudentOverviewState extends State<StudentOverview>
                         ),
                       ),
                       pw.SizedBox(height: 15),
-                      ..._sessionNotes.take(3).map((session) {
-                        final appointment = session['counseling_appointments'] as Map<String, dynamic>?;
-                        final counselor = session['counselors'] as Map<String, dynamic>?;
-                        final counselorName = counselor != null && 
-                                              counselor['first_name'] != null && 
-                                              counselor['last_name'] != null
-                            ? '${counselor['first_name']} ${counselor['last_name']}'
+                      ...(_sessionNotes?.take(3).map((session) {
+                        final appointment = session['counseling_appointments'] is Map
+                            ? session['counseling_appointments'] as Map<String, dynamic>
+                            : null;
+
+                        final counselor = session['counselors'] is Map
+                            ? session['counselors'] as Map<String, dynamic>
+                            : null;
+
+                        final counselorName = (counselor?['first_name'] != null &&
+                                counselor?['last_name'] != null)
+                            ? '${counselor!['first_name']} ${counselor['last_name']}'
                             : 'Unknown Counselor';
-                            
+
+                        final recommendations = session['recommendations'];
+                        final hasRecommendations = recommendations is String &&
+                            recommendations.trim().isNotEmpty;
+
                         return pw.Padding(
                           padding: const pw.EdgeInsets.only(bottom: 15),
                           child: pw.Column(
@@ -2075,10 +2084,10 @@ class _StudentOverviewState extends State<StudentOverview>
                                         color: PdfColors.grey700,
                                       ),
                                     ),
-                                    if (session['recommendations']?.isNotEmpty == true) ...[
+                                    if (hasRecommendations) ...[
                                       pw.SizedBox(height: 4),
                                       pw.Text(
-                                        'Recommendations: ${session['recommendations']}',
+                                        'Recommendations: $recommendations',
                                         style: pw.TextStyle(
                                           fontSize: 11,
                                           color: PdfColors.grey700,
@@ -2091,10 +2100,11 @@ class _StudentOverviewState extends State<StudentOverview>
                             ],
                           ),
                         );
-                      }).toList(),
+                      }).toList() ?? []),
                     ],
                   ),
                 ),
+
                 pw.SizedBox(height: 30),
               ],
               
