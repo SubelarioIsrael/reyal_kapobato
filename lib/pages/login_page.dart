@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../controllers/user_controller.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -13,68 +13,66 @@ class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  final _userController = UserController();
   bool _obscurePassword = true;
   bool _isLoading = false;
 
-  // Get the Supabase client instance
-  final _supabase = Supabase.instance.client;
+  Future<void> _login() async {
+    // Validate form
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
-  // Function to get user role and redirect
-  Future<void> _redirectBasedOnRole(String userId) async {
-    print('Fetching user role for userId: $userId');
+    setState(() {
+      _isLoading = true;
+    });
+
     try {
-      // Fetch user data from 'users' table based on the userId
-      final userData = await _supabase
-          .from('users')
-          .select('user_type, status') // Select the user_type and status fields
-          .eq('user_id', userId)
-          .maybeSingle()
-          .timeout(const Duration(seconds: 10));
+      // Use the controller to handle login
+      final result = await _userController.login(
+        _emailController.text,
+        _passwordController.text,
+      );
 
-      // Log the response for debugging
-      print('User Data: $userId');
+      if (!mounted) return;
 
-      // Check if userData is not null and has a valid user_type and status
-      if (userData != null &&
-          userData['user_type'] != null &&
-          userData['status'] != null) {
-        final userType = userData['user_type'];
-        final status = userData['status'];
-        if (status == 'suspended') {
-          _showAccountSuspendedDialog();
-          return;
-        }
-        if (status != 'active') {
-          _showErrorDialog(
-              'Your account is not active. Please contact support.');
-          return;
-        }
-        if (mounted) {
-          // Redirect based on user_type
-          if (userType == 'student') {
-            Navigator.pushReplacementNamed(context, 'student-home');
-          } else if (userType == 'counselor') {
-            Navigator.pushReplacementNamed(context, 'counselor-home');
-          } else if (userType == 'admin') {
-            Navigator.pushReplacementNamed(context, 'admin-home');
-          } else {
-            _showErrorDialog('Invalid user type. Please contact support.');
-          }
-        }
+      if (result.success && result.userType != null) {
+        // Redirect based on user type
+        _redirectBasedOnRole(result.userType!);
       } else {
-        // If userData is null or user_type/status is not found
-        _showErrorDialog(
-          'Could not determine user role or status. Please contact support.',
-        );
+        // Handle different error types
+        switch (result.errorType) {
+          case 'email_not_verified':
+            _showEmailNotVerifiedDialog();
+            break;
+          case 'account_suspended':
+            _showAccountSuspendedDialog();
+            break;
+          default:
+            _showErrorDialog(result.errorMessage ?? 'Login failed');
+        }
       }
-    } catch (e) {
-      print('Error determining role: $e');
-      _showErrorDialog('Could not retrieve user role. Please try again later.');
     } finally {
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
+      }
+    }
+  }
+
+  // Function to redirect based on user role
+  void _redirectBasedOnRole(String userType) {
+    if (mounted) {
+      // Redirect based on user_type
+      if (userType == 'student') {
+        Navigator.pushReplacementNamed(context, 'student-home');
+      } else if (userType == 'counselor') {
+        Navigator.pushReplacementNamed(context, 'counselor-home');
+      } else if (userType == 'admin') {
+        Navigator.pushReplacementNamed(context, 'admin-home');
+      } else {
+        _showErrorDialog('Invalid user type. Please contact support.');
       }
     }
   }
@@ -85,25 +83,70 @@ class _LoginPageState extends State<LoginPage> {
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: Text(
-            'Login Failed',
-            style: GoogleFonts.poppins(
-              fontWeight: FontWeight.w600,
-              color: Colors.red.shade700,
-            ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          contentPadding: const EdgeInsets.all(24),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.error_outline,
+                  color: Colors.red,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  'Login Failed',
+                  style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF3A3A50),
+                  ),
+                ),
+              ),
+            ],
           ),
-          content: Text(
-            message,
-            style: GoogleFonts.poppins(),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 8),
+              Text(
+                message,
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  color: const Color(0xFF3A3A50),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(
-                'OK',
-                style: GoogleFonts.poppins(
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF7C83FD),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(ctx),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  backgroundColor: const Color(0xFF7C83FD),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 2,
+                ),
+                child: Text(
+                  'OK',
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),
@@ -119,25 +162,70 @@ class _LoginPageState extends State<LoginPage> {
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: Text(
-            title,
-            style: GoogleFonts.poppins(
-              fontWeight: FontWeight.w600,
-              color: const Color(0xFF4CAF50),
-            ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          contentPadding: const EdgeInsets.all(24),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.check_circle_outline,
+                  color: Colors.green,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  title,
+                  style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF3A3A50),
+                  ),
+                ),
+              ),
+            ],
           ),
-          content: Text(
-            message,
-            style: GoogleFonts.poppins(),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 8),
+              Text(
+                message,
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  color: const Color(0xFF3A3A50),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(
-                'OK',
-                style: GoogleFonts.poppins(
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF7C83FD),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(ctx),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  backgroundColor: const Color(0xFF7C83FD),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 2,
+                ),
+                child: Text(
+                  'OK',
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),
@@ -153,25 +241,102 @@ class _LoginPageState extends State<LoginPage> {
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: Text(
-            'Email Not Verified',
-            style: GoogleFonts.poppins(
-              fontWeight: FontWeight.w600,
-              color: Colors.orange.shade700,
-            ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          contentPadding: const EdgeInsets.all(24),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.email_outlined,
+                  color: Colors.orange,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  'Email Not Verified',
+                  style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF3A3A50),
+                  ),
+                ),
+              ),
+            ],
           ),
-          content: Text(
-            'Your email address has not been verified. Please check your inbox and click the verification link before logging in.',
-            style: GoogleFonts.poppins(),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 8),
+              Text(
+                'Your email address has not been verified. Please check your inbox and click the verification link before logging in.',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  color: const Color(0xFF3A3A50),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.blue.shade200,
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      color: Colors.blue.shade700,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Check your spam folder if you don\'t see the email.',
+                        style: GoogleFonts.poppins(
+                          fontSize: 13,
+                          color: const Color(0xFF5D5D72),
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(
-                'OK',
-                style: GoogleFonts.poppins(
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF7C83FD),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(ctx),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  backgroundColor: const Color(0xFF7C83FD),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 2,
+                ),
+                child: Text(
+                  'OK',
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),
@@ -187,25 +352,102 @@ class _LoginPageState extends State<LoginPage> {
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: Text(
-            'Account Suspended',
-            style: GoogleFonts.poppins(
-              fontWeight: FontWeight.w600,
-              color: Colors.red.shade700,
-            ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          contentPadding: const EdgeInsets.all(24),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.block,
+                  color: Colors.red,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  'Account Suspended',
+                  style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF3A3A50),
+                  ),
+                ),
+              ),
+            ],
           ),
-          content: Text(
-            'Your account has been suspended. Please contact support for assistance.',
-            style: GoogleFonts.poppins(),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 8),
+              Text(
+                'Your account has been suspended. Please contact support for assistance.',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  color: const Color(0xFF3A3A50),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.blue.shade200,
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      color: Colors.blue.shade700,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Contact your administrator or support team for more information.',
+                        style: GoogleFonts.poppins(
+                          fontSize: 13,
+                          color: const Color(0xFF5D5D72),
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(
-                'OK',
-                style: GoogleFonts.poppins(
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF7C83FD),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(ctx),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  backgroundColor: const Color(0xFF7C83FD),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 2,
+                ),
+                child: Text(
+                  'OK',
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),
@@ -224,20 +466,40 @@ class _LoginPageState extends State<LoginPage> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Text(
-            'Reset Password',
-            style: GoogleFonts.poppins(
-              fontWeight: FontWeight.w600,
-              color: const Color(0xFF3A3A50),
-            ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          contentPadding: const EdgeInsets.all(24),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF7C83FD).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.lock_reset,
+                  color: Color(0xFF7C83FD),
+                  size: 32,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  'Reset Password',
+                  style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF3A3A50),
+                  ),
+                ),
+              ),
+            ],
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const SizedBox(height: 8),
               Text(
                 'Enter your email address and we\'ll send you a link to reset your password.',
                 style: GoogleFonts.poppins(
@@ -266,172 +528,132 @@ class _LoginPageState extends State<LoginPage> {
                   fillColor: Colors.grey.shade50,
                 ),
               ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.blue.shade200,
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      color: Colors.blue.shade700,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'The reset link will be valid for 1 hour.',
+                        style: GoogleFonts.poppins(
+                          fontSize: 13,
+                          color: const Color(0xFF5D5D72),
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
           actions: [
-            TextButton(
-              onPressed: isLoading ? null : () => Navigator.pop(ctx),
-              child: Text(
-                'Cancel',
-                style: GoogleFonts.poppins(
-                  fontWeight: FontWeight.w500,
-                  color: const Color(0xFF5D5D72),
-                ),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: isLoading ? null : () async {
-                final email = emailController.text.trim();
-                if (email.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Please enter your email address',
-                        style: GoogleFonts.poppins(),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: isLoading ? null : () => Navigator.pop(ctx),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      foregroundColor: const Color(0xFF5D5D72),
+                      side: BorderSide(color: Colors.grey.shade300),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      backgroundColor: Colors.red,
                     ),
-                  );
-                  return;
-                }
-
-                final emailRegex = RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$');
-                if (!emailRegex.hasMatch(email)) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Please enter a valid email address',
-                        style: GoogleFonts.poppins(),
-                      ),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                  return;
-                }
-
-                setState(() {
-                  isLoading = true;
-                });
-
-                try {
-                  await _supabase.auth.resetPasswordForEmail(
-                    email,
-                    redirectTo: 'breathebetter://reset-password', // Deep link to open the app directly
-                  );
-                  Navigator.pop(ctx);
-                  _showSuccessDialog(
-                    'Reset Link Sent',
-                    'A password reset link has been sent to $email. Please check your inbox and follow the instructions to reset your password.',
-                  );
-                } on AuthException catch (e) {
-                  Navigator.pop(ctx);
-                  _showErrorDialog('Failed to send reset link: ${e.message}');
-                } catch (e) {
-                  Navigator.pop(ctx);
-                  _showErrorDialog('Something went wrong. Please try again later.');
-                } finally {
-                  setState(() {
-                    isLoading = false;
-                  });
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF7C83FD),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: isLoading
-                  ? const SizedBox(
-                      height: 16,
-                      width: 16,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : Text(
-                      'Send Reset Link',
+                    child: Text(
+                      'Cancel',
                       style: GoogleFonts.poppins(
+                        fontSize: 15,
                         fontWeight: FontWeight.w600,
-                        color: Colors.white,
                       ),
                     ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: isLoading ? null : () async {
+                      final email = emailController.text.trim();
+                      
+                      setState(() {
+                        isLoading = true;
+                      });
+
+                      try {
+                        final result = await _userController.sendPasswordResetEmail(email);
+                        
+                        if (result.success) {
+                          Navigator.pop(ctx);
+                          _showSuccessDialog(
+                            'Reset Link Sent',
+                            'A password reset link has been sent to $email. Please check your inbox and follow the instructions to reset your password.',
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                result.errorMessage ?? 'Failed to send reset link',
+                                style: GoogleFonts.poppins(),
+                              ),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      } finally {
+                        setState(() {
+                          isLoading = false;
+                        });
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      backgroundColor: const Color(0xFF7C83FD),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 2,
+                    ),
+                    child: isLoading
+                        ? const SizedBox(
+                            height: 16,
+                            width: 16,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            'Send Link',
+                            style: GoogleFonts.poppins(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
       ),
     );
-  }
-
-  Future<void> _login() async {
-    // Validate form
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      // Sign in with email and password using Supabase
-      final response = await _supabase.auth
-          .signInWithPassword(
-            email: _emailController.text.trim(),
-            password: _passwordController.text.trim(),
-          )
-          .timeout(const Duration(seconds: 10));
-
-      // Check if we have a user
-      if (response.user != null) {
-        print("Logged in: ${response.user?.email}");
-
-        // Check if email is verified
-        if (response.user!.emailConfirmedAt == null) {
-          _showEmailNotVerifiedDialog();
-          // Sign out the user since email is not verified
-          await _supabase.auth.signOut();
-          return;
-        }
-
-        // Get user role from the database
-        await _redirectBasedOnRole(response.user!.id);
-      } else {
-        // This should generally not happen as errors are thrown
-        throw const AuthException("No user returned");
-      }
-    } on AuthException catch (e) {
-      String errorMessage = '';
-
-      // Handle specific error codes
-      if (e.message.contains('Invalid login credentials')) {
-        errorMessage = 'Invalid email or password. Please check your credentials and try again.';
-      } else if (e.message.contains('Email not confirmed') || 
-                 e.message.contains('email_not_confirmed') ||
-                 e.message.contains('signup_disabled')) {
-        _showEmailNotVerifiedDialog();
-        return;
-      } else {
-        errorMessage = e.message;
-      }
-
-      // Show error dialog
-      if (mounted) {
-        _showErrorDialog(errorMessage);
-      }
-    } catch (e) {
-      // Handle unexpected errors
-      if (mounted) {
-        _showErrorDialog('Something went wrong. Please try again later.');
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
   }
 
   @override
@@ -514,10 +736,8 @@ class _LoginPageState extends State<LoginPage> {
                             if (value == null || value.isEmpty) {
                               return 'Email field is required';
                             }
-                            final emailRegex = RegExp(
-                              r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$',
-                            );
-                            if (!emailRegex.hasMatch(value)) {
+                            // Use controller's validation method
+                            if (!_userController.validateEmail(value)) {
                               return 'Invalid email format';
                             }
                             return null;
@@ -557,13 +777,8 @@ class _LoginPageState extends State<LoginPage> {
                             fillColor: Colors.grey.shade50,
                           ),
                           validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Password field is required';
-                            }
-                            if (value.length < 6) {
-                              return 'Password must be at least 6 characters';
-                            }
-                            return null;
+                            // Use controller's validation method
+                            return _userController.validatePassword(value ?? '');
                           },
                         ),
 
