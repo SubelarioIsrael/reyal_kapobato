@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:breathe_better/controllers/user_controller.dart';
 
 class ChangePasswordPage extends StatefulWidget {
   const ChangePasswordPage({super.key});
@@ -14,6 +14,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   final _currentPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _userController = UserController();
   
   bool _isLoading = false;
   bool _obscureCurrentPassword = true;
@@ -28,6 +29,162 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     super.dispose();
   }
 
+  // Helper method to show error dialog
+  void _showErrorDialog(String message) {
+    if (mounted) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          contentPadding: const EdgeInsets.all(24),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Error Icon
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.error_outline,
+                  color: Colors.red,
+                  size: 48,
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Error Title
+              Text(
+                'Update Failed',
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF3A3A50),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Error Message
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: const Color(0xFF5D5D72),
+                ),
+              ),
+              const SizedBox(height: 24),
+              // OK Button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF7C83FD),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text(
+                    'OK',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+  }
+
+  // Helper method to show success dialog
+  void _showSuccessDialog() {
+    if (mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          contentPadding: const EdgeInsets.all(24),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Success Icon
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.check_circle_outline,
+                  color: Colors.green,
+                  size: 48,
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Success Title
+              Text(
+                'Password Updated',
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF3A3A50),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Success Message
+              Text(
+                'Your password has been successfully updated.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: const Color(0xFF5D5D72),
+                ),
+              ),
+              const SizedBox(height: 24),
+              // Done Button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF7C83FD),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(ctx); // Close dialog
+                    Navigator.pop(context); // Go back to previous page
+                  },
+                  child: Text(
+                    'Done',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+  }
+
   Future<void> _changePassword() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -36,62 +193,27 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     });
 
     try {
-      final currentUser = Supabase.instance.client.auth.currentUser;
-      if (currentUser?.email == null) {
-        throw Exception('User not found');
-      }
-
-      // First, verify the current password by attempting to sign in with it
-      try {
-        await Supabase.instance.client.auth.signInWithPassword(
-          email: currentUser!.email!,
-          password: _currentPasswordController.text,
-        );
-      } catch (e) {
-        // If sign in fails, the current password is incorrect
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Current password is incorrect',
-                style: GoogleFonts.poppins(),
-              ),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+      // Get current user email
+      final email = _userController.getCurrentUserEmail();
+      if (email == null) {
+        _showErrorDialog('Unable to get user information. Please try logging in again.');
         return;
       }
 
-      // If we get here, the current password is correct, so update to new password
-      await Supabase.instance.client.auth.updateUser(
-        UserAttributes(password: _newPasswordController.text),
+      // Attempt to change password
+      final result = await _userController.changePassword(
+        email: email,
+        currentPassword: _currentPasswordController.text.trim(),
+        newPassword: _newPasswordController.text.trim(),
       );
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Password updated successfully',
-              style: GoogleFonts.poppins(),
-            ),
-            backgroundColor: const Color(0xFF7C83FD),
-          ),
-        );
-        Navigator.pop(context);
+      if (result.success) {
+        _showSuccessDialog();
+      } else {
+        _showErrorDialog(result.errorMessage ?? 'Failed to update password.');
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Failed to update password: ${e.toString()}',
-              style: GoogleFonts.poppins(),
-            ),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      _showErrorDialog('An unexpected error occurred. Please try again later.');
     } finally {
       if (mounted) {
         setState(() {

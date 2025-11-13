@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:breathe_better/controllers/user_controller.dart';
 
 class ResetPasswordPage extends StatefulWidget {
   const ResetPasswordPage({super.key});
@@ -13,12 +13,10 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  final _userController = UserController();
   bool _obscureNewPassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
-
-  // Get the Supabase client instance
-  final _supabase = Supabase.instance.client;
 
   // Helper method to show error dialog
   void _showErrorDialog(String message) {
@@ -26,29 +24,71 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: Text(
-            'Error',
-            style: GoogleFonts.poppins(
-              fontWeight: FontWeight.w600,
-              color: Colors.red.shade700,
-            ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
           ),
-          content: Text(
-            message,
-            style: GoogleFonts.poppins(),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(
-                'OK',
-                style: GoogleFonts.poppins(
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF7C83FD),
+          contentPadding: const EdgeInsets.all(24),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Error Icon
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.error_outline,
+                  color: Colors.red,
+                  size: 48,
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 20),
+              // Error Title
+              Text(
+                'Update Failed',
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF3A3A50),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Error Message
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: const Color(0xFF5D5D72),
+                ),
+              ),
+              const SizedBox(height: 24),
+              // OK Button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF7C83FD),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text(
+                    'OK',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -61,32 +101,74 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
         context: context,
         barrierDismissible: false,
         builder: (ctx) => AlertDialog(
-          title: Text(
-            'Password Updated',
-            style: GoogleFonts.poppins(
-              fontWeight: FontWeight.w600,
-              color: const Color(0xFF4CAF50),
-            ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
           ),
-          content: Text(
-            'Your password has been successfully updated. You can now log in with your new password.',
-            style: GoogleFonts.poppins(),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                Navigator.pushReplacementNamed(context, '/login');
-              },
-              child: Text(
-                'Go to Login',
-                style: GoogleFonts.poppins(
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF7C83FD),
+          contentPadding: const EdgeInsets.all(24),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Success Icon
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.check_circle_outline,
+                  color: Colors.green,
+                  size: 48,
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 20),
+              // Success Title
+              Text(
+                'Password Updated',
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF3A3A50),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Success Message
+              Text(
+                'Your password has been successfully updated. You can now log in with your new password.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: const Color(0xFF5D5D72),
+                ),
+              ),
+              const SizedBox(height: 24),
+              // Go to Login Button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF7C83FD),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(ctx); // Close dialog
+                    Navigator.pushReplacementNamed(context, '/login');
+                  },
+                  child: Text(
+                    'Go to Login',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -103,31 +185,18 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     });
 
     try {
-      // Update the user's password using Supabase
-      await _supabase.auth.updateUser(
-        UserAttributes(
-          password: _newPasswordController.text.trim(),
-        ),
+      // Reset password using controller
+      final result = await _userController.resetPassword(
+        newPassword: _newPasswordController.text.trim(),
       );
 
-      // Show success dialog
-      _showSuccessDialog();
-    } on AuthException catch (e) {
-      String errorMessage = '';
-
-      // Handle specific error codes
-      if (e.message.contains('Password should be at least')) {
-        errorMessage = 'Password must be at least 6 characters long.';
-      } else if (e.message.contains('Invalid session')) {
-        errorMessage = 'Reset link has expired. Please request a new password reset.';
+      if (result.success) {
+        _showSuccessDialog();
       } else {
-        errorMessage = e.message;
+        _showErrorDialog(result.errorMessage ?? 'Failed to reset password.');
       }
-
-      _showErrorDialog(errorMessage);
     } catch (e) {
-      // Handle unexpected errors
-      _showErrorDialog('Something went wrong. Please try again later.');
+      _showErrorDialog('An unexpected error occurred. Please try again later.');
     } finally {
       if (mounted) {
         setState(() {

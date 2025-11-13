@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../utils/department_mapping.dart';
+import '../controllers/user_controller.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -11,6 +11,9 @@ class SignUpPage extends StatefulWidget {
 }
 
 class _SignUpPageState extends State<SignUpPage> {
+  // Controller instance
+  final _userController = UserController();
+
   // Phase 1 - Login Info
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -40,20 +43,15 @@ class _SignUpPageState extends State<SignUpPage> {
       });
 
       try {
-        // Check for duplicates without creating account yet
         final email = _emailController.text.trim();
+        
+        // Use controller to validate phase 1
+        final result = await _userController.validateSignupPhase1(email);
 
-        // Check email in users table
-        final emailExists = await Supabase.instance.client
-            .from('users')
-            .select('user_id')
-            .eq('email', email)
-            .maybeSingle();
-
-        if (emailExists != null) {
+        if (!result.success) {
           _showErrorDialog(
-            'Account Already Exists',
-            'An account with this email address already exists. Please use a different email address.',
+            result.errorTitle ?? 'Validation Failed',
+            result.errorMessage ?? 'Something went wrong. Please try again.',
           );
           setState(() {
             _isLoading = false;
@@ -61,7 +59,7 @@ class _SignUpPageState extends State<SignUpPage> {
           return;
         }
 
-        // Just move to phase 2 without creating account yet
+        // Move to phase 2
         setState(() {
           _currentPhase = 2;
           _isLoading = false;
@@ -87,20 +85,23 @@ class _SignUpPageState extends State<SignUpPage> {
       });
 
       try {
-        final email = _emailController.text.trim();
-        final studentCode = _studentIdController.text.trim();
+        // Use controller to create student account
+        final result = await _userController.createStudentAccount(
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+          studentCode: _studentIdController.text.trim(),
+          firstName: _firstNameController.text.trim(),
+          lastName: _lastNameController.text.trim(),
+          educationLevel: _selectedEducationLevel!,
+          course: _selectedCourse,
+          strand: _selectedStrand,
+          yearLevel: int.parse(_yearLevelController.text.trim()),
+        );
 
-        // Check if student_code already exists
-        final studentCodeExists = await Supabase.instance.client
-            .from('students')
-            .select('user_id')
-            .eq('student_code', studentCode)
-            .maybeSingle();
-
-        if (studentCodeExists != null) {
+        if (!result.success) {
           _showErrorDialog(
-            'Student ID Already Exists',
-            'This Student ID is already registered. Please use a different Student ID.',
+            result.errorTitle ?? 'Registration Failed',
+            result.errorMessage ?? 'Something went wrong. Please try again.',
           );
           setState(() {
             _isLoading = false;
@@ -108,103 +109,9 @@ class _SignUpPageState extends State<SignUpPage> {
           return;
         }
 
-        // Now create the account with Supabase Auth
-        final authResponse = await Supabase.instance.client.auth.signUp(
-          email: email,
-          password: _passwordController.text.trim(),
-          emailRedirectTo: 'breathebetter://verify-email',
-        );
-
-        final user = authResponse.user;
-
-        // Check if auth was successful but user is null (shouldn't happen but better to be safe)
-        if (user == null) {
-          _showErrorDialog(
-            'Registration Failed', 
-            'Account creation failed. Please try again.'
-          );
-          return;
-        }
-
-        // Check if user already exists in our users table (to prevent duplicates)
-          final existingUser = await Supabase.instance.client
-              .from('users')
-              .select('user_id')
-              .eq('user_id', user.id)
-              .maybeSingle();
-
-          if (existingUser == null) {
-            // Insert into the 'users' table only if not exists
-            await Supabase.instance.client.from('users').insert({
-              'user_id': user.id,
-              'email': email,
-              'registration_date': DateTime.now().toIso8601String(),
-              'user_type': 'student',
-              'status': 'active',
-            });
-          }
-
-          // Check if student record already exists (to prevent duplicates)
-          final existingStudent = await Supabase.instance.client
-              .from('students')
-              .select('user_id')
-              .eq('user_id', user.id)
-              .maybeSingle();
-
-          if (existingStudent == null) {
-            // Prepare student data
-            Map<String, dynamic> studentData = {
-              'user_id': user.id,
-              'student_code': studentCode,
-              'first_name': _firstNameController.text.trim(),
-              'last_name': _lastNameController.text.trim(),
-              'year_level': int.tryParse(_yearLevelController.text.trim()),
-            };
-
-            // Add education-specific fields based on education level
-            if (_selectedEducationLevel == 'college') {
-              studentData['education_level'] = 'college';
-              studentData['course'] = _selectedCourse;
-              studentData['strand'] = null;
-            } else if (_selectedEducationLevel == 'senior_high') {
-              studentData['education_level'] = 'senior_high';
-              studentData['course'] = null;
-              studentData['strand'] = _selectedStrand;
-            } else if (_selectedEducationLevel == 'junior_high') {
-              studentData['education_level'] = 'junior_high';
-              studentData['course'] = null;
-              studentData['strand'] = null;
-            } else if (_selectedEducationLevel == 'basic_education') {
-              studentData['education_level'] = 'basic_education';
-              studentData['course'] = null;
-              studentData['strand'] = null;
-            }
-
-            // Insert into the 'students' table
-            await Supabase.instance.client.from('students').insert(studentData);
-          }
-
-          // Show success and email verification dialog
-          _showSuccessDialog();
+        // Show success dialog
+        _showSuccessDialog();
         
-      } on AuthException catch (e) {
-        print('Supabase Auth error: ${e.message}');
-        String errorMessage = 'Registration failed. Please try again.';
-        
-        if (e.message.contains('For security purposes, you can only request this after')) {
-          // Rate limiting error
-          final match = RegExp(r'after (\d+) seconds?').firstMatch(e.message);
-          final seconds = match?.group(1) ?? '13';
-          errorMessage = 'Please wait $seconds seconds before trying to register again.';
-        } else if (e.message.contains('email')) {
-          errorMessage = 'Invalid email address or email already in use.';
-        } else if (e.message.contains('password')) {
-          errorMessage = 'Password is too weak. Please use a stronger password.';
-        } else if (e.message.contains('User already registered')) {
-          errorMessage = 'An account with this email already exists. Please use a different email or try signing in.';
-        }
-        
-        _showErrorDialog('Registration Failed', errorMessage);
       } catch (e) {
         print('Phase 2 signup error: $e');
         _showErrorDialog('Registration Failed',
@@ -245,57 +152,69 @@ class _SignUpPageState extends State<SignUpPage> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        contentPadding: const EdgeInsets.all(24),
         title: Row(
           children: [
-            Icon(
-              Icons.error_outline,
-              color: Colors.red.shade600,
-              size: 28,
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.error_outline,
+                color: Colors.red,
+                size: 32,
+              ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 16),
             Expanded(
               child: Text(
                 title,
                 style: GoogleFonts.poppins(
-                  fontWeight: FontWeight.w600,
-                  color: Colors.red.shade700,
-                  fontSize: 18,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF3A3A50),
                 ),
               ),
             ),
           ],
         ),
-        content: Container(
-          constraints: const BoxConstraints(maxWidth: 300),
-          child: Text(
-            message,
-            style: GoogleFonts.poppins(
-              fontSize: 14,
-              height: 1.5,
-              color: Colors.grey.shade700,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 8),
+            Text(
+              message,
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                color: const Color(0xFF3A3A50),
+                fontWeight: FontWeight.w500,
+              ),
             ),
-          ),
+          ],
         ),
         actions: [
-          Container(
+          SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red.shade600,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
               onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                backgroundColor: const Color(0xFF7C83FD),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 2,
+              ),
               child: Text(
                 'OK',
                 style: GoogleFonts.poppins(
+                  fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  color: Colors.white,
                 ),
               ),
             ),
@@ -310,99 +229,328 @@ class _SignUpPageState extends State<SignUpPage> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        contentPadding: const EdgeInsets.all(24),
         title: Row(
           children: [
-            Icon(
-              Icons.check_circle_outline,
-              color: const Color(0xFF4CAF50),
-              size: 28,
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.check_circle_outline,
+                color: Colors.green,
+                size: 32,
+              ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 16),
             Expanded(
               child: Text(
                 'Registration Successful!',
                 style: GoogleFonts.poppins(
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF4CAF50),
-                  fontSize: 18,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF3A3A50),
                 ),
               ),
             ),
           ],
         ),
-        content: Container(
-          constraints: const BoxConstraints(maxWidth: 300),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Welcome to BreatheBetter!',
-                style: GoogleFonts.poppins(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade800,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 8),
+            Text(
+              'Welcome to BreatheBetter!',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF3A3A50),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'A verification link has been sent to:',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                color: const Color(0xFF5D5D72),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: Colors.grey.shade300,
+                  width: 1,
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                'A verification link has been sent to:',
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  color: Colors.grey.shade700,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  _emailController.text.trim(),
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.email_outlined,
+                    size: 18,
                     color: const Color(0xFF7C83FD),
                   ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _emailController.text.trim(),
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFF7C83FD),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.blue.shade200,
+                  width: 1,
                 ),
               ),
-              const SizedBox(height: 12),
-              Text(
-                'Please check your inbox and click the verification link before signing in.',
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  height: 1.4,
-                  color: Colors.grey.shade700,
-                ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    color: Colors.blue.shade700,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Please check your inbox and click the verification link before signing in.',
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        color: const Color(0xFF5D5D72),
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
         actions: [
-          Container(
+          SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4CAF50),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
               onPressed: () {
                 Navigator.pop(context);
                 Navigator.pushReplacementNamed(context, '/login');
               },
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                backgroundColor: const Color(0xFF7C83FD),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 2,
+              ),
               child: Text(
                 'Go to Sign In',
                 style: GoogleFonts.poppins(
+                  fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showStudentIdInfoDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        contentPadding: const EdgeInsets.all(24),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF7C83FD).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.info_outline,
+                color: Color(0xFF7C83FD),
+                size: 32,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                'Student ID Information',
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF3A3A50),
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 8),
+            Text(
+              'Please refer to your Student ID for accurate information.',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                color: const Color(0xFF3A3A50),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.blue.shade200,
+                  width: 1,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.card_membership,
+                        color: Colors.blue.shade700,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Student ID Number',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF3A3A50),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Enter your student ID number exactly as shown on your ID card.',
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      color: const Color(0xFF5D5D72),
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.person,
+                        color: Colors.blue.shade700,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Name',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF3A3A50),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Enter your first and last name exactly as they appear on your student ID.',
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      color: const Color(0xFF5D5D72),
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.orange.shade200,
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    color: Colors.orange.shade700,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Your information must match our records to proceed with registration.',
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        color: const Color(0xFF5D5D72),
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                backgroundColor: const Color(0xFF7C83FD),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 2,
+              ),
+              child: Text(
+                'Got It',
+                style: GoogleFonts.poppins(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
@@ -467,16 +615,33 @@ class _SignUpPageState extends State<SignUpPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Step indicator text
-                        Text(
-                          _currentPhase == 1
-                              ? 'Login Information'
-                              : 'Personal Information',
-                          style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            color: Colors.grey.shade600,
-                            fontWeight: FontWeight.w500,
-                          ),
+                        // Step indicator text with info button
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              _currentPhase == 1
+                                  ? 'Login Information'
+                                  : 'Personal Information',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                color: Colors.grey.shade600,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            if (_currentPhase == 2)
+                              IconButton(
+                                icon: Icon(
+                                  Icons.info_outline,
+                                  color: const Color(0xFF7C83FD),
+                                  size: 20,
+                                ),
+                                onPressed: _showStudentIdInfoDialog,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                tooltip: 'Student ID Information',
+                              ),
+                          ],
                         ),
                         const SizedBox(height: 20),
 
@@ -555,8 +720,7 @@ class _SignUpPageState extends State<SignUpPage> {
             if (value == null || value.isEmpty) {
               return 'Please enter your email address';
             }
-            final emailRegex = RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$');
-            return emailRegex.hasMatch(value)
+            return _userController.validateEmail(value)
                 ? null
                 : 'Please enter a valid email address';
           },
@@ -596,15 +760,7 @@ class _SignUpPageState extends State<SignUpPage> {
             filled: true,
             fillColor: Colors.grey.shade50,
           ),
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'Please enter a password';
-            }
-            if (value.length < 6) {
-              return 'Password must be at least 6 characters';
-            }
-            return null;
-          },
+          validator: (value) => _userController.validatePassword(value ?? ''),
         ),
         const SizedBox(height: 16),
 
@@ -643,15 +799,10 @@ class _SignUpPageState extends State<SignUpPage> {
             filled: true,
             fillColor: Colors.grey.shade50,
           ),
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'Please confirm your password';
-            }
-            if (value != _passwordController.text) {
-              return 'Passwords do not match';
-            }
-            return null;
-          },
+          validator: (value) => _userController.validatePasswordConfirmation(
+            _passwordController.text,
+            value ?? '',
+          ),
         ),
       ],
     );
@@ -681,9 +832,7 @@ class _SignUpPageState extends State<SignUpPage> {
             filled: true,
             fillColor: Colors.grey.shade50,
           ),
-          validator: (value) => value?.isEmpty ?? true
-              ? 'Please enter your student ID number'
-              : null,
+          validator: (value) => _userController.validateStudentId(value ?? ''),
         ),
         const SizedBox(height: 16),
         // First Name Field
@@ -705,8 +854,7 @@ class _SignUpPageState extends State<SignUpPage> {
             filled: true,
             fillColor: Colors.grey.shade50,
           ),
-          validator: (value) =>
-              value?.isEmpty ?? true ? 'Please enter your first name' : null,
+          validator: (value) => _userController.validateName(value ?? '', 'first name'),
         ),
         const SizedBox(height: 16),
 
@@ -729,8 +877,7 @@ class _SignUpPageState extends State<SignUpPage> {
             filled: true,
             fillColor: Colors.grey.shade50,
           ),
-          validator: (value) =>
-              value?.isEmpty ?? true ? 'Please enter your last name' : null,
+          validator: (value) => _userController.validateName(value ?? '', 'last name'),
         ),
         const SizedBox(height: 16),
 
@@ -893,42 +1040,10 @@ class _SignUpPageState extends State<SignUpPage> {
             filled: true,
             fillColor: Colors.grey.shade50,
           ),
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'Please enter your year/grade level';
-            }
-            final yearLevel = int.tryParse(value);
-            if (yearLevel == null) {
-              return 'Please enter a valid number';
-            }
-            
-            // Validate based on selected education level
-            switch (_selectedEducationLevel) {
-              case 'basic_education':
-                if (yearLevel < 1 || yearLevel > 6) {
-                  return 'Basic Education grade level must be between 1 and 6';
-                }
-                break;
-              case 'junior_high':
-                if (yearLevel < 7 || yearLevel > 10) {
-                  return 'Junior High grade level must be between 7 and 10';
-                }
-                break;
-              case 'senior_high':
-                if (yearLevel < 11 || yearLevel > 12) {
-                  return 'Senior High grade level must be between 11 and 12';
-                }
-                break;
-              case 'college':
-                if (yearLevel < 1 || yearLevel > 4) {
-                  return 'College year level must be between 1 and 4';
-                }
-                break;
-              default:
-                return 'Please select an education level first';
-            }
-            return null;
-          },
+          validator: (value) => _userController.validateYearLevel(
+            value ?? '',
+            _selectedEducationLevel,
+          ),
         ),
       ],
     );
