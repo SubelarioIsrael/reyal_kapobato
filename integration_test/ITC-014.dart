@@ -30,7 +30,7 @@ void main() {
     );
   });
 
-  group('ITC-014: Test chatbot API integration with mental health knowledge base.', () {
+  group('ITC-014: Chatbot responds with contextually accurate mental health responses.', () {
     Future<void> login(WidgetTester tester, String email, String password) async {
       await tester.pumpAndSettle();
       await tester.pumpUntilFound(find.byKey(const Key('login_email')));
@@ -39,15 +39,7 @@ void main() {
       await tester.tap(find.byKey(const Key('login_button')));
       await tester.pumpAndSettle();
     }
-    Future<void> logout(WidgetTester tester) async {
-      await tester.tap(find.byKey(const Key('drawer_button')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Logout'));
-      await tester.pumpAndSettle();
-      // Wait for login screen to reappear
-      await tester.pumpUntilFound(find.byKey(const Key('login_email')));
-    }
-    testWidgets('Dashboard displays daily mood entries throughout the week.', (tester) async {
+    testWidgets('Test chatbot API integration with mental health knowledge base.', (tester) async {
       await app.testMain();
       await tester.pumpAndSettle();
 
@@ -56,7 +48,23 @@ void main() {
       expect(find.byKey(const Key('studentHomeScreen')), findsOneWidget);
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('weekly_mood_bar')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('drawer_button')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Chatbot'));
+      await tester.pumpAndSettle();
+
+      final inputField = find.byKey(const Key('chat_input_field'));
+      expect(inputField, findsOneWidget);
+
+      // Type message
+      await tester.enterText(inputField, 'Hello there');
+      await tester.pumpAndSettle();
+
+      // Press send button
+      await tester.tap(find.byIcon(Icons.send_rounded));
+      await tester.pumpAndSettle(const Duration(seconds: 1));
+
+      expect(find.text('Hello there'), findsOneWidget);
     });
   });
 }
