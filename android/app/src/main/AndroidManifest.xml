@@ -21,7 +21,7 @@
     <uses-feature android:name="android.hardware.camera.autofocus" />
 
     <application
-        android:label="breathe_better"
+        android:label="BreatheBetter"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

@@ -1,5 +1,6 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
+import 'package:breathe_better/services/notification_api.dart';
 
 class PushNotiService {
   final notificationPlugin = FlutterLocalNotificationsPlugin();
@@ -138,13 +139,46 @@ class PushNotiService {
     if (_currentUserId == null) {
       throw Exception('No current user set. Call setCurrentUserId() first.');
     }
-    
+
     await showNotificationToUser(
       userId: _currentUserId!,
       title: title,
       body: body,
       route: route,
     );
+  }
+
+  // REMOTE: Request server to send a push to a specific userId
+  // (server will lookup tokens and deliver via FCM / OneSignal)
+  Future<bool> sendRemoteNotificationToUser({
+    required String userId,
+    required String title,
+    required String body,
+    Map<String, String>? data,
+  }) async {
+    try {
+      final resp = await NotificationApi.sendToUser(userId, title: title, body: body, data: data);
+      return resp.statusCode >= 200 && resp.statusCode < 300;
+    } catch (e) {
+      print('sendRemoteNotificationToUser error: $e');
+      return false;
+    }
+  }
+  
+  // REMOTE: Request server to send a push to a specific token
+  Future<bool> sendRemoteNotificationToToken({
+    required String token,
+    required String title,
+    required String body,
+    Map<String, String>? data,
+  }) async {
+    try {
+      final resp = await NotificationApi.sendToToken(token, title: title, body: body, data: data);
+      return resp.statusCode >= 200 && resp.statusCode < 300;
+    } catch (e) {
+      print('sendRemoteNotificationToToken error: $e');
+      return false;
+    }
   }
 
   // CANCEL NOTIFICATIONS FOR USER

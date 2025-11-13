@@ -12,6 +12,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:app_links/app_links.dart';
 import 'firebase_options.dart';
 import 'package:breathe_better/services/push_noti_service.dart';
+import 'package:breathe_better/services/notification_api.dart'; // added for local testing examples
 import 'routes.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -104,7 +105,8 @@ class _MyAppState extends State<MyApp> {
     PushNotiService.setNavigatorKey(_navigatorKey);
     _setupAuthListener();
     _setupDeepLinkListener();
-    _setupFcmListeners(); // Added: register FCM listeners
+    _setupFcmListeners(); // add FCM listeners
+    _saveDeviceToken(); // persist token to Firestore
   }
 
   void _setupAuthListener() {
@@ -209,9 +211,9 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
-  // New: set up FCM listeners for terminated, foreground, and background->opened states
+  // FCM: terminated / foreground / background -> opened handlers
   void _setupFcmListeners() {
-    // Terminated state: if the app was opened from a notification
+    // Terminated: app opened from a notification
     FirebaseMessaging.instance.getInitialMessage().then((RemoteMessage? message) {
       if (message != null) {
         print('FCM initialMessage (terminated -> opened): ${message.messageId}');
@@ -219,59 +221,82 @@ class _MyAppState extends State<MyApp> {
       }
     });
 
-    // Foreground messages
+    // Foreground: show in-app feedback
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      print('FCM onMessage (foreground): ${message.messageId}, notification: ${message.notification}');
+      print('FCM onMessage (foreground): ${message.messageId}');
       _showForegroundNotification(message);
     });
 
-    // Background (app in background) -> user taps notification and app opens/resumes
+    // Background -> opened: user taps notification
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       print('FCM onMessageOpenedApp (background -> opened): ${message.messageId}');
       _handleMessageOpenedApp(message);
     });
   }
 
-  // Show simple in-app feedback for foreground notifications.
+  // Show a brief SnackBar (and optional dialog) for foreground notifications
   void _showForegroundNotification(RemoteMessage message) {
     final ctx = _navigatorKey.currentContext;
+    if (ctx == null) return;
+
     final notif = message.notification;
     final title = notif?.title ?? message.data['title'] ?? 'Notification';
     final body = notif?.body ?? message.data['body'] ?? '';
 
-    if (ctx != null) {
-      ScaffoldMessenger.of(ctx).showSnackBar(
-        SnackBar(
-          content: Text(
-            '$title\n$body',
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-          ),
-          duration: const Duration(seconds: 4),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
+    ScaffoldMessenger.of(ctx).showSnackBar(
+      SnackBar(
+        content: Text('$title — $body', maxLines: 2, overflow: TextOverflow.ellipsis),
+        duration: const Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
 
-    // Note: If you later add a local notification helper in PushNotiService,
-    // you can call it here to show a system notification while app is foreground.
+    // Optional: show dialog for important notifications
+    // showDialog(
+    //   context: ctx,
+    //   builder: (_) => AlertDialog(
+    //     title: Text(title),
+    //     content: Text(body),
+    //     actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
+    //   ),
+    // );
   }
 
   // Handle navigation when a notification is opened (from background or terminated).
   void _handleMessageOpenedApp(RemoteMessage message) {
     final data = message.data;
-    print('Handling opened FCM message: $data');
+    final route = (data['route'] as String?) ?? '/messages';
 
-    // Example routing: notification payload can include a 'route' key
-    final route = data['route'] as String?;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (route != null && route.isNotEmpty) {
-        _navigatorKey.currentState?.pushNamed(route, arguments: data);
-      } else {
-        // Default fallback route when no route provided
-        _navigatorKey.currentState?.pushNamed('/messages', arguments: data);
-      }
+      _navigatorKey.currentState?.pushNamed(route, arguments: data);
     });
+  }
+
+  // Save the FCM token to Firestore (collection: device_tokens)
+  Future<void> _saveDeviceToken() async {
+    try {
+      final fcmToken = await FirebaseMessaging.instance.getToken();
+      if (fcmToken == null) return;
+
+      final supabaseUserId = Supabase.instance.client.auth.currentUser?.id;
+      final platform = Platform.isAndroid ? 'android' : (Platform.isIOS ? 'ios' : 'unknown');
+
+      final doc = FirebaseFirestore.instance.collection('device_tokens').doc(fcmToken);
+      await doc.set({
+        'token': fcmToken,
+        'userId': supabaseUserId ?? '',
+        'platform': platform,
+        'createdAt': DateTime.now().toIso8601String(),
+      }, SetOptions(merge: true));
+ 
+       print('Saved FCM token to Firestore: $fcmToken');
+
+      // Example: how to trigger a test notification from the app (only for debugging)
+      // Note: ensure NOTIF_SERVER_URL and NOTIF_SERVER_TOKEN are set in your important_stuff.env
+      // await NotificationApi.sendToToken(fcmToken, title: 'Test', body: 'Hello from app');
+    } catch (e) {
+      print('Error saving FCM token: $e');
+    }
   }
 
   @override
