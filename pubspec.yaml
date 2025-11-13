@@ -47,7 +47,10 @@ dependencies:
   floating: ^6.0.0
   flutter_dotenv: ^5.1.0
   onesignal_flutter: ^5.1.2
-  firebase_core: ^4.1.1
+  firebase_core: ^2.32.0
+  firebase_messaging: ^14.0.0
+  firebase_auth: ^4.0.0   # optional — only add if you use auth
+  cloud_firestore: ^4.0.0 # optional — only add if you use Firestore
   shared_preferences: ^2.3.2
   flutter_local_notifications: ^19.5.0
   
@@ -80,9 +83,7 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
-    # - images/a_dot_burr.jpeg
-    # - images/a_dot_ham.jpeg
-      - important_stuff.env
+    - important_stuff.env
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware

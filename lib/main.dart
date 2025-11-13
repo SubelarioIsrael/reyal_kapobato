@@ -1,3 +1,9 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -8,10 +14,24 @@ import 'firebase_options.dart';
 import 'package:breathe_better/services/push_noti_service.dart';
 import 'routes.dart';
 
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  print('FCM background message received: ${message.messageId}, data: ${message.data}');
+}
+
 Future<void> initApp() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  await FirebaseMessaging.instance.requestPermission(
+    alert: true,
+    badge: true,
+    sound: true,
+    provisional: false,
+  );
 
   OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
   OneSignal.initialize("c0c552e3-f8d6-49fc-9d0c-a7b23267b9f0");
@@ -84,6 +104,7 @@ class _MyAppState extends State<MyApp> {
     PushNotiService.setNavigatorKey(_navigatorKey);
     _setupAuthListener();
     _setupDeepLinkListener();
+    _setupFcmListeners(); // Added: register FCM listeners
   }
 
   void _setupAuthListener() {
@@ -186,6 +207,71 @@ class _MyAppState extends State<MyApp> {
         });
       });
     }
+  }
+
+  // New: set up FCM listeners for terminated, foreground, and background->opened states
+  void _setupFcmListeners() {
+    // Terminated state: if the app was opened from a notification
+    FirebaseMessaging.instance.getInitialMessage().then((RemoteMessage? message) {
+      if (message != null) {
+        print('FCM initialMessage (terminated -> opened): ${message.messageId}');
+        _handleMessageOpenedApp(message);
+      }
+    });
+
+    // Foreground messages
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      print('FCM onMessage (foreground): ${message.messageId}, notification: ${message.notification}');
+      _showForegroundNotification(message);
+    });
+
+    // Background (app in background) -> user taps notification and app opens/resumes
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      print('FCM onMessageOpenedApp (background -> opened): ${message.messageId}');
+      _handleMessageOpenedApp(message);
+    });
+  }
+
+  // Show simple in-app feedback for foreground notifications.
+  void _showForegroundNotification(RemoteMessage message) {
+    final ctx = _navigatorKey.currentContext;
+    final notif = message.notification;
+    final title = notif?.title ?? message.data['title'] ?? 'Notification';
+    final body = notif?.body ?? message.data['body'] ?? '';
+
+    if (ctx != null) {
+      ScaffoldMessenger.of(ctx).showSnackBar(
+        SnackBar(
+          content: Text(
+            '$title\n$body',
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
+          duration: const Duration(seconds: 4),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+
+    // Note: If you later add a local notification helper in PushNotiService,
+    // you can call it here to show a system notification while app is foreground.
+  }
+
+  // Handle navigation when a notification is opened (from background or terminated).
+  void _handleMessageOpenedApp(RemoteMessage message) {
+    final data = message.data;
+    print('Handling opened FCM message: $data');
+
+    // Example routing: notification payload can include a 'route' key
+    final route = data['route'] as String?;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (route != null && route.isNotEmpty) {
+        _navigatorKey.currentState?.pushNamed(route, arguments: data);
+      } else {
+        // Default fallback route when no route provided
+        _navigatorKey.currentState?.pushNamed('/messages', arguments: data);
+      }
+    });
   }
 
   @override
