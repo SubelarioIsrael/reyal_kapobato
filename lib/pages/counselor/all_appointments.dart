@@ -4,7 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/appointment.dart';
 import '../../services/counselor_service.dart';
 import '../../widgets/student_avatar.dart';
-import '../call/call.dart';
+import '../../services/video_call_service.dart';
 import 'dart:math';
 
 class AllAppointments extends StatefulWidget {
@@ -127,7 +127,7 @@ class _AllAppointmentsState extends State<AllAppointments> {
         backgroundColor: const Color(0xFF7C83FD),
         onPressed: () => _showVideoCallDialog(),
         child: const Icon(Icons.video_call, color: Colors.white),
-        tooltip: 'Start Video Call',
+        tooltip: 'Start Video Call asd',
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -737,7 +737,7 @@ class _AllAppointmentsState extends State<AllAppointments> {
                             });
                           },
                           title: Text(
-                            'Join Existing Call',
+                            'Join Existing Call asdas',
                             style: GoogleFonts.poppins(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
@@ -745,7 +745,7 @@ class _AllAppointmentsState extends State<AllAppointments> {
                             ),
                           ),
                           subtitle: Text(
-                            'Enter a call code to join an existing room',
+                            'Enter a call code to join an existing rooms asdasdas',
                             style: GoogleFonts.poppins(
                               fontSize: 14,
                               color: const Color(0xFF5D5D72),

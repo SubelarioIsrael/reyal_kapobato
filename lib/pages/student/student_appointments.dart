@@ -7,8 +7,7 @@ import '../../widgets/counselor_avatar.dart';
 
 import '../../components/student_drawer.dart';
 import '../../components/student_notification_button.dart';
-
-import '../call/call.dart';
+import '../../services/video_call_service.dart';
 
 class StudentAppointments extends StatefulWidget {
   const StudentAppointments({super.key});

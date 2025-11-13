@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/services.dart';
 import 'dart:math';
-import '../call/call.dart';
+import '../../services/video_call_service.dart';
 
 class VideoCallDialog extends StatefulWidget {
   const VideoCallDialog({super.key});
