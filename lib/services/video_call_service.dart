@@ -24,21 +24,7 @@ class CallPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    print('DEBUG: CallPage build() called with:');
-    print('  callID: $callID');
-    print('  userID: $userID');
-    print('  userName: $userName');
-    print('  appointmentId: $appointmentId');
-    print('  studentUserId: $studentUserId');
-    print('  counselorId: $counselorId');
-    
     final config = ZegoUIKitPrebuiltCallConfig.oneOnOneVideoCall();
-    
-    print('DEBUG: Creating ZegoUIKitPrebuiltCall with:');
-    print('  appID: ${AppInfo.appId}');
-    print('  userID: $userID');
-    print('  userName: $userName');
-    print('  callID: $callID');
 
     return ZegoUIKitPrebuiltCall(
       appID: AppInfo.appId, // Fill in the appID that you get from ZEGOCLOUD Admin Console.
@@ -49,7 +35,6 @@ class CallPage extends StatelessWidget {
       config: config,
       events: ZegoUIKitPrebuiltCallEvents(
         onCallEnd: (event, defaultAction) {
-          print('DEBUG: onCallEnd event triggered');
           // Handle our logic first, then call defaultAction
           _handleCallEnd(context, callID, defaultAction);
         },
@@ -59,30 +44,16 @@ class CallPage extends StatelessWidget {
 
   Future<void> _handleCallEnd(BuildContext context, String callID, VoidCallback defaultAction) async {
     try {
-      print('DEBUG: Call ended, handling call end for callID: $callID');
-      
       // Check if current user is a counselor
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) {
-        print('DEBUG: No user found, returning');
         return;
       }
 
-      print('DEBUG: Checking user type for user: ${user.id}');
-      final userProfile = await Supabase.instance.client
-          .from('users')
-          .select('user_type')
-          .eq('user_id', user.id)
-          .single();
-
-      print('DEBUG: User type: ${userProfile['user_type']}');
-
       // Update video call status for all users
       await _updateVideoCallStatus(callID);
-      print('DEBUG: Video call status updated, calling defaultAction');
       defaultAction.call();
     } catch (e) {
-      print('Error handling call end: $e');
       // Still update call status even if there's an error
       await _updateVideoCallStatus(callID);
     }

@@ -8,7 +8,7 @@ import '../chat/appointment_chat.dart';
 import '../../widgets/student_avatar.dart';
 import '../../components/counselor_drawer.dart';
 import '../../services/notification_service.dart';
-import '../call/call.dart';
+import '../../services/video_call_service.dart';
 
 class CounselorHome extends StatefulWidget {
   const CounselorHome({super.key});
@@ -868,14 +868,22 @@ class _CounselorHomeState extends State<CounselorHome> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    studentName,
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF3A3A50),
+                  // Student Name (Horizontally Scrollable)
+                  SizedBox(
+                    height: 22,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Text(
+                        studentName,
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF3A3A50),
+                        ),
+                      ),
                     ),
                   ),
+                  const SizedBox(height: 4),
                   Text(
                     '${TimeOfDay.fromDateTime(appt.startTime).format(context)} - ${TimeOfDay.fromDateTime(appt.endTime).format(context)}',
                     style: GoogleFonts.poppins(

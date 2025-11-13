@@ -43,11 +43,11 @@ import 'pages/admin/admin_profile.dart';
 import 'pages/admin_new/admin_questionnaire.dart';
 import 'pages/admin_new/admin_mental_health_hotlines.dart';
 import 'pages/admin_new/admin_daily_uplifts.dart';
-import 'pages/counselor/counselor_home.dart';
-import 'pages/counselor/student_overview.dart';
+import 'pages/counselor_new/counselor_home.dart';
 import 'pages/counselor/all_appointments.dart';
-import 'pages/counselor/student_history_list.dart';
-import 'pages/counselor/counselor_chat_list.dart';
+import 'pages/counselor_new/counselor_student_chats.dart';
+import 'pages/counselor_new/counselor_student_list.dart';
+import 'pages/counselor_new/counselor_student_overview.dart';
 import 'pages/settings.dart';
 import 'pages/change_password.dart';
 
@@ -203,11 +203,11 @@ final Map<String, WidgetBuilder> appRoutes = {
   '/all-appointments': (context) =>
       const AuthGuard(child: AllAppointments()),
   '/student-history-list': (context) =>
-      const AuthGuard(child: StudentHistoryList()),
+      const AuthGuard(child: CounselorStudentList()),
   '/counselor-chat-list': (context) =>
-      const AuthGuard(child: CounselorChatList()),
+      const AuthGuard(child: CounselorStudentChats()),
   '/student-overview': (context) => AuthGuard(
-        child: StudentOverview(
+        child: CounselorStudentOverview(
           userId: (ModalRoute.of(context)?.settings.arguments
               as Map<String, dynamic>)['userId'] as String,
           studentName: (ModalRoute.of(context)?.settings.arguments
