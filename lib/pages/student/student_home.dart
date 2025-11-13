@@ -223,6 +223,7 @@ class _StudentHomeState extends State<StudentHome> {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
         child: Row(
+          key: const Key('weekly_mood_bar'),
           children: week.asMap().entries.map((entry) {
             final index = entry.key;
             final day = entry.value;

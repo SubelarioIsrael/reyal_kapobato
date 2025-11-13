@@ -15,11 +15,8 @@ extension PumpUntilFound on WidgetTester {
     throw Exception('Widget not found within $timeout: $finder');
   }
 }
-
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-
-  late SupabaseClient client; // Fix type and use 'late'
 
   // Initialize Supabase only once before all tests
   setUpAll(() async {
@@ -31,10 +28,9 @@ void main() {
       url: dotenv.env['SUPABASE_URL'] ?? '',
       anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
     );
-    client = Supabase.instance.client;
   });
 
-  group('ITC-013: Test the integration of push notifications for reminders.', () {
+  group('ITC-013: Test admin resource management integration with user interface.', () {
     Future<void> login(WidgetTester tester, String email, String password) async {
       await tester.pumpAndSettle();
       await tester.pumpUntilFound(find.byKey(const Key('login_email')));
@@ -51,10 +47,16 @@ void main() {
       // Wait for login screen to reappear
       await tester.pumpUntilFound(find.byKey(const Key('login_email')));
     }
-    testWidgets('Push notification reminder is received and displayed.', (tester) async {
-      await app.testMain(); 
+    testWidgets('Dashboard displays daily mood entries throughout the week.', (tester) async {
+      await app.testMain();
       await tester.pumpAndSettle();
 
+      await login(tester, 'itzmethresh@gmail.com', 'allan123');
+      await tester.pumpUntilFound(find.byKey(const Key('studentHomeScreen')));
+      expect(find.byKey(const Key('studentHomeScreen')), findsOneWidget);
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('weekly_mood_bar')), findsOneWidget);
     });
   });
 }

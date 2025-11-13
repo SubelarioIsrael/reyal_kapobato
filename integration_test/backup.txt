@@ -1,0 +1,762 @@
+itc 10
+
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:integration_test/integration_test.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'test_main.dart' as app;
+
+extension PumpUntilFound on WidgetTester {
+  Future<void> pumpUntilFound(Finder finder, {Duration timeout = const Duration(seconds: 10)}) async {
+    final end = DateTime.now().add(timeout);
+    while (DateTime.now().isBefore(end)) {
+      await pump(const Duration(milliseconds: 100));
+      if (finder.evaluate().isNotEmpty) return;
+    }
+    throw Exception('Widget not found within $timeout: $finder');
+  }
+}
+
+Future<void> login(WidgetTester tester, String email, String password) async {
+  await tester.pumpAndSettle();
+  await tester.pumpUntilFound(find.byKey(const Key('login_email')));
+  await tester.enterText(find.byKey(const Key('login_email')), email);
+  await tester.enterText(find.byKey(const Key('login_password')), password);
+  await tester.tap(find.byKey(const Key('login_button')));
+  await tester.pumpAndSettle();
+}
+
+void main() {
+  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    await dotenv.load(fileName: 'important_stuff.env');
+    await Supabase.initialize(
+      url: dotenv.env['SUPABASE_URL'] ?? '',
+      anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
+    );
+  });
+
+  group('ITC-013: Test admin resource management integration with user interface.', () {
+    testWidgets('Push notification reminder is received and displayed.', (tester) async {
+      await app.testMain(); 
+      await tester.pumpAndSettle();
+
+    });
+  });
+
+  testWidgets('ITC-013: Admin adds/updates resource appears in student list', (tester) async {
+    final supabase = Supabase.instance.client;
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final createdTitle = 'ITC-013 Created $timestamp';
+    final updatedTitle = 'ITC-013 Updated $timestamp';
+    final mediaUrl = 'https://example.com/itc-013/$timestamp';
+
+    int? resourceId;
+
+    // Simulate admin adding resource via DB (ensures deterministic test)
+    try {
+      final insertRes = await supabase.from('mental_health_resources').insert({
+        'title': createdTitle,
+        'description': 'Created by ITC-013 test',
+        'resource_type': 'article',
+        'media_url': mediaUrl,
+        'tags': 'itc,test',
+        'publish_date': DateTime.now().toIso8601String(),
+      }).select('resource_id').maybeSingle();
+      if (insertRes != null && insertRes['resource_id'] != null) {
+        resourceId = insertRes['resource_id'] as int;
+      }
+    } catch (e) {
+      print('ITC-013: failed to insert resource: $e');
+    }
+
+    // Launch app and login as student to verify created resource is visible
+    await app.testMain();
+    await tester.pumpAndSettle();
+    final studentEmail = dotenv.env['STUDENT_EMAIL'] ?? 'itzmethresh@gmail.com';
+    final studentPassword = dotenv.env['STUDENT_PASSWORD'] ?? 'allan123';
+    await login(tester, studentEmail, studentPassword);
+
+    // Navigate to student resources page
+    await tester.pumpUntilFound(find.byKey(const Key('studentHomeScreen')), timeout: const Duration(seconds: 15));
+    Navigator.of(tester.element(find.byKey(const Key('studentHomeScreen')))).pushNamed('student-mental-health-resources');
+    await tester.pumpAndSettle();
+
+    // Verify created resource appears for student
+    final createdFinder = find.text(createdTitle);
+    await tester.pumpUntilFound(createdFinder, timeout: const Duration(seconds: 15));
+    expect(createdFinder, findsOneWidget);
+
+    // Now simulate admin updating the resource title (DB update)
+    if (resourceId != null) {
+      try {
+        await supabase.from('mental_health_resources').update({'title': updatedTitle}).eq('resource_id', resourceId);
+      } catch (e) {
+        print('ITC-013: failed to update resource: $e');
+      }
+    }
+
+    // Give the backend a moment to persist the update
+    await tester.pump(const Duration(seconds: 2));
+
+    // Force a refresh WITHOUT scrolling: re-push the student resources route from the student home.
+    // This avoids gestures and relies on navigator to re-create the resources screen.
+    final homeFinder = find.byKey(const Key('studentHomeScreen'));
+    if (homeFinder.evaluate().isNotEmpty) {
+      Navigator.of(tester.element(homeFinder)).pushNamed('student-mental-health-resources');
+      await tester.pumpAndSettle();
+    }
+
+    final updatedFinder = find.text(updatedTitle);
+    await tester.pumpUntilFound(updatedFinder, timeout: const Duration(seconds: 15));
+    expect(updatedFinder, findsOneWidget);
+
+    // Cleanup: delete test resource
+    if (resourceId != null) {
+      try {
+        await supabase.from('mental_health_resources').delete().eq('resource_id', resourceId);
+      } catch (_) {}
+    }
+
+    // short delay
+    await tester.pump(const Duration(milliseconds: 500));
+  }, timeout: const Timeout(Duration(seconds: 120)));
+}
+
+
+
+itc 11
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:integration_test/integration_test.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'test_main.dart' as app;
+
+extension PumpUntilFound on WidgetTester {
+  Future<void> pumpUntilFound(Finder finder, {Duration timeout = const Duration(seconds: 10)}) async {
+    final end = DateTime.now().add(timeout);
+    while (DateTime.now().isBefore(end)) {
+      await pump(const Duration(milliseconds: 100));
+      if (finder.evaluate().isNotEmpty) return;
+    }
+    throw Exception('Widget not found within $timeout: $finder');
+  }
+}
+
+void main() {
+  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+
+  late SupabaseClient client; // Fix type and use 'late'
+
+  // Initialize Supabase only once before all tests
+  setUpAll(() async {
+    // Load environment variables
+    await dotenv.load(fileName: 'important_stuff.env');
+
+    // Initialize Supabase (mocked/stubbed backend recommended)
+    await Supabase.initialize(
+      url: dotenv.env['SUPABASE_URL'] ?? '',
+      anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
+    );
+    client = Supabase.instance.client;
+  });
+
+  group('ITC-011: Test the integration between breathing exercises and daily mood tracking.', () {
+    Future<void> login(WidgetTester tester, String email, String password) async {
+      await tester.pumpAndSettle();
+      await tester.pumpUntilFound(find.byKey(const Key('login_email')));
+      await tester.enterText(find.byKey(const Key('login_email')), email);
+      await tester.enterText(find.byKey(const Key('login_password')), password);
+      await tester.tap(find.byKey(const Key('login_button')));
+      await tester.pumpAndSettle();
+    }
+    Future<void> logout(WidgetTester tester) async {
+      await tester.tap(find.byKey(const Key('drawer_button')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Logout'));
+      await tester.pumpAndSettle();
+      // Wait for login screen to reappear
+      await tester.pumpUntilFound(find.byKey(const Key('login_email')));
+    }
+    testWidgets('Breathing exercise is completed and system logs activity.', (tester) async {
+      await app.testMain(); 
+      await tester.pumpAndSettle();
+
+      await login(tester, 'itzmethresh@gmail.com', 'allanjayz');
+      await tester.pumpUntilFound(find.byKey(const Key('studentHomeScreen')));
+      expect(find.byKey(const Key('studentHomeScreen')), findsOneWidget);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.self_improvement));
+      await tester.pumpAndSettle(); // Wait for navigation to complete
+
+      await tester.pumpUntilFound(find.text('Testing Breathing')); // Wait for the list to appear
+      await tester.tap(find.text('Testing Breathing'));
+      await tester.pumpAndSettle(); // Wait for dialog
+
+      await tester.tap(find.text('Begin'));
+      await tester.pumpAndSettle(); // Wait for exercise to start
+
+      await tester.pumpUntilFound(find.text('Exercise Complete!')); // Wait for completion dialog
+      expect(find.text('Exercise Complete!'), findsOneWidget);
+      await tester.tap(find.text('Done'));
+      await tester.pumpAndSettle(); // Wait for dialog to close
+    });
+  });
+}
+
+
+itc 14
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:integration_test/integration_test.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'test_main.dart' as app;
+
+extension PumpUntilFound on WidgetTester {
+  Future<void> pumpUntilFound(Finder finder, {Duration timeout = const Duration(seconds: 10)}) async {
+    final end = DateTime.now().add(timeout);
+    while (DateTime.now().isBefore(end)) {
+      await pump(const Duration(milliseconds: 100));
+      if (finder.evaluate().isNotEmpty) return;
+    }
+    throw Exception('Widget not found within $timeout: $finder');
+  }
+}
+void main() {
+  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Supabase only once before all tests
+  setUpAll(() async {
+    // Load environment variables
+    await dotenv.load(fileName: 'important_stuff.env');
+
+    // Initialize Supabase (mocked/stubbed backend recommended)
+    await Supabase.initialize(
+      url: dotenv.env['SUPABASE_URL'] ?? '',
+      anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
+    );
+  });
+
+  group('ITC-014: Chatbot responds with contextually accurate mental health responses.', () {
+    Future<void> login(WidgetTester tester, String email, String password) async {
+      await tester.pumpAndSettle();
+      await tester.pumpUntilFound(find.byKey(const Key('login_email')));
+      await tester.enterText(find.byKey(const Key('login_email')), email);
+      await tester.enterText(find.byKey(const Key('login_password')), password);
+      await tester.tap(find.byKey(const Key('login_button')));
+      await tester.pumpAndSettle();
+    }
+    testWidgets('Test chatbot API integration with mental health knowledge base.', (tester) async {
+      await app.testMain();
+      await tester.pumpAndSettle();
+
+      await login(tester, 'itzmethresh@gmail.com', 'allan123');
+      await tester.pumpUntilFound(find.byKey(const Key('studentHomeScreen')));
+      expect(find.byKey(const Key('studentHomeScreen')), findsOneWidget);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('drawer_button')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Chatbot'));
+      await tester.pumpAndSettle();
+
+      final inputField = find.byKey(const Key('chat_input_field'));
+      expect(inputField, findsOneWidget);
+
+      // Type message
+      await tester.enterText(inputField, 'Hello there');
+      await tester.pumpAndSettle();
+
+      // Press send button
+      await tester.tap(find.byIcon(Icons.send_rounded));
+      await tester.pumpAndSettle(const Duration(seconds: 1));
+
+      expect(find.text('Hello there'), findsOneWidget);
+    });
+  });
+}
+
+
+
+itc 21
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:integration_test/integration_test.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'test_main.dart' as app;
+
+extension PumpUntilFound on WidgetTester {
+  Future<void> pumpUntilFound(Finder finder, {Duration timeout = const Duration(seconds: 10)}) async {
+    final end = DateTime.now().add(timeout);
+    while (DateTime.now().isBefore(end)) {
+      await pump(const Duration(milliseconds: 100));
+      if (finder.evaluate().isNotEmpty) return;
+    }
+    throw Exception('Widget not found within $timeout: $finder');
+  }
+}
+
+Future<void> navigateBackToHome(WidgetTester tester, Key homeKey, {required bool isStudent}) async {
+  int attempts = 0;
+  while (tester.any(find.byKey(homeKey)) == false && attempts < 10) {
+    bool wentBack = false;
+
+    // Try key
+    if (tester.any(find.byKey(const Key('backButton')))) {
+      await tester.tap(find.byKey(const Key('backButton')));
+      wentBack = true;
+    }
+
+    // Fallback: try pageBack (Navigator.pop)
+    if (!wentBack) {
+      await tester.pageBack();
+    }
+
+    await tester.pumpAndSettle();
+    attempts++;
+  }
+  await tester.pumpUntilFound(find.byKey(homeKey));
+}
+
+Future<void> logout(WidgetTester tester, Key homeKey, {required bool isStudent}) async {
+  await navigateBackToHome(tester, homeKey, isStudent: isStudent);
+  await tester.tap(find.byKey(const Key('drawer_button')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Logout'));
+  await tester.pumpAndSettle();
+  await tester.pumpUntilFound(find.byKey(const Key('login_email')));
+}
+
+void main() {
+  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    await dotenv.load(fileName: 'important_stuff.env');
+    await Supabase.initialize(
+      url: dotenv.env['SUPABASE_URL'] ?? '',
+      anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
+    );
+  });
+
+  group('ITC-021: Chat notification badge updates with unread message count.', () {
+    Future<void> login(WidgetTester tester, String email, String password) async {
+      await tester.pumpAndSettle();
+      await tester.pumpUntilFound(find.byKey(const Key('login_email')));
+      await tester.enterText(find.byKey(const Key('login_email')), email);
+      await tester.enterText(find.byKey(const Key('login_password')), password);
+      await tester.tap(find.byKey(const Key('login_button')));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('Counselor sends message, student sees notification badge.', (tester) async {
+      await app.testMain();
+      await tester.pumpAndSettle();
+
+      // Counselor logs in
+      await login(tester, 'allanjayv01@gmail.com', 'allan123');
+      await tester.pumpUntilFound(find.byKey(const Key('counselorHomeScreen')));
+
+      // Open drawer and tap 'Student Chats' by key
+      await tester.tap(find.byKey(const Key('drawer_button')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('studentChatsDrawerItem')));
+      await tester.pumpAndSettle();
+      await tester.pumpUntilFound(find.byKey(const Key('counselorChatListScreen')));
+
+      // Open chat with student (first chat card)
+      await tester.tap(find.byKey(const Key('counselorChatCard_0')));
+      await tester.pumpAndSettle();
+      await tester.pumpUntilFound(find.byKey(const Key('chatInputField')));
+
+      // Send a message
+      const testMessage = 'ITC-021 notification test';
+      await tester.enterText(find.byKey(const Key('chatInputField')), testMessage);
+      await tester.tap(find.byKey(const Key('sendMessageButton')));
+      await tester.pumpAndSettle();
+
+      // Logout counselor
+      await logout(tester, const Key('counselorHomeScreen'), isStudent: false);
+
+      // Student logs in
+      await login(tester, 'itzmethresh@gmail.com', 'allan123');
+      await tester.pumpUntilFound(find.byKey(const Key('studentHomeScreen')));
+
+      // Wait for notification badge to update
+      await tester.pump(const Duration(seconds: 2));
+      final badgeFinder = find.byKey(const Key('chatNotificationBadge'));
+      await tester.pumpUntilFound(badgeFinder);
+
+      // Verify badge text is greater than zero
+      final badgeText = tester.widget<Text>(find.descendant(of: badgeFinder, matching: find.byType(Text))).data;
+      expect(int.parse(badgeText!), greaterThan(0));
+    });
+  });
+}
+
+
+
+itc 13
+
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:integration_test/integration_test.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'test_main.dart' as app;
+
+extension PumpUntilFound on WidgetTester {
+  Future<void> pumpUntilFound(Finder finder, {Duration timeout = const Duration(seconds: 10)}) async {
+    final end = DateTime.now().add(timeout);
+    while (DateTime.now().isBefore(end)) {
+      await pump(const Duration(milliseconds: 100));
+      if (finder.evaluate().isNotEmpty) return;
+    }
+    throw Exception('Widget not found within $timeout: $finder');
+  }
+}
+
+Future<void> login(WidgetTester tester, String email, String password) async {
+  await tester.pumpAndSettle();
+  await tester.pumpUntilFound(find.byKey(const Key('login_email')));
+  await tester.enterText(find.byKey(const Key('login_email')), email);
+  await tester.enterText(find.byKey(const Key('login_password')), password);
+  await tester.tap(find.byKey(const Key('login_button')));
+  await tester.pumpAndSettle();
+}
+
+void main() {
+  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    await dotenv.load(fileName: 'important_stuff.env');
+    await Supabase.initialize(
+      url: dotenv.env['SUPABASE_URL'] ?? '',
+      anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
+    );
+  });
+
+  group('ITC-013: Test admin resource management integration with user interface.', () {
+    testWidgets('Push notification reminder is received and displayed.', (tester) async {
+      await app.testMain(); 
+      await tester.pumpAndSettle();
+
+    });
+  });
+
+  testWidgets('ITC-013: Admin adds/updates resource appears in student list', (tester) async {
+    final supabase = Supabase.instance.client;
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final createdTitle = 'ITC-013 Created $timestamp';
+    final updatedTitle = 'ITC-013 Updated $timestamp';
+    final mediaUrl = 'https://example.com/itc-013/$timestamp';
+
+    int? resourceId;
+
+    // Simulate admin adding resource via DB (ensures deterministic test)
+    try {
+      final insertRes = await supabase.from('mental_health_resources').insert({
+        'title': createdTitle,
+        'description': 'Created by ITC-013 test',
+        'resource_type': 'article',
+        'media_url': mediaUrl,
+        'tags': 'itc,test',
+        'publish_date': DateTime.now().toIso8601String(),
+      }).select('resource_id').maybeSingle();
+      if (insertRes != null && insertRes['resource_id'] != null) {
+        resourceId = insertRes['resource_id'] as int;
+      }
+    } catch (e) {
+      print('ITC-013: failed to insert resource: $e');
+    }
+
+    // Launch app and login as student to verify created resource is visible
+    await app.testMain();
+    await tester.pumpAndSettle();
+    final studentEmail = dotenv.env['STUDENT_EMAIL'] ?? 'itzmethresh@gmail.com';
+    final studentPassword = dotenv.env['STUDENT_PASSWORD'] ?? 'allan123';
+    await login(tester, studentEmail, studentPassword);
+
+    // Navigate to student resources page
+    await tester.pumpUntilFound(find.byKey(const Key('studentHomeScreen')), timeout: const Duration(seconds: 15));
+    Navigator.of(tester.element(find.byKey(const Key('studentHomeScreen')))).pushNamed('student-mental-health-resources');
+    await tester.pumpAndSettle();
+
+    // Verify created resource appears for student
+    final createdFinder = find.text(createdTitle);
+    await tester.pumpUntilFound(createdFinder, timeout: const Duration(seconds: 15));
+    expect(createdFinder, findsOneWidget);
+
+    // Now simulate admin updating the resource title (DB update)
+    if (resourceId != null) {
+      try {
+        await supabase.from('mental_health_resources').update({'title': updatedTitle}).eq('resource_id', resourceId);
+      } catch (e) {
+        print('ITC-013: failed to update resource: $e');
+      }
+    }
+
+    // Give the backend a moment to persist the update
+    await tester.pump(const Duration(seconds: 2));
+
+    // Force a refresh WITHOUT scrolling: re-push the student resources route from the student home.
+    // This avoids gestures and relies on navigator to re-create the resources screen.
+    final homeFinder = find.byKey(const Key('studentHomeScreen'));
+    if (homeFinder.evaluate().isNotEmpty) {
+      Navigator.of(tester.element(homeFinder)).pushNamed('student-mental-health-resources');
+      await tester.pumpAndSettle();
+    }
+
+    final updatedFinder = find.text(updatedTitle);
+    await tester.pumpUntilFound(updatedFinder, timeout: const Duration(seconds: 15));
+    expect(updatedFinder, findsOneWidget);
+
+    // Cleanup: delete test resource
+    if (resourceId != null) {
+      try {
+        await supabase.from('mental_health_resources').delete().eq('resource_id', resourceId);
+      } catch (_) {}
+    }
+
+    // short delay
+    await tester.pump(const Duration(milliseconds: 500));
+  }, timeout: const Timeout(Duration(seconds: 120)));
+}
+
+
+
+itc 15
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:integration_test/integration_test.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'test_main.dart' as app;
+
+extension PumpUntilFound on WidgetTester {
+  Future<void> pumpUntilFound(Finder finder, {Duration timeout = const Duration(seconds: 10)}) async {
+    final end = DateTime.now().add(timeout);
+    while (DateTime.now().isBefore(end)) {
+      await pump(const Duration(milliseconds: 100));
+      if (finder.evaluate().isNotEmpty) return;
+    }
+    throw Exception('Widget not found within $timeout: $finder');
+  }
+}
+
+Future<void> navigateBackToHome(WidgetTester tester, Key homeKey) async {
+  int attempts = 0;
+  while (tester.any(find.byKey(homeKey)) == false && attempts < 10) {
+    bool wentBack = false;
+    if (tester.any(find.byKey(const Key('backButton')))) {
+      await tester.tap(find.byKey(const Key('backButton')));
+      wentBack = true;
+    }
+    if (!wentBack) {
+      await tester.pageBack();
+    }
+    await tester.pumpAndSettle();
+    attempts++;
+  }
+  await tester.pumpUntilFound(find.byKey(homeKey));
+}
+
+Future<void> login(WidgetTester tester, String email, String password) async {
+  await tester.pumpAndSettle();
+  await tester.pumpUntilFound(find.byKey(const Key('login_email')));
+  await tester.enterText(find.byKey(const Key('login_email')), email);
+  await tester.enterText(find.byKey(const Key('login_password')), password);
+  await tester.tap(find.byKey(const Key('login_button')));
+  await tester.pumpAndSettle();
+}
+
+Future<void> logout(WidgetTester tester, Key homeKey) async {
+  await navigateBackToHome(tester, homeKey);
+  await tester.tap(find.byKey(const Key('drawer_button')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Logout'));
+  await tester.pumpAndSettle();
+  await tester.pumpUntilFound(find.byKey(const Key('login_email')));
+}
+
+void main() {
+  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    await dotenv.load(fileName: 'important_stuff.env');
+    await Supabase.initialize(
+      url: dotenv.env['SUPABASE_URL'] ?? '',
+      anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
+    );
+  });
+
+  testWidgets('ITC-015: Student selects counselor and schedules appointment; counselor sees pending request', (tester) async {
+    await app.testMain();
+    await tester.pumpAndSettle();
+
+    // Student login
+    await login(tester, 'itzmethresh@gmail.com', 'allan123');
+    await tester.pumpUntilFound(find.byKey(const Key('studentHomeScreen')));
+
+    // Navigate to counselors (robust: try several fallbacks instead of tapping an icon)
+    await tester.pumpAndSettle();
+    bool navigated = false;
+
+    // 1) Try tapping visible quick action / card text
+    final connectTextFinder = find.text('Connect with a Counselor');
+    if (tester.any(connectTextFinder)) {
+      await tester.tap(connectTextFinder);
+      await tester.pumpAndSettle();
+      navigated = tester.any(find.text('Counselors'));
+    }
+
+    // 2) Try tapping any card labeled "Counselors" or the feature card if present
+    if (!navigated) {
+      final counselorsTitleFinder = find.text('Counselors');
+      if (tester.any(counselorsTitleFinder)) {
+        // already on counselors screen
+        navigated = true;
+      } else {
+        // try tapping a feature card that might navigate
+        final featureCardFinder = find.text('Connect with a Counselor');
+        if (tester.any(featureCardFinder)) {
+          await tester.tap(featureCardFinder);
+          await tester.pumpAndSettle();
+          navigated = tester.any(find.text('Counselors'));
+        }
+      }
+    }
+
+    // 3) Fallback: try named routes (both variants)
+    if (!navigated) {
+      try {
+        Navigator.of(tester.element(find.byKey(const Key('studentHomeScreen')))).pushNamed('/student-counselors');
+        await tester.pumpAndSettle();
+        navigated = tester.any(find.text('Counselors'));
+      } catch (_) {}
+    }
+    if (!navigated) {
+      try {
+        Navigator.of(tester.element(find.byKey(const Key('studentHomeScreen')))).pushNamed('student-counselors');
+        await tester.pumpAndSettle();
+        navigated = tester.any(find.text('Counselors'));
+      } catch (_) {}
+    }
+
+    // 4) Last resort: open drawer and try to tap "Counselors" if available
+    if (!navigated) {
+      if (tester.any(find.byKey(const Key('drawer_button')))) {
+        await tester.tap(find.byKey(const Key('drawer_button')));
+        await tester.pumpAndSettle();
+        final drawerCounselors = find.text('Counselors');
+        if (tester.any(drawerCounselors)) {
+          await tester.tap(drawerCounselors);
+          await tester.pumpAndSettle();
+          navigated = true;
+        }
+      }
+    }
+
+    if (!navigated) {
+      throw Exception('Unable to navigate to Counselors screen in test (tried text tap, feature card, named routes and drawer).');
+    }
+
+    // Wait for counselors screen
+    await tester.pumpUntilFound(find.text('Counselors'), timeout: const Duration(seconds: 8));
+
+    // Tap first counselor card (use stable key)
+    final firstCounselorKey = find.byKey(const Key('counselorCard_0'));
+    if (tester.any(firstCounselorKey)) {
+      await tester.tap(firstCounselorKey);
+    } else {
+      // fallback to first InkWell if key not found
+      await tester.tap(find.byType(InkWell).first);
+    }
+    await tester.pumpAndSettle();
+
+    // Booking dialog should appear: pick date and time quickly
+    // Tap "Select a date" area (find text)
+    if (tester.any(find.text('Select a date'))) {
+      await tester.tap(find.text('Select a date'));
+      await tester.pumpAndSettle();
+      // Pick tomorrow
+      await tester.tap(find.bySemanticsLabel('OK')); // accept date picker
+      await tester.pumpAndSettle();
+    }
+
+    // Pick time (choose start time)
+    if (tester.any(find.text('Select time'))) {
+      await tester.tap(find.text('Select time'));
+      await tester.pumpAndSettle();
+      // Accept time picker
+      if (tester.any(find.bySemanticsLabel('OK'))) {
+        await tester.tap(find.bySemanticsLabel('OK'));
+        await tester.pumpAndSettle();
+      }
+    }
+
+    // Enter a short note
+    if (tester.any(find.byType(TextFormField))) {
+      await tester.enterText(find.byType(TextFormField).last, 'ITC-015 booking note');
+      await tester.pumpAndSettle();
+    }
+
+    // Tap Book Appointment
+    // target the dialog's Book button specifically
+    final bookDialogButton = find.byKey(const Key('bookAppointmentDialogButton'));
+    if (tester.any(bookDialogButton)) {
+      await tester.tap(bookDialogButton);
+      await tester.pumpAndSettle();
+    } else if (tester.any(find.byKey(const Key('submitAppointmentButton')))) {
+      // last-resort fallback
+      await tester.tap(find.byKey(const Key('submitAppointmentButton')));
+      await tester.pumpAndSettle();
+    }
+
+    // Expect success snackbar or message
+    await tester.pump(const Duration(seconds: 2));
+    expect(find.textContaining('Appointment booked', findRichText: false), findsWidgets);
+
+    // Logout student
+    await logout(tester, const Key('studentHomeScreen'));
+
+    // Counselor login
+    await login(tester, 'allanjayv01@gmail.com', 'allan123');
+    await tester.pumpUntilFound(find.byKey(const Key('counselorHomeScreen')));
+
+    // Navigate to All Appointments
+    await tester.tap(find.text('All Appointments').first, warnIfMissed: false);
+    await tester.pumpAndSettle();
+
+    // Alternatively press quick action card
+    if (tester.any(find.text('All Appointments')) == false) {
+      final allAppointmentsCard = find.text('All Appointments');
+      if (tester.any(allAppointmentsCard)) {
+        await tester.tap(allAppointmentsCard);
+        await tester.pumpAndSettle();
+      } else {
+        // try route
+        Navigator.of(tester.element(find.byKey(const Key('counselorHomeScreen')))).pushNamed('/all-appointments');
+        await tester.pumpAndSettle();
+      }
+    }
+
+    // Wait and verify at least one PENDING label exists
+    await tester.pump(const Duration(seconds: 2));
+    expect(find.text('PENDING'), findsWidgets);
+
+    // Logout counselor
+    await logout(tester, const Key('counselorHomeScreen'));
+  }, timeout: const Timeout(Duration(minutes: 3)));
+}

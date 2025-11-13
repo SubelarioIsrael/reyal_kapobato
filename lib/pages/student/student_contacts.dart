@@ -99,12 +99,105 @@ class _StudentContactsPageState extends State<StudentContactsPage> {
     }
   }
 
-  Future<void> _launchContact(String contactNumber) async {
-    final uri = Uri(scheme: 'tel', path: contactNumber);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    } else {
-      if (mounted) {
+  Future<void> _launchContact(String contactNumber, {String? contactName, bool isHotline = false}) async {
+    if (contactNumber.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF7C83FD).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                isHotline ? Icons.support_agent_rounded : Icons.call_rounded,
+                color: const Color(0xFF7C83FD),
+                size: 30,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                isHotline ? 'Call Hotline' : 'Call Contact',
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF3A3A50),
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              contactName ?? 'Unknown Contact',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF3A3A50),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              contactNumber,
+              style: GoogleFonts.poppins(
+                fontSize: 15,
+                color: Colors.grey[700],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              isHotline
+                  ? 'Do you want to call this mental health hotline now?'
+                  : 'Do you want to call this emergency contact?',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                color: const Color(0xFF5D5D72),
+                height: 1.4,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.poppins(
+                color: const Color(0xFF5D5D72),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF7C83FD),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Text(
+              'Call Now',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final uri = Uri(scheme: 'tel', path: contactNumber);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Could not call the contact')),
         );
@@ -641,7 +734,10 @@ class _StudentContactsPageState extends State<StudentContactsPage> {
                 color: const Color(0xFF81C784).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
                 child: InkWell(
-                  onTap: () => _launchContact(contact['contact_number']),
+                  onTap: () => _launchContact(
+                    contact['contact_number'],
+                    contactName: contact['contact_name'],
+                  ),
                   borderRadius: BorderRadius.circular(8),
                   child: Padding(
                     padding: const EdgeInsets.all(10),
@@ -821,7 +917,11 @@ class _StudentContactsPageState extends State<StudentContactsPage> {
               color: const Color(0xFF7C83FD).withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
               child: InkWell(
-                onTap: () => _launchContact(contact['phone']),
+                onTap: () => _launchContact(
+                  contact['phone'],
+                  contactName: contact['name'],
+                  isHotline: true,
+                ),
                 borderRadius: BorderRadius.circular(8),
                 child: Padding(
                   padding: const EdgeInsets.all(10),
