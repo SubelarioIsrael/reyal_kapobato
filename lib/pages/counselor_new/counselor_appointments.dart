@@ -4,7 +4,7 @@ import '../../controllers/counselor_appointments_controller.dart';
 import '../../models/appointment.dart';
 import '../../widgets/student_avatar.dart';
 import '../../components/video_call_dialog.dart';
-import '../chat/appointment_chat.dart';
+import '../chat/direct_chat.dart';
 
 class CounselorAppointments extends StatefulWidget {
   const CounselorAppointments({super.key});
@@ -484,12 +484,16 @@ class _CounselorAppointmentsState extends State<CounselorAppointments> {
                             ],
                             onSelected: (value) async {
                               if (value == 'chat') {
+                                // Get student name from cached info
+                                final studentName = _studentInfo[appointment.userId]?['name'] ?? 'Student';
                                 await Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => AppointmentChat(
-                                      appointment: appointment,
+                                    builder: (context) => DirectChat(
+                                      otherUserId: appointment.userId,
+                                      otherUserName: studentName,
                                       isCounselor: true,
+                                      studentUserId: appointment.userId,
                                     ),
                                   ),
                                 );

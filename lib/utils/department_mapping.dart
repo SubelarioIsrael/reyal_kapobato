@@ -166,11 +166,19 @@ class DepartmentMapping {
     String? course,
     String? strand,
   }) {
-    if (educationLevel == 'college' && course != null) {
+    if (educationLevel == null) return null;
+    
+    // Make comparison case-insensitive
+    final levelLower = educationLevel.toLowerCase();
+    
+    if (levelLower == 'college' && course != null) {
       return getCourseDepartment(course);
-    } else if (educationLevel == 'senior_high' && strand != null) {
+    } else if (levelLower == 'senior high school' || levelLower == 'senior_high') {
       return getStrandDepartment(strand);
-    } else if (educationLevel == 'basic_education' || educationLevel == 'junior_high') {
+    } else if (levelLower == 'basic education' || 
+               levelLower == 'basic_education' || 
+               levelLower == 'junior high school' ||
+               levelLower == 'junior_high') {
       return 'Basic Education Department';
     }
     return null;

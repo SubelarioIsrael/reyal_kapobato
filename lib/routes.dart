@@ -11,12 +11,16 @@ import 'pages/counselor_new/counselor_first_setup.dart';
 import 'pages/counselor_new/counselor_profile.dart';
 
 import 'pages/student_new/student_home.dart';
+import 'pages/student_new/student_questionnaire.dart';
+import 'pages/student_new/student_daily_checkin.dart';
+import 'pages/student_new/student_journal_entries.dart';
+import 'pages/student_new/student_checkin_history.dart';
+import 'pages/student_new/student_breathing_exercises.dart';
+import 'pages/student_new/student_support_contacts.dart';
+import 'pages/student_new/student_wellness_resources.dart';
+import 'pages/student_new/student_chats.dart';
 
 //student
-import 'pages/student/student_home.dart';
-import 'pages/student/student_breathing_exercises.dart';
-import 'pages/student/student_mental_health_resources.dart';
-import 'pages/student/student_mtq.dart';
 import 'pages/student/student_mood_journal.dart';
 import 'pages/student/student_chatbot.dart';
 import 'pages/student/student_profile.dart';
@@ -24,13 +28,7 @@ import 'pages/student/student_counselors.dart';
 import 'pages/student/student_appointments.dart';
 import 'pages/student/questionnaire_summary.dart';
 import 'pages/student/questionnaire_history.dart';
-import 'pages/student/student_daily_checkin.dart';
-import 'pages/student/student_journal_entries.dart';
 import 'pages/student/counselor_profile_view.dart';
-import 'pages/student/student_contacts.dart';
-import 'pages/student/student_chat_list.dart';
-import 'pages/chat/appointment_chat.dart';
-import 'models/appointment.dart';
 
 //admin
 import 'pages/admin_new/admin_home.dart';
@@ -58,7 +56,7 @@ final Map<String, WidgetBuilder> appRoutes = {
   '/reset-password': (context) => const ResetPasswordPage(),
 
   //home page routes
-  'student-home': (context) => const AuthGuard(child: StudentHome()),
+  'student-home': (context) => const AuthGuard(child: StudentHomeNew()),
   'student-home-new': (context) => const AuthGuard(child: StudentHomeNew()),
   'admin-home': (context) => const AuthGuard(child: AdminHome()),
   'counselor-home': (context) => const AuthGuard(child: CounselorHome()),
@@ -67,7 +65,7 @@ final Map<String, WidgetBuilder> appRoutes = {
   '/student-profile': (context) => const AuthGuard(child: StudentProfile()),
 
   //student page routes
-  'student-mtq': (context) => const AuthGuard(child: StudentMtq()),
+  'student-mtq': (context) => const AuthGuard(child: StudentQuestionnaire()),
   'questionnaire-summary': (context) {
     final args = ModalRoute.of(context)?.settings.arguments;
     if (args == null || args is! Map<String, dynamic>) {
@@ -89,61 +87,25 @@ final Map<String, WidgetBuilder> appRoutes = {
   'student-breathing-exercises': (context) =>
       const AuthGuard(child: StudentBreathingExercises()),
   'student-mood-journal': (context) =>
-      const AuthGuard(child: StudentJournalEntries()),
+      const AuthGuard(child: StudentJournalEntriesNew()),
   'student-mood-journal-write': (context) =>
       const AuthGuard(child: StudentMoodJournal()),
   'student-mental-health-resources': (context) =>
-      const AuthGuard(child: StudentMentalHealthResources()),
+      const AuthGuard(child: StudentWellnessResources()),
   'student-chatbot': (context) => const AuthGuard(child: StudentChatbot()),
   'student-counselors': (context) =>
       const AuthGuard(child: StudentCounselors()),
   'student-contacts': (context) =>
-      const AuthGuard(child: StudentContactsPage()),
+      const AuthGuard(child: StudentSupportContacts()),
   'student-appointments': (context) =>
       const AuthGuard(child: StudentAppointments()),
   '/student-daily-checkin': (context) =>
-      const AuthGuard(child: StudentDailyCheckInPage()),
+      const AuthGuard(child: StudentDailyCheckinNew()),
+  'student-checkin-history': (context) =>
+      const AuthGuard(child: StudentCheckinHistoryNew()),
   'student-journal-entries': (context) =>
-      const AuthGuard(child: StudentJournalEntries()),
-  'student-chat-list': (context) => const AuthGuard(child: StudentChatList()),
-  '/appointment-chat': (context) {
-    final args = ModalRoute.of(context)?.settings.arguments;
-    if (args == null || args is! Map<String, dynamic>) {
-      return const Scaffold(
-        body: Center(child: Text('Error: Missing chat arguments')),
-      );
-    }
-
-    final appointmentId = args['appointmentId'] as int?;
-    final counselorName = args['counselorName'] as String?;
-
-    if (appointmentId == null ||
-        counselorName == null ||
-        counselorName.isEmpty) {
-      return const Scaffold(
-        body: Center(child: Text('Error: Invalid or missing chat arguments')),
-      );
-    }
-
-    // Create a dummy appointment object for the chat
-    final appointment = Appointment(
-      id: appointmentId,
-      counselorId: 0, // This will be filled from the database if needed
-      userId: '', // Will be filled from current user
-      appointmentDate: DateTime.now(),
-      startTime: DateTime.now(),
-      endTime: DateTime.now(),
-      status: 'accepted',
-      counselorName: counselorName,
-    );
-
-    return AuthGuard(
-      child: AppointmentChat(
-        appointment: appointment,
-        isCounselor: false,
-      ),
-    );
-  },
+      const AuthGuard(child: StudentJournalEntriesNew()),
+  'student-chat-list': (context) => const AuthGuard(child: StudentChats()),
   '/counselor-profile-view': (context) {
     final args = ModalRoute.of(context)?.settings.arguments;
     if (args == null || args is! Map<String, dynamic>) {

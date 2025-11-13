@@ -355,15 +355,27 @@ class CounselorHomeController {
       Map<int, int> unreadCounts = {};
 
       for (var appointmentId in appointmentIds) {
-        // Count unread messages (messages from student to counselor that counselor hasn't read)
-        final response = await _supabase
-            .from('messages')
-            .select('id')
+        // Get the appointment to find the student user_id
+        final appointment = await _supabase
+            .from('counseling_appointments')
+            .select('user_id')
             .eq('appointment_id', appointmentId)
-            .eq('receiver_id', user.id) // Messages received by counselor
-            .eq('is_read', false); // Unread messages
+            .maybeSingle();
+        
+        if (appointment != null && appointment['user_id'] != null) {
+          final studentUserId = appointment['user_id'] as String;
+          
+          // Count unread direct messages from this student (appointment_id IS NULL)
+          final response = await _supabase
+              .from('messages')
+              .select('id')
+              .eq('sender_id', studentUserId) // From student
+              .eq('receiver_id', user.id) // To counselor
+              .isFilter('appointment_id', null) // Direct messages only
+              .eq('is_read', false); // Unread messages
 
-        unreadCounts[appointmentId] = (response as List).length;
+          unreadCounts[appointmentId] = (response as List).length;
+        }
       }
 
       return UnreadMessagesResult(

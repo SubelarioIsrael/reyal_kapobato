@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../models/appointment.dart';
-import '../chat/appointment_chat.dart';
 import '../../widgets/student_avatar.dart';
 import '../../controllers/counselor_student_chats_controller.dart';
+import '../chat/direct_chat.dart';
 
 class CounselorStudentChats extends StatefulWidget {
   const CounselorStudentChats({super.key});
@@ -14,21 +13,33 @@ class CounselorStudentChats extends StatefulWidget {
 
 class _CounselorStudentChatsState extends State<CounselorStudentChats> {
   final CounselorStudentChatsController _controller = CounselorStudentChatsController();
+  final TextEditingController _searchController = TextEditingController();
+  
   List<Map<String, dynamic>> _appointmentsWithMessages = [];
+  List<Map<String, dynamic>> _filteredAppointments = [];
   bool _isLoading = true;
   String? _errorMessage;
+  String? _counselorDepartment;
 
   @override
   void initState() {
     super.initState();
     _loadChats();
     _controller.subscribeToMessages(_loadChats);
+    _searchController.addListener(_onSearchChanged);
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _searchController.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged() {
+    setState(() {
+      _filteredAppointments = _controller.searchStudents(_appointmentsWithMessages, _searchController.text);
+    });
   }
 
   Future<void> _loadChats() async {
@@ -38,15 +49,19 @@ class _CounselorStudentChatsState extends State<CounselorStudentChats> {
         _errorMessage = null;
       });
 
-      final counselorId = await _controller.getCounselorId();
-      if (counselorId == null) {
-        throw Exception('Counselor ID not found');
+      final counselorInfo = await _controller.getCounselorInfo();
+      if (counselorInfo == null) {
+        throw Exception('Counselor information not found');
       }
 
-      final chats = await _controller.loadAppointmentsWithMessages(counselorId);
+      final counselorId = counselorInfo['counselor_id'] as int;
+      _counselorDepartment = counselorInfo['department'] as String?;
+
+      final chats = await _controller.loadAppointmentsWithMessages(counselorId, _counselorDepartment);
 
       setState(() {
         _appointmentsWithMessages = chats;
+        _filteredAppointments = chats;
         _isLoading = false;
       });
     } catch (e) {
@@ -59,18 +74,18 @@ class _CounselorStudentChatsState extends State<CounselorStudentChats> {
 
   void _openChat(Map<String, dynamic> appointmentData) {
     final appointmentInfo = appointmentData['appointment'];
+    final studentUserId = appointmentInfo['user_id'];
+    final studentName = appointmentData['user_name'];
 
-    final appointment = Appointment.fromJson({
-      ...appointmentInfo,
-      'user_id': appointmentInfo['user_id'],
-    });
-
+    // Navigate to direct chat (no appointment needed)
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => AppointmentChat(
-          appointment: appointment,
+        builder: (context) => DirectChat(
+          otherUserId: studentUserId,
+          otherUserName: studentName,
           isCounselor: true,
+          studentUserId: studentUserId,
         ),
       ),
     ).then((_) => _loadChats());
@@ -101,19 +116,52 @@ class _CounselorStudentChatsState extends State<CounselorStudentChats> {
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
               ? _buildErrorState()
-              : _appointmentsWithMessages.isEmpty
-                  ? _buildEmptyState()
-                  : RefreshIndicator(
-                      onRefresh: _loadChats,
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(20),
-                        itemCount: _appointmentsWithMessages.length,
-                        itemBuilder: (context, index) {
-                          final appointmentData = _appointmentsWithMessages[index];
-                          return _buildChatCard(appointmentData);
-                        },
+              : Column(
+                  children: [
+                    // Search Bar
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+                      child: TextField(
+                        controller: _searchController,
+                        decoration: InputDecoration(
+                          hintText: 'Search students...',
+                          hintStyle: GoogleFonts.poppins(
+                            color: const Color(0xFF718096),
+                            fontSize: 14,
+                          ),
+                          prefixIcon: const Icon(
+                            Icons.search,
+                            color: Color(0xFF7C83FD),
+                          ),
+                          filled: true,
+                          fillColor: Colors.white,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        ),
                       ),
                     ),
+
+                    // Chat List
+                    Expanded(
+                      child: _filteredAppointments.isEmpty
+                          ? _buildEmptyState()
+                          : RefreshIndicator(
+                              onRefresh: _loadChats,
+                              child: ListView.builder(
+                                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                                itemCount: _filteredAppointments.length,
+                                itemBuilder: (context, index) {
+                                  final appointmentData = _filteredAppointments[index];
+                                  return _buildChatCard(appointmentData);
+                                },
+                              ),
+                            ),
+                    ),
+                  ],
+                ),
     );
   }
 
@@ -166,6 +214,8 @@ class _CounselorStudentChatsState extends State<CounselorStudentChats> {
   }
 
   Widget _buildEmptyState() {
+    final isSearching = _searchController.text.isNotEmpty;
+    
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Container(
@@ -183,6 +233,7 @@ class _CounselorStudentChatsState extends State<CounselorStudentChats> {
           ],
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
               padding: const EdgeInsets.all(20),
@@ -190,15 +241,15 @@ class _CounselorStudentChatsState extends State<CounselorStudentChats> {
                 color: const Color(0xFF7C83FD).withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.chat_bubble_outline,
+              child: Icon(
+                isSearching ? Icons.search_off : Icons.chat_bubble_outline,
                 size: 48,
-                color: Color(0xFF7C83FD),
+                color: const Color(0xFF7C83FD),
               ),
             ),
             const SizedBox(height: 24),
             Text(
-              'No Conversations Yet',
+              isSearching ? 'No Results Found' : 'No Conversations Yet',
               style: GoogleFonts.inter(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
@@ -207,7 +258,9 @@ class _CounselorStudentChatsState extends State<CounselorStudentChats> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Student conversations will appear here when they send messages',
+              isSearching
+                  ? 'Try adjusting your search terms'
+                  : 'Student conversations from your assigned department will appear here when they send messages',
               style: GoogleFonts.inter(
                 fontSize: 14,
                 color: const Color(0xFF718096),
