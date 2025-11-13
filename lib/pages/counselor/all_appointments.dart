@@ -522,6 +522,7 @@ class _AllAppointmentsState extends State<AllAppointments> {
                     IconButton(
                       icon: const Icon(Icons.close, color: Color(0xFF5D5D72)),
                       onPressed: () => Navigator.pop(context),
+                      tooltip: 'Close Call Code Dialog',
                     ),
                   ],
                 ),

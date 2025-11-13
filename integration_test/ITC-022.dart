@@ -30,7 +30,7 @@ void main() {
     );
   });
 
-  group('ITC-011: Test the integration between breathing exercises.', () {
+  group('ITC-022:Test integration between mood tracking and dashboard analytics.', () {
     Future<void> login(WidgetTester tester, String email, String password) async {
       await tester.pumpAndSettle();
       await tester.pumpUntilFound(find.byKey(const Key('login_email')));
@@ -38,14 +38,6 @@ void main() {
       await tester.enterText(find.byKey(const Key('login_password')), password);
       await tester.tap(find.byKey(const Key('login_button')));
       await tester.pumpAndSettle();
-    }
-    Future<void> logout(WidgetTester tester) async {
-      await tester.tap(find.byKey(const Key('drawer_button')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Logout'));
-      await tester.pumpAndSettle();
-      // Wait for login screen to reappear
-      await tester.pumpUntilFound(find.byKey(const Key('login_email')));
     }
     testWidgets('Dashboard displays daily mood entries throughout the week.', (tester) async {
       await app.testMain();

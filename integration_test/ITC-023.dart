@@ -146,7 +146,7 @@ void main() {
     );
   });
 
-  testWidgets('ITC-017: Test integration between appointment creation and video call module.', (tester) async {
+  testWidgets('ITC-023: Generate call ID (counselor) and student types it into Join dialog', (tester) async {
     await app.testMain();
     await tester.pumpAndSettle();
 
@@ -196,6 +196,58 @@ void main() {
     final createdRow = await waitForVideoCallRow(supabase, generatedCode);
     expect(createdRow, isNotNull, reason: 'video_calls row not created for $generatedCode');
 
+    // Dismiss the "Call Code Generated" dialog if it's still visible so logout/navigation can proceed.
+    // Try common dismissal targets in order: tooltip 'Close Call Code Dialog', "Close" button, dialog close icon, then a generic tap on the dialog.
+    await tester.pumpAndSettle();
+    final closeTooltipFinder = find.byTooltip('Close Call Code Dialog');
+    if (tester.any(closeTooltipFinder)) {
+      await tester.tap(closeTooltipFinder.first);
+      await tester.pumpAndSettle();
+    } else if (tester.any(find.text('Close'))) {
+      await tester.tap(find.text('Close').first);
+      await tester.pumpAndSettle();
+    } else if (tester.any(find.descendant(of: find.byType(AlertDialog), matching: find.byIcon(Icons.close)))) {
+      await tester.tap(find.descendant(of: find.byType(AlertDialog), matching: find.byIcon(Icons.close)).first);
+      await tester.pumpAndSettle();
+    } else if (tester.any(find.byType(AlertDialog))) {
+      // As a last resort try to tap the dialog to dismiss
+      await tester.tap(find.byType(AlertDialog).first);
+      await tester.pumpAndSettle();
+    }
+
+    // Logout counselor
+    await logout(tester, const Key('counselorHomeScreen'));
+    await tester.pumpAndSettle();
+
+    // 2) Student logs in, navigates to Appointments, opens Join dialog and types the code
+    await login(tester, 'itzmethresh@gmail.com', 'allan123');
+    await tester.pumpUntilFound(find.byKey(const Key('studentHomeScreen')));
+
+    // Navigate to Appointments screen
+    Navigator.of(tester.element(find.byKey(const Key('studentHomeScreen')))).pushNamed('student-appointments');
+    await tester.pumpAndSettle();
+
+    // Open Join Video Call dialog via FAB (tooltip 'Join a video call')
+    Finder joinFab = find.byTooltip('Join a video call');
+    if (!tester.any(joinFab)) {
+      // fallback: tap the FloatingActionButton if tooltip isn't set in this build
+      joinFab = find.byType(FloatingActionButton);
+    }
+    await tester.pumpUntilFound(joinFab);
+    await tester.tap(joinFab);
+    await tester.pumpAndSettle();
+
+    // Ensure dialog present: look for 'Call Code' label (or input)
+    await tester.pumpUntilFound(find.text('Call Code'));
+
+    // Enter the captured code into the first TextField and leave the test there
+    final textField = find.byType(TextField).first;
+    await tester.enterText(textField, generatedCode);
+    await tester.pumpAndSettle();
+
+    // Assert the typed code is present in the UI (visible as text)
+    expect(find.text(generatedCode), findsWidgets);
+    // add delay
     await tester.pump(const Duration(seconds: 2));
   });
 }

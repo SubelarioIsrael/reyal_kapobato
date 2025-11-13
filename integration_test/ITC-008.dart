@@ -30,7 +30,7 @@ void main() {
     );
   });
 
-  group('ITC-011: Test the integration between breathing exercises.', () {
+  group('ITC-008: Test password change integration with authentication system.', () {
     Future<void> login(WidgetTester tester, String email, String password) async {
       await tester.pumpAndSettle();
       await tester.pumpUntilFound(find.byKey(const Key('login_email')));

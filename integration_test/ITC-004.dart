@@ -30,7 +30,7 @@ void main() {
     );
   });
 
-  group('ITC-011: Test the integration between breathing exercises.', () {
+  group('ITC-004: Test the integration between counselor creation and email verification.', () {
     Future<void> login(WidgetTester tester, String email, String password) async {
       await tester.pumpAndSettle();
       await tester.pumpUntilFound(find.byKey(const Key('login_email')));
@@ -39,15 +39,7 @@ void main() {
       await tester.tap(find.byKey(const Key('login_button')));
       await tester.pumpAndSettle();
     }
-    Future<void> logout(WidgetTester tester) async {
-      await tester.tap(find.byKey(const Key('drawer_button')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Logout'));
-      await tester.pumpAndSettle();
-      // Wait for login screen to reappear
-      await tester.pumpUntilFound(find.byKey(const Key('login_email')));
-    }
-    testWidgets('Dashboard displays daily mood entries throughout the week.', (tester) async {
+    testWidgets('Verify that admin-side creation correctly hits the endpoint and changes counselor status to “pending verification”', (tester) async {
       await app.testMain();
       await tester.pumpAndSettle();
 
