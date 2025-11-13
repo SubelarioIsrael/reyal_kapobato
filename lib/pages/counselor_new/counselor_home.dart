@@ -59,12 +59,7 @@ class _CounselorHomeState extends State<CounselorHome> {
       _loadUnreadMessages();
     } else {
       // Handle special error codes
-      if (result.errorMessage == 'PROFILE_NOT_FOUND') {
-        if (mounted) {
-          Navigator.pushReplacementNamed(context, '/counselor-profile-first-setup');
-        }
-        return;
-      } else if (result.errorMessage == 'PROFILE_INCOMPLETE') {
+      if (result.errorMessage == 'PROFILE_NOT_FOUND' || result.errorMessage == 'PROFILE_INCOMPLETE') {
         setState(() => _isLoading = false);
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _showCounselorWelcomeDialog();
@@ -542,8 +537,8 @@ class _CounselorHomeState extends State<CounselorHome> {
                 child: ElevatedButton(
                   onPressed: () {
                     Navigator.pop(ctx);
-                    Navigator.pushReplacementNamed(
-                        context, '/counselor-profile-first-setup');
+                    Navigator.pushNamed(
+                        context, '/counselor-first-setup');
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF7C83FD),

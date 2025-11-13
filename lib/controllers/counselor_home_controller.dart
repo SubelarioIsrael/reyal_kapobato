@@ -120,12 +120,10 @@ class CounselorHomeController {
       final firstName = counselorProfile['first_name'] as String?;
       final lastName = counselorProfile['last_name'] as String?;
       final departmentAssigned = counselorProfile['department_assigned'] as String?;
-      final bio = counselorProfile['bio'] as String?;
 
       final isProfileIncomplete = (firstName?.trim().isEmpty ?? true) ||
           (lastName?.trim().isEmpty ?? true) ||
-          (departmentAssigned?.trim().isEmpty ?? true) ||
-          (bio?.trim().isEmpty ?? true);
+          (departmentAssigned?.trim().isEmpty ?? true);
 
       if (isProfileIncomplete) {
         return LoadAppointmentsResult(
