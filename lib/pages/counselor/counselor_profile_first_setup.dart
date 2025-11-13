@@ -254,7 +254,7 @@ class _CounselorProfileFirstSetupState extends State<CounselorProfileFirstSetup>
                               ),
                               const SizedBox(height: 12),
                               Text(
-                                'Welcome to Breathe Better!',
+                                'Welcome to Breathe asdasd Better!',
                                 style: GoogleFonts.poppins(
                                   fontSize: 24,
                                   fontWeight: FontWeight.bold,
@@ -264,7 +264,7 @@ class _CounselorProfileFirstSetupState extends State<CounselorProfileFirstSetup>
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'Please complete your profile setup to start helping students. This is required before you can access the counselor dashboard.',
+                                'Please complete your profile setup to  asdad start helping students. This is required before you can access the counselor dashboard.',
                                 style: GoogleFonts.poppins(
                                   fontSize: 16,
                                   color: Colors.grey[600],

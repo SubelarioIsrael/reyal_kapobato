@@ -196,7 +196,7 @@ class _CounselorDrawerState extends State<CounselorDrawer> {
             icon: Icons.person_rounded,
             title: 'Profile',
             onTap: () {
-              Navigator.pushNamed(context, '/counselor-profile-setup');
+              Navigator.pushNamed(context, '/counselor-profile');
             },
           ),
           _buildDrawerItem(
