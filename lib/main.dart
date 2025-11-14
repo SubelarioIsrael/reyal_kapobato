@@ -12,7 +12,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:app_links/app_links.dart';
 import 'firebase_options.dart';
 import 'package:breathe_better/services/push_noti_service.dart';
-import 'package:breathe_better/services/notification_api.dart'; // added for local testing examples
 import 'routes.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -21,47 +20,74 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 Future<void> initApp() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  try {
+    WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    // Initialize Firebase with timeout
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    ).timeout(
+      const Duration(seconds: 10),
+      onTimeout: () {
+        print('Firebase initialization timed out, continuing...');
+        return Firebase.app(); // Return existing instance if already initialized
+      },
+    );
 
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  await FirebaseMessaging.instance.requestPermission(
-    alert: true,
-    badge: true,
-    sound: true,
-    provisional: false,
-  );
+    await FirebaseMessaging.instance.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+      provisional: false,
+    );
 
-  OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
-  OneSignal.initialize("c0c552e3-f8d6-49fc-9d0c-a7b23267b9f0");
-  await OneSignal.Notifications.requestPermission(true);
-
-  await dotenv.load(fileName: 'important_stuff.env');
-
-  final url = dotenv.env['SUPABASE_URL'];
-  final anonKey = dotenv.env['SUPABASE_ANON_KEY'];
-  if (url == null || anonKey == null || url.isEmpty || anonKey.isEmpty) {
-    throw Exception('Missing SUPABASE_URL or SUPABASE_ANON_KEY');
-  }
-
-  await Supabase.initialize(url: url, anonKey: anonKey);
-
-  final pushNotiService = PushNotiService();
-  await pushNotiService.initNotification();
-
-  await _registerDeviceWithSupabase(pushNotiService);
-
-  Supabase.instance.client.auth.onAuthStateChange.listen((data) async {
-    final event = data.event;
-    if (event == AuthChangeEvent.signedIn ||
-        event == AuthChangeEvent.tokenRefreshed) {
-      await _registerDeviceWithSupabase(pushNotiService);
-    } else if (event == AuthChangeEvent.signedOut) {
-      pushNotiService.setCurrentUserId('');
+    // OneSignal initialization with error handling
+    try {
+      OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
+      OneSignal.initialize("c0c552e3-f8d6-49fc-9d0c-a7b23267b9f0");
+      await OneSignal.Notifications.requestPermission(true);
+    } catch (e) {
+      print('OneSignal initialization error: $e');
+      // Continue even if OneSignal fails
     }
-  });
+
+    await dotenv.load(fileName: 'important_stuff.env');
+
+    final url = dotenv.env['SUPABASE_URL'];
+    final anonKey = dotenv.env['SUPABASE_ANON_KEY'];
+    if (url == null || anonKey == null || url.isEmpty || anonKey.isEmpty) {
+      throw Exception('Missing SUPABASE_URL or SUPABASE_ANON_KEY');
+    }
+
+    // Initialize Supabase with error handling for hot restart
+    try {
+      await Supabase.initialize(url: url, anonKey: anonKey);
+    } catch (e) {
+      // Supabase might already be initialized on hot restart
+      print('Supabase initialization error (may already be initialized): $e');
+    }
+
+    final pushNotiService = PushNotiService();
+    await pushNotiService.initNotification();
+
+    await _registerDeviceWithSupabase(pushNotiService);
+
+    Supabase.instance.client.auth.onAuthStateChange.listen((data) async {
+      final event = data.event;
+      if (event == AuthChangeEvent.signedIn ||
+          event == AuthChangeEvent.tokenRefreshed) {
+        await _registerDeviceWithSupabase(pushNotiService);
+      } else if (event == AuthChangeEvent.signedOut) {
+        pushNotiService.setCurrentUserId('');
+      }
+    });
+  } catch (e, stackTrace) {
+    print('Error during app initialization: $e');
+    print('Stack trace: $stackTrace');
+    // Don't rethrow - allow app to continue even with initialization errors
+  }
 }
 
 Future<void> _registerDeviceWithSupabase(PushNotiService pushNotiService) async {

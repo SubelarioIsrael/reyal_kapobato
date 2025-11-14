@@ -13,7 +13,6 @@ class StudentDailyCheckinNew extends StatefulWidget {
 
 class _StudentDailyCheckinNewState extends State<StudentDailyCheckinNew> {
   final controller = StudentDailyCheckinController();
-  int _selectedIndex = 2;
 
   @override
   void initState() {
@@ -25,22 +24,6 @@ class _StudentDailyCheckinNewState extends State<StudentDailyCheckinNew> {
   void dispose() {
     controller.dispose();
     super.dispose();
-  }
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-    switch (index) {
-      case 0:
-        Navigator.pushReplacementNamed(context, 'student-breathing-exercises');
-        break;
-      case 1:
-        Navigator.pushReplacementNamed(context, 'student-home');
-        break;
-      case 2:
-        break;
-    }
   }
 
   Future<void> _handleSubmit() async {

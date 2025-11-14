@@ -89,6 +89,45 @@ class StudentAppointmentsController {
   /// Cancel an appointment
   Future<CancelAppointmentResult> cancelAppointment(int appointmentId, String reason) async {
     try {
+      // Get appointment and counselor info before updating
+      final appointmentResponse = await _supabase
+          .from('counseling_appointments')
+          .select('''
+            counselor_id,
+            appointment_date,
+            start_time,
+            counselors!inner(
+              user_id,
+              first_name,
+              last_name
+            )
+          ''')
+          .eq('appointment_id', appointmentId)
+          .single();
+
+      // Get student name
+      final currentUserId = _supabase.auth.currentUser?.id;
+      String studentName = 'A student';
+      if (currentUserId != null) {
+        try {
+          final studentResponse = await _supabase
+              .from('students')
+              .select('first_name, last_name')
+              .eq('user_id', currentUserId)
+              .maybeSingle();
+          
+          if (studentResponse != null) {
+            final firstName = studentResponse['first_name'] as String? ?? '';
+            final lastName = studentResponse['last_name'] as String? ?? '';
+            studentName = '$firstName $lastName'.trim();
+            if (studentName.isEmpty) studentName = 'A student';
+          }
+        } catch (e) {
+          print('Error fetching student name: $e');
+        }
+      }
+
+      // Update appointment status
       await _supabase
           .from('counseling_appointments')
           .update({
@@ -96,6 +135,21 @@ class StudentAppointmentsController {
             'status_message': reason,
           })
           .eq('appointment_id', appointmentId);
+
+      // Create notification for counselor
+      final counselorUserId = appointmentResponse['counselors']['user_id'] as String?;
+      if (counselorUserId != null) {
+        final appointmentDate = appointmentResponse['appointment_date'] as String;
+        final startTime = appointmentResponse['start_time'] as String;
+        
+        await _supabase.from('user_notifications').insert({
+          'user_id': counselorUserId,
+          'notification_type': 'appointment_cancelled',
+          'content': 'Your appointment with $studentName on $appointmentDate at $startTime has been cancelled.',
+          'action_url': '/counselor_appointments',
+          'is_read': false,
+        });
+      }
 
       return CancelAppointmentResult(success: true);
     } catch (e) {

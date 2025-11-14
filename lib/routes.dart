@@ -166,6 +166,8 @@ final Map<String, WidgetBuilder> appRoutes = {
 
   '/all-appointments': (context) =>
       const AuthGuard(child: AllAppointments()),
+  '/counselor_appointments': (context) =>
+      const AuthGuard(child: AllAppointments()),
   '/student-history-list': (context) =>
       const AuthGuard(child: CounselorStudentList()),
   '/counselor-chat-list': (context) =>

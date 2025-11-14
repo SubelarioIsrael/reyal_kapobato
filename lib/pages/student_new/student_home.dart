@@ -17,7 +17,6 @@ class _StudentHomeNewState extends State<StudentHomeNew> {
   final controller = StudentHomeController();
   final ScrollController _scrollController = ScrollController();
   final _refreshKey = GlobalKey<RefreshIndicatorState>();
-  int _selectedIndex = 1;
 
   // List of grid features for the home page
   final List<_FeatureCardData> _emotionalWellbeing = [
@@ -438,22 +437,6 @@ class _StudentHomeNewState extends State<StudentHomeNew> {
         );
       },
     );
-  }
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-    switch (index) {
-      case 0: // Wellness Resources
-        Navigator.pushNamed(context, 'student-mental-health-resources');
-        break;
-      case 1: // Home (stay on this page)
-        break;
-      case 2: // Connect with a Counselor
-        Navigator.pushNamed(context, 'student-counselors');
-        break;
-    }
   }
 
   @override

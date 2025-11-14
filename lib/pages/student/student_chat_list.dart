@@ -16,7 +16,6 @@ class _StudentChatListState extends State<StudentChatList> {
   final SupabaseClient _supabase = Supabase.instance.client;
   List<Map<String, dynamic>> _counselorChats = [];
   bool _isLoading = true;
-  String? _errorMessage;
 
   @override
   void initState() {
@@ -28,13 +27,11 @@ class _StudentChatListState extends State<StudentChatList> {
     try {
       setState(() {
         _isLoading = true;
-        _errorMessage = null;
       });
 
       final user = _supabase.auth.currentUser;
       if (user == null) {
         setState(() {
-          _errorMessage = 'User not authenticated';
           _isLoading = false;
         });
         return;
@@ -135,7 +132,6 @@ class _StudentChatListState extends State<StudentChatList> {
       });
     } catch (e) {
       setState(() {
-        _errorMessage = 'Error fetching chats: $e';
         _isLoading = false;
       });
     }
