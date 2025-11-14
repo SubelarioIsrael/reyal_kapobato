@@ -86,7 +86,9 @@ class UserController {
   /// Validates email format
   bool validateEmail(String email) {
     if (email.isEmpty) return false;
-    final emailRegex = RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$');
+    // More permissive RFC-compliant email regex
+    // Allows: letters, numbers, dots, hyphens, underscores, percent, plus signs
+    final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
     return emailRegex.hasMatch(email);
   }
 
@@ -362,13 +364,8 @@ class UserController {
     // Validate based on selected education level
     switch (educationLevel) {
       case 'basic_education':
-        if (level < 1 || level > 6) {
-          return 'Basic Education grade level must be between 1 and 6';
-        }
-        break;
-      case 'junior_high':
-        if (level < 7 || level > 10) {
-          return 'Junior High grade level must be between 7 and 10';
+        if (level < 1 || level > 10) {
+          return 'Basic Education grade level must be between 1 and 10';
         }
         break;
       case 'senior_high':
@@ -444,6 +441,32 @@ class UserController {
       final trimmedStudentCode = studentCode.trim();
       final trimmedFirstName = firstName.trim();
       final trimmedLastName = lastName.trim();
+
+      // Additional email validation before Supabase call
+      if (!validateEmail(trimmedEmail)) {
+        return SignupResult(
+          success: false,
+          errorTitle: 'Invalid Email',
+          errorMessage: 'Please enter a valid email address.',
+        );
+      }
+
+      // Check for common email issues
+      if (trimmedEmail.contains(' ')) {
+        return SignupResult(
+          success: false,
+          errorTitle: 'Invalid Email',
+          errorMessage: 'Email address cannot contain spaces.',
+        );
+      }
+
+      if (trimmedEmail.length < 3 || !trimmedEmail.contains('@') || !trimmedEmail.contains('.')) {
+        return SignupResult(
+          success: false,
+          errorTitle: 'Invalid Email',
+          errorMessage: 'Please enter a complete email address (e.g., user@example.com).',
+        );
+      }
 
       // Validate student ID and name against database
       final validationResult = await validateStudentIdAndName(
@@ -537,10 +560,6 @@ class UserController {
           studentData['education_level'] = 'senior_high';
           studentData['course'] = null;
           studentData['strand'] = strand;
-        } else if (educationLevel == 'junior_high') {
-          studentData['education_level'] = 'junior_high';
-          studentData['course'] = null;
-          studentData['strand'] = null;
         } else if (educationLevel == 'basic_education') {
           studentData['education_level'] = 'basic_education';
           studentData['course'] = null;
@@ -559,6 +578,7 @@ class UserController {
 
     } on AuthException catch (e) {
       print('Supabase Auth error: ${e.message}');
+      print('Supabase Auth code: ${e.statusCode}');
       String errorMessage = 'Registration failed. Please try again.';
       String errorTitle = 'Registration Failed';
 
@@ -568,6 +588,10 @@ class UserController {
         final seconds = match?.group(1) ?? '13';
         errorMessage = 'Please wait $seconds seconds before trying to register again.';
         errorTitle = 'Too Many Attempts';
+      } else if (e.message.contains('Email address') && e.message.contains('is invalid')) {
+        // Specific email validation error from Supabase
+        errorMessage = 'The email address appears to be invalid. Please check for any typos or extra spaces, or try a different email address.';
+        errorTitle = 'Invalid Email Format';
       } else if (e.message.contains('email')) {
         errorMessage = 'Invalid email address or email already in use.';
         errorTitle = 'Invalid Email';

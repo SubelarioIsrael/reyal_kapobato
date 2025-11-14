@@ -241,6 +241,42 @@ class AdminQuestionnaireController {
     required int questionOrder,
   }) async {
     try {
+      // Check question count limits for the category
+      final response = await _supabase
+          .from('questionnaire_questions')
+          .select('''
+            question_id,
+            questions:question_id (
+              question_id,
+              category
+            )
+          ''')
+          .eq('version_id', versionId);
+
+      final existingQuestions = List<Map<String, dynamic>>.from(response);
+      
+      // Count questions by category
+      final categoryCount = existingQuestions.where((q) {
+        final question = q['questions'] as Map<String, dynamic>?;
+        return question?['category'] == category;
+      }).length;
+
+      // Validate GAD-7 limit (max 7 questions)
+      if (category == 'GAD-7' && categoryCount >= 7) {
+        return CreateQuestionResult(
+          success: false,
+          errorMessage: 'Cannot add more GAD-7 questions. Maximum limit of 7 questions reached.',
+        );
+      }
+
+      // Validate PHQ-9 limit (max 9 questions)
+      if (category == 'PHQ-9' && categoryCount >= 9) {
+        return CreateQuestionResult(
+          success: false,
+          errorMessage: 'Cannot add more PHQ-9 questions. Maximum limit of 9 questions reached.',
+        );
+      }
+
       // Insert question
       final questionResponse = await _supabase
           .from('questions')

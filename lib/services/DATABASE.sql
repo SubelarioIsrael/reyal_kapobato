@@ -165,7 +165,7 @@ CREATE TABLE public.mood_entries (
   reasons ARRAY NOT NULL,
   notes text,
   entry_timestamp timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-  entry_date date DEFAULT (entry_timestamp)::date,
+  entry_date date,
   CONSTRAINT mood_entries_pkey PRIMARY KEY (entry_id),
   CONSTRAINT mood_entries_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(user_id)
 );

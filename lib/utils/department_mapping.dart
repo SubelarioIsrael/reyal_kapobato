@@ -62,12 +62,12 @@ class DepartmentMapping {
     'Bachelor of Science in Information Technology',
   ];
 
-  // List of Basic Education levels
+  // List of Basic Education levels (Grades 1-10)
   static const List<String> basicEducationLevels = [
     'Nursery',
     'Kindergarten',
     'Elementary',
-    'Junior High School',
+    'Junior High School (Grades 7-10)',
   ];
 
   // List of Senior High School strands
@@ -176,9 +176,7 @@ class DepartmentMapping {
     } else if (levelLower == 'senior high school' || levelLower == 'senior_high') {
       return getStrandDepartment(strand);
     } else if (levelLower == 'basic education' || 
-               levelLower == 'basic_education' || 
-               levelLower == 'junior high school' ||
-               levelLower == 'junior_high') {
+               levelLower == 'basic_education') {
       return 'Basic Education Department';
     }
     return null;

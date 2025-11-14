@@ -119,10 +119,6 @@ class StudentProfileController {
         studentData['education_level'] = 'senior_high';
         studentData['course'] = null;
         studentData['strand'] = strand;
-      } else if (educationLevel == 'junior_high') {
-        studentData['education_level'] = 'junior_high';
-        studentData['course'] = null;
-        studentData['strand'] = null;
       } else if (educationLevel == 'basic_education') {
         studentData['education_level'] = 'basic_education';
         studentData['course'] = null;

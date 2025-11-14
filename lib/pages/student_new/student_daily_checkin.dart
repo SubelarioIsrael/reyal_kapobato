@@ -212,7 +212,9 @@ class _StudentDailyCheckinNewState extends State<StudentDailyCheckinNew> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded,
               color: Color(0xFF5D5D72)),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () async {
+            Navigator.of(context).pop(true); // Return true to signal refresh
+          },
         ),
         title: Text(
           "Daily Mood Check-In",
@@ -870,7 +872,7 @@ class _StudentDailyCheckinNewState extends State<StudentDailyCheckinNew> {
           width: double.infinity,
           height: 56,
           child: ElevatedButton.icon(
-            onPressed: () => Navigator.pushReplacementNamed(context, 'student-home'),
+            onPressed: () => Navigator.of(context).pop(true), // Return true to signal refresh
             icon: const Icon(Icons.home, color: Colors.white),
             label: Text(
               'Return to Home',

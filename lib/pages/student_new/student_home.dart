@@ -325,8 +325,12 @@ class _StudentHomeNewState extends State<StudentHomeNew> {
                         Text(emoji ?? '', style: const TextStyle(fontSize: 24))
                       else if (isToday)
                         ElevatedButton(
-                          onPressed: () {
-                            Navigator.pushNamed(context, '/student-daily-checkin');
+                          onPressed: () async {
+                            final result = await Navigator.pushNamed(context, '/student-daily-checkin');
+                            // Refresh home page data if check-in was completed
+                            if (result == true) {
+                              _refreshPageData();
+                            }
                           },
                           style: ElevatedButton.styleFrom(
                             shape: const CircleBorder(),
@@ -465,8 +469,8 @@ class _StudentHomeNewState extends State<StudentHomeNew> {
             ),
           ),
           centerTitle: true,
-          actions: const [
-            StudentNotificationButton(),
+          actions: [
+            StudentNotificationButton(key: UniqueKey()),
           ],
         ),
         drawer: const StudentDrawer(),

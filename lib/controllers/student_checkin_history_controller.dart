@@ -59,7 +59,8 @@ class StudentCheckinHistoryController {
   String formatDate(String dateString) {
     try {
       final date = DateTime.parse(dateString);
-      final now = DateTime.now();
+      // Convert to UTC+8 (Asia/Manila timezone) for comparison
+      final now = DateTime.now().toUtc().add(const Duration(hours: 8));
       final today = DateTime(now.year, now.month, now.day);
       final yesterday = today.subtract(const Duration(days: 1));
       final entryDate = DateTime(date.year, date.month, date.day);

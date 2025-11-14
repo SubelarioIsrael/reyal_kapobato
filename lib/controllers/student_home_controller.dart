@@ -65,7 +65,8 @@ class StudentHomeController {
     try {
       final userId = Supabase.instance.client.auth.currentUser?.id;
       if (userId == null) return;
-      final today = DateTime.now();
+      // Convert to UTC+8 (Asia/Manila timezone)
+      final today = DateTime.now().toUtc().add(const Duration(hours: 8));
       final response = await Supabase.instance.client
           .from('mood_entries')
           .select()
@@ -87,7 +88,8 @@ class StudentHomeController {
     try {
       final userId = Supabase.instance.client.auth.currentUser?.id;
       if (userId == null) return;
-      final today = DateTime.now();
+      // Convert to UTC+8 (Asia/Manila timezone)
+      final today = DateTime.now().toUtc().add(const Duration(hours: 8));
       final startOfWeek = today.subtract(Duration(days: today.weekday % 7));
       final endOfWeek = startOfWeek.add(const Duration(days: 6));
       final response = await Supabase.instance.client
@@ -105,15 +107,19 @@ class StudentHomeController {
   }
 
   List<Map<String, dynamic>> getWeekDaysWithMood() {
-    final today = DateTime.now();
+    // Convert to UTC+8 (Asia/Manila timezone)
+    final today = DateTime.now().toUtc().add(const Duration(hours: 8));
     final startOfWeek = today.subtract(Duration(days: today.weekday % 7));
     return List.generate(7, (i) {
       final date = startOfWeek.add(Duration(days: i));
+      final dateString = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+      
       final entry = weeklyMood.value.firstWhere(
-        (e) =>
-            DateTime.parse(e['entry_date']).year == date.year &&
-            DateTime.parse(e['entry_date']).month == date.month &&
-            DateTime.parse(e['entry_date']).day == date.day,
+        (e) {
+          // entry_date is stored as a date string (YYYY-MM-DD)
+          final entryDate = e['entry_date'] as String?;
+          return entryDate == dateString;
+        },
         orElse: () => {},
       );
       return {

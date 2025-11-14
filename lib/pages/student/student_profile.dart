@@ -606,11 +606,7 @@ class _StudentProfileState extends State<StudentProfile> {
                               items: const [
                                 DropdownMenuItem(
                                   value: 'basic_education',
-                                  child: Text('Basic Education (Grades 1-6)'),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'junior_high',
-                                  child: Text('Junior High School (Grades 7-10)'),
+                                  child: Text('Basic Education (Grades 1-10)'),
                                 ),
                                 DropdownMenuItem(
                                   value: 'senior_high',
@@ -766,12 +762,10 @@ class _StudentProfileState extends State<StudentProfile> {
                             const SizedBox(height: 16),
                             Text(
                               _selectedEducationLevel == 'basic_education'
-                                  ? 'Grade Level (1-6)'
-                                  : _selectedEducationLevel == 'junior_high'
-                                      ? 'Grade Level (7-10)'
-                                      : _selectedEducationLevel == 'senior_high'
-                                          ? 'Grade Level (11-12)'
-                                          : 'Year Level (1-4)',
+                                  ? 'Grade Level (1-10)'
+                                  : _selectedEducationLevel == 'senior_high'
+                                      ? 'Grade Level (11-12)'
+                                      : 'Year Level (1-4)',
                               style: GoogleFonts.poppins(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w500,
@@ -811,11 +805,8 @@ class _StudentProfileState extends State<StudentProfile> {
                                   if (level == null) {
                                     return 'Please enter a valid number';
                                   }
-                                  if (_selectedEducationLevel == 'basic_education' && (level < 1 || level > 6)) {
-                                    return 'Grade level must be between 1 and 6';
-                                  }
-                                  if (_selectedEducationLevel == 'junior_high' && (level < 7 || level > 10)) {
-                                    return 'Grade level must be between 7 and 10';
+                                  if (_selectedEducationLevel == 'basic_education' && (level < 1 || level > 10)) {
+                                    return 'Grade level must be between 1 and 10';
                                   }
                                   if (_selectedEducationLevel == 'senior_high' && (level < 11 || level > 12)) {
                                     return 'Grade level must be between 11 and 12';

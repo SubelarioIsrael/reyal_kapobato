@@ -23,7 +23,7 @@ class _SignUpPageState extends State<SignUpPage> {
   final _studentIdController = TextEditingController();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
-  String? _selectedEducationLevel; // 'basic_education', 'junior_high', 'senior_high', or 'college'
+  String? _selectedEducationLevel; // 'basic_education', 'senior_high', or 'college'
   String? _selectedCourse;
   String? _selectedStrand;
   final _yearLevelController = TextEditingController();
@@ -135,8 +135,6 @@ class _SignUpPageState extends State<SignUpPage> {
   String _getYearLevelHint() {
     switch (_selectedEducationLevel) {
       case 'basic_education':
-        return 'Grade Level';
-      case 'junior_high':
         return 'Grade Level';
       case 'senior_high':
         return 'Grade Level ';
@@ -843,6 +841,7 @@ class _SignUpPageState extends State<SignUpPage> {
         TextFormField(
           controller: _firstNameController,
           style: GoogleFonts.poppins(),
+          textCapitalization: TextCapitalization.words,
           decoration: InputDecoration(
             hintText: 'First Name',
             hintStyle: GoogleFonts.poppins(color: Colors.grey.shade500),
@@ -866,6 +865,7 @@ class _SignUpPageState extends State<SignUpPage> {
         TextFormField(
           controller: _lastNameController,
           style: GoogleFonts.poppins(),
+          textCapitalization: TextCapitalization.words,
           decoration: InputDecoration(
             hintText: 'Last Name',
             hintStyle: GoogleFonts.poppins(color: Colors.grey.shade500),
@@ -908,10 +908,6 @@ class _SignUpPageState extends State<SignUpPage> {
             DropdownMenuItem(
               value: 'basic_education',
               child: Text('Basic Education'),
-            ),
-            DropdownMenuItem(
-              value: 'junior_high',
-              child: Text('Junior High School'),
             ),
             DropdownMenuItem(
               value: 'senior_high',

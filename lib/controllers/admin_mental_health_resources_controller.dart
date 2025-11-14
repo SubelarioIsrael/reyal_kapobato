@@ -182,9 +182,9 @@ class AdminMentalHealthResourcesController {
       return 'Please enter a media URL';
     }
     
-    // Basic URL validation
+    // More permissive URL validation that supports query parameters
     final urlPattern = RegExp(
-      r'^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$',
+      r'^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/?#].*)?$',
       caseSensitive: false,
     );
     

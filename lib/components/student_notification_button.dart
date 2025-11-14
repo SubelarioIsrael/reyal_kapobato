@@ -22,6 +22,13 @@ class _StudentNotificationButtonState extends State<StudentNotificationButton> {
     _fetchNotifications();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh notifications when dependencies change (e.g., when returning to page)
+    _fetchNotifications();
+  }
+
   Future<void> _fetchNotifications() async {
     try {
       final userId = Supabase.instance.client.auth.currentUser?.id;
@@ -34,8 +41,18 @@ class _StudentNotificationButtonState extends State<StudentNotificationButton> {
           .order('timestamp', ascending: false)
           .limit(50); // Increased limit to show more notifications
 
+      // Convert timestamps from UTC to UTC+8 (Asia/Manila)
+      final notifications = List<Map<String, dynamic>>.from(response).map((notification) {
+        if (notification['timestamp'] != null) {
+          final utcTime = DateTime.parse(notification['timestamp'] as String);
+          final utcPlus8Time = utcTime.add(const Duration(hours: 8));
+          notification['timestamp'] = utcPlus8Time.toIso8601String();
+        }
+        return notification;
+      }).toList();
+
       setState(() {
-        _notifications = List<Map<String, dynamic>>.from(response);
+        _notifications = notifications;
         _isLoading = false;
       });
     } catch (e) {

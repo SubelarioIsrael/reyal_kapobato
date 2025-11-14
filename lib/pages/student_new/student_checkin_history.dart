@@ -125,7 +125,9 @@ class _StudentCheckinHistoryNewState extends State<StudentCheckinHistoryNew> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded,
               color: Color(0xFF5D5D72)),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () async {
+            await Navigator.of(context).maybePop();
+          },
         ),
         title: Text(
           "Check-in History",

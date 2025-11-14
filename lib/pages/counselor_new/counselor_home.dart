@@ -1349,7 +1349,7 @@ class _CounselorHomeState extends State<CounselorHome> {
           children: [
             Expanded(
               child: _buildQuickActionCard(
-                'All Appointments',
+                'Appointments',
                 Icons.calendar_today,
                 Colors.blue,
                 () {
@@ -1366,7 +1366,7 @@ class _CounselorHomeState extends State<CounselorHome> {
             Expanded(
               key: const Key('my_students_card'),
               child: _buildQuickActionCard(
-                'My \nStudents',
+                'Students',
                 Icons.people,
                 Colors.purple,
                 () {

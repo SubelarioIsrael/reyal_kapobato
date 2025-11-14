@@ -95,6 +95,9 @@ class StudentSupportContactsController with ChangeNotifier {
     if (digitsOnly.length != 11) {
       return 'Must be exactly 11 digits';
     }
+    if (!digitsOnly.startsWith('0')) {
+      return 'Contact number must start with 0';
+    }
     return null;
   }
 
