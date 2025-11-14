@@ -28,7 +28,7 @@ import 'pages/student_new/student_mood_journal.dart';
 
 //student
 import 'pages/student/student_profile.dart';
-import 'pages/student/counselor_profile_view.dart';
+import 'pages/student_new/student_counselor_profile.dart';
 
 //admin
 import 'pages/admin_new/admin_home.dart';
@@ -118,7 +118,7 @@ final Map<String, WidgetBuilder> appRoutes = {
         body: Center(child: Text('Error: Invalid counselorId')),
       );
     }
-    return AuthGuard(child: CounselorProfileView(counselorId: id));
+    return AuthGuard(child: StudentCounselorProfile(counselorId: id));
   },
   'counselor-profile-view': (context) {
     final args = ModalRoute.of(context)?.settings.arguments;
@@ -133,7 +133,7 @@ final Map<String, WidgetBuilder> appRoutes = {
         body: Center(child: Text('Error: Invalid counselorId')),
       );
     }
-    return AuthGuard(child: CounselorProfileView(counselorId: id));
+    return AuthGuard(child: StudentCounselorProfile(counselorId: id));
   },
 
   // admin page routes

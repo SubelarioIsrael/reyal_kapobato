@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:breathe_better/controllers/admin_controller.dart';
+import 'package:breathe_better/components/admin_drawer.dart';
 
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
@@ -213,44 +214,7 @@ class _AdminHomeState extends State<AdminHome> {
   Widget build(BuildContext context) {
     return Scaffold(
       key: const Key('adminHomeScreen'),
-      drawer: Drawer(
-        key: const Key('drawer_button'),
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            DrawerHeader(
-              decoration: const BoxDecoration(color: Color(0xFF7C83FD)),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.admin_panel_settings, size: 60, color: Colors.white),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Admin',
-                    style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            ListTile(
-              key: const Key('logout_button'),
-              leading: const Icon(Icons.logout, color: Color(0xFF7C83FD)),
-              title: Text('Logout', style: GoogleFonts.poppins()),
-              onTap: () async {
-                await _adminController.signOut();
-                if (context.mounted) {
-                  Navigator.pushNamedAndRemoveUntil(
-                      context, '/login', (route) => false);
-                }
-              },
-            ),
-          ],
-        ),
-      ),
+      drawer: const AdminDrawer(),
       appBar: AppBar(
         backgroundColor: const Color.fromARGB(255, 242, 241, 248),
         elevation: 0,

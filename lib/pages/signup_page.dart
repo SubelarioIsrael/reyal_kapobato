@@ -135,13 +135,13 @@ class _SignUpPageState extends State<SignUpPage> {
   String _getYearLevelHint() {
     switch (_selectedEducationLevel) {
       case 'basic_education':
-        return 'Grade Level (1-6)';
+        return 'Grade Level';
       case 'junior_high':
-        return 'Grade Level (7-10)';
+        return 'Grade Level';
       case 'senior_high':
-        return 'Grade Level (11-12)';
+        return 'Grade Level ';
       case 'college':
-        return 'Year Level (1-4)';
+        return 'Year Level';
       default:
         return 'Select Education Level First';
     }
@@ -907,15 +907,15 @@ class _SignUpPageState extends State<SignUpPage> {
           items: const [
             DropdownMenuItem(
               value: 'basic_education',
-              child: Text('Basic Education (Grades 1-6)'),
+              child: Text('Basic Education'),
             ),
             DropdownMenuItem(
               value: 'junior_high',
-              child: Text('Junior High School (Grades 7-10)'),
+              child: Text('Junior High School'),
             ),
             DropdownMenuItem(
               value: 'senior_high',
-              child: Text('Senior High School (Grades 11-12)'),
+              child: Text('Senior High School'),
             ),
             DropdownMenuItem(
               value: 'college',

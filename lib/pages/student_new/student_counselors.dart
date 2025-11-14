@@ -7,7 +7,7 @@ import '../../controllers/student_counselors_controller.dart';
 import '../../components/student_drawer.dart';
 import '../../components/student_notification_button.dart';
 import '../../widgets/counselor_avatar.dart';
-import '../student/counselor_profile_view.dart';
+import 'student_counselor_profile.dart';
 
 class StudentCounselors extends StatefulWidget {
   const StudentCounselors({super.key});
@@ -339,7 +339,7 @@ class _StudentCounselorsState extends State<StudentCounselors> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => CounselorProfileView(
+                            builder: (context) => StudentCounselorProfile(
                               counselorId: counselor.id,
                             ),
                           ),

@@ -185,28 +185,94 @@ class _MyAppState extends State<MyApp> {
       final queryParams = uri.queryParameters;
       print('Query parameters: $queryParams');
 
-      // Navigate to login page with verification success message
+      // Navigate to login page with verification success dialog
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _navigatorKey.currentState?.pushReplacementNamed('/login');
 
-        // Show success message after navigation
+        // Show success dialog after navigation
         Future.delayed(const Duration(milliseconds: 500), () {
           if (_navigatorKey.currentContext != null) {
-            ScaffoldMessenger.of(_navigatorKey.currentContext!).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'Email verified successfully! You can now log in.',
-                  style: TextStyle(color: Colors.white),
-                ),
-                backgroundColor: Color(0xFF4CAF50),
-                duration: Duration(seconds: 4),
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
+            _showEmailVerifiedDialog(_navigatorKey.currentContext!);
           }
         });
       });
     }
+  }
+
+  void _showEmailVerifiedDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        contentPadding: const EdgeInsets.all(24),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.check_circle_outline,
+                color: Colors.green,
+                size: 32,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                'Email Verified',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF3A3A50),
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 8),
+            const Text(
+              'Your email has been successfully verified! You can now log in to your account.',
+              style: TextStyle(
+                fontSize: 16,
+                color: Color(0xFF3A3A50),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(ctx),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                backgroundColor: const Color(0xFF4CAF50),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 2,
+              ),
+              child: const Text(
+                'OK',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   // // FCM: terminated / foreground / background -> opened handlers

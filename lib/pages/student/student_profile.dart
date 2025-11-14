@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/profile_image_service.dart';
 import '../../components/student_notification_button.dart';
 import '../../utils/department_mapping.dart';
+import '../../controllers/student_profile_controller.dart';
 
 class StudentProfile extends StatefulWidget {
   const StudentProfile({super.key});
@@ -14,6 +15,7 @@ class StudentProfile extends StatefulWidget {
 }
 
 class _StudentProfileState extends State<StudentProfile> {
+  final _controller = StudentProfileController();
   Map<String, dynamic>? userProfile;
   Map<String, dynamic>? studentData;
   bool isLoading = true;
@@ -45,28 +47,21 @@ class _StudentProfileState extends State<StudentProfile> {
   }
 
   Future<void> _loadUserProfile() async {
-    final userId = Supabase.instance.client.auth.currentUser?.id;
-    if (userId == null) return;
+    setState(() {
+      isLoading = true;
+    });
 
-    try {
-      // Get user profile data
-      final userResponse = await Supabase.instance.client
-          .from('users')
-          .select()
-          .eq('user_id', userId)
-          .single();
+    final result = await _controller.loadUserProfile();
 
-      // Get student data with all fields
-      final studentResponse = await Supabase.instance.client
-          .from('students')
-          .select('first_name, last_name, student_code, course, year_level, education_level, strand')
-          .eq('user_id', userId)
-          .maybeSingle();
+    if (mounted) {
+      setState(() {
+        isLoading = false;
+      });
 
-      if (mounted) {
-        print('DEBUG: Profile loaded successfully');
-        print('DEBUG: Profile picture value: ${userResponse['profile_picture'] != null ? "HAS IMAGE (${userResponse['profile_picture'].toString().length} chars)" : "NO IMAGE"}');
-        
+      if (result.success && result.data != null) {
+        final userResponse = result.data!['user'];
+        final studentResponse = result.data!['student'];
+
         setState(() {
           userProfile = userResponse;
           studentData = studentResponse;
@@ -80,78 +75,190 @@ class _StudentProfileState extends State<StudentProfile> {
             _selectedStrand = studentResponse['strand'];
             _yearLevelController.text = studentResponse['year_level']?.toString() ?? '';
           }
-          isLoading = false;
         });
-      }
-    } catch (e) {
-      print('Error loading profile: $e');
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-        });
+      } else {
+        _showErrorDialog(result.errorMessage ?? 'Failed to load profile');
       }
     }
   }
 
+  void _showErrorDialog(String message) {
+    if (mounted) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          contentPadding: const EdgeInsets.all(24),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.error_outline,
+                  color: Colors.red,
+                  size: 48,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Error',
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF3A3A50),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: const Color(0xFF5D5D72),
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF7C83FD),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text(
+                    'OK',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+  }
+
+  void _showSuccessDialog(String message) {
+    if (mounted) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          contentPadding: const EdgeInsets.all(24),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.check_circle_outline,
+                  color: Colors.green,
+                  size: 48,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Success',
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF3A3A50),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: const Color(0xFF5D5D72),
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF7C83FD),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text(
+                    'OK',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+  }
+
   Future<void> _uploadImage() async {
-    print('DEBUG: Starting image upload process');
     setState(() {
       isUploading = true;
     });
 
     try {
-      final userId = Supabase.instance.client.auth.currentUser?.id;
-      if (userId == null) {
-        print('DEBUG: No user ID found');
-        return;
-      }
-      print('DEBUG: User ID: $userId');
-
       // Show image source selection dialog
-      print('DEBUG: Showing image source dialog');
       final String? selectedImageBase64 = await ProfileImageService.showImageSourceDialog(context);
       
       if (selectedImageBase64 == null) {
-        print('DEBUG: No image selected');
         setState(() {
           isUploading = false;
         });
         return;
       }
-      
-      print('DEBUG: Image selected, base64 length: ${selectedImageBase64.length}');
 
-      // Update student profile image with base64 data
-      print('DEBUG: Updating profile image in database');
-      final success = await ProfileImageService.updateStudentProfileImage(
-        selectedImageBase64,
-        userId,
+      // Update profile image using controller
+      final result = await _controller.updateProfilePicture(
+        base64Image: selectedImageBase64,
       );
-      
-      print('DEBUG: Database update success: $success');
 
-      if (success) {
+      if (result.success) {
         // Reload the profile
-        print('DEBUG: Reloading user profile');
         await _loadUserProfile();
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Profile picture updated successfully')),
-          );
+          _showSuccessDialog('Profile picture updated successfully');
         }
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to update profile picture')),
-          );
+          _showErrorDialog(result.errorMessage ?? 'Failed to update profile picture');
         }
       }
     } catch (e) {
-      print('Error uploading image: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
+        _showErrorDialog('Error: ${e.toString()}');
       }
     } finally {
       if (mounted) {
@@ -170,57 +277,31 @@ class _StudentProfileState extends State<StudentProfile> {
     });
 
     try {
-      final userId = Supabase.instance.client.auth.currentUser?.id;
-      if (userId == null) return;
-
       final firstName = _firstNameController.text.trim();
       final lastName = _lastNameController.text.trim();
-      
-      // Prepare student data update
-      Map<String, dynamic> studentData = {
-        'first_name': firstName,
-        'last_name': lastName,
-        'year_level': int.tryParse(_yearLevelController.text.trim()),
-      };
 
-      // Add education-specific fields
-      if (_selectedEducationLevel == 'college') {
-        studentData['education_level'] = 'college';
-        studentData['course'] = _selectedCourse;
-        studentData['strand'] = null;
-      } else if (_selectedEducationLevel == 'senior_high') {
-        studentData['education_level'] = 'senior_high';
-        studentData['course'] = null;
-        studentData['strand'] = _selectedStrand;
-      } else if (_selectedEducationLevel == 'junior_high') {
-        studentData['education_level'] = 'junior_high';
-        studentData['course'] = null;
-        studentData['strand'] = null;
-      } else if (_selectedEducationLevel == 'basic_education') {
-        studentData['education_level'] = 'basic_education';
-        studentData['course'] = null;
-        studentData['strand'] = null;
+      final result = await _controller.updateProfile(
+        firstName: firstName,
+        lastName: lastName,
+        educationLevel: _selectedEducationLevel!,
+        course: _selectedCourse,
+        strand: _selectedStrand,
+        yearLevel: int.tryParse(_yearLevelController.text.trim()),
+      );
+
+      if (result.success) {
+        await _loadUserProfile();
+        if (mounted) {
+          _showSuccessDialog('Profile updated successfully');
+        }
+      } else {
+        if (mounted) {
+          _showErrorDialog(result.errorMessage ?? 'Failed to update profile');
+        }
       }
-
-      // Update in database
-      await Supabase.instance.client
-          .from('students')
-          .update(studentData)
-          .eq('user_id', userId);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully')),
-        );
-      }
-
-      await _loadUserProfile();
     } catch (e) {
-      print('Error updating profile: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to update profile')),
-        );
+        _showErrorDialog('Error: ${e.toString()}');
       }
     } finally {
       if (mounted) {
@@ -378,9 +459,15 @@ class _StudentProfileState extends State<StudentProfile> {
                                 ),
                                 contentPadding: const EdgeInsets.all(16),
                               ),
-                              validator: (value) => value == null || value.trim().isEmpty
-                                  ? 'Please enter your first name'
-                                  : null,
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return 'Please enter your first name';
+                                }
+                                if (!_controller.isValidName(value)) {
+                                  return 'Name can only contain letters, spaces, hyphens, and apostrophes';
+                                }
+                                return null;
+                              },
                             ),
                           ),
                         ],
@@ -425,9 +512,15 @@ class _StudentProfileState extends State<StudentProfile> {
                                 ),
                                 contentPadding: const EdgeInsets.all(16),
                               ),
-                              validator: (value) => value == null || value.trim().isEmpty
-                                  ? 'Please enter your last name'
-                                  : null,
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return 'Please enter your last name';
+                                }
+                                if (!_controller.isValidName(value)) {
+                                  return 'Name can only contain letters, spaces, hyphens, and apostrophes';
+                                }
+                                return null;
+                              },
                             ),
                           ),
                         ],

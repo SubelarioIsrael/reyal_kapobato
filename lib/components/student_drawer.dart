@@ -66,8 +66,7 @@ class _StudentDrawerState extends State<StudentDrawer> {
   @override
   Widget build(BuildContext context) {
     return Drawer(
-      child: ListView(
-        padding: EdgeInsets.zero,
+      child: Column(
         children: [
           Container(
             height: 180,
@@ -88,7 +87,6 @@ class _StudentDrawerState extends State<StudentDrawer> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    
                     const SizedBox(width: 12),
                     Text(
                       'BreatheBetter',
@@ -200,47 +198,11 @@ class _StudentDrawerState extends State<StudentDrawer> {
             },
           ),
           _buildDrawerItem(
-            icon: Icons.auto_awesome_rounded,
-            title: 'Daily Check-in',
-            onTap: () {
-              Navigator.pushNamed(context, '/student-daily-checkin');
-            },
-          ),
-          _buildDrawerItem(
-            icon: Icons.air_rounded,
-            title: 'Breathing Exercises',
-            onTap: () {
-              Navigator.pushNamed(context, 'student-breathing-exercises');
-            },
-          ),
-          _buildDrawerItem(
             key: const Key('chatbot_item'),
             icon: Icons.chat_bubble_rounded,
             title: 'Chatbot',
             onTap: () {
               Navigator.pushNamed(context, 'student-chatbot');
-            },
-          ),
-          _buildDrawerItem(
-            icon: Icons.book_rounded,
-            title: 'Journal Entries',
-            onTap: () {
-              Navigator.pushNamed(context, 'student-journal-entries');
-            },
-          ),
-          // Added quick access to Appointments to reduce scrolling
-          _buildDrawerItem(
-            icon: Icons.calendar_today_rounded,
-            title: 'My Appointments',
-            onTap: () {
-              Navigator.pushNamed(context, 'student-appointments');
-            },
-          ),
-          _buildDrawerItem(
-            icon: Icons.contacts_rounded,
-            title: 'Emergency Contacts',
-            onTap: () {
-              Navigator.pushNamed(context, 'student-contacts');
             },
           ),
           _buildDrawerItem(
@@ -250,8 +212,9 @@ class _StudentDrawerState extends State<StudentDrawer> {
               Navigator.pushNamed(context, '/settings');
             },
           ),
+          const SizedBox(height: 240), // Push content down (adjusted for 4 menu items)
           const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16.0),
+            padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: Divider(color: Color(0xFFE5E5E5)),
           ),
           _buildDrawerItem(
@@ -271,6 +234,7 @@ class _StudentDrawerState extends State<StudentDrawer> {
               }
             },
           ),
+          const SizedBox(height: 16),
         ],
       ),
     );
