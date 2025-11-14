@@ -19,13 +19,13 @@ import 'pages/student_new/student_breathing_exercises.dart';
 import 'pages/student_new/student_support_contacts.dart';
 import 'pages/student_new/student_wellness_resources.dart';
 import 'pages/student_new/student_chats.dart';
+import 'pages/student_new/student_counselors.dart';
+import 'pages/student_new/student_appointments.dart';
 
 //student
 import 'pages/student/student_mood_journal.dart';
 import 'pages/student/student_chatbot.dart';
 import 'pages/student/student_profile.dart';
-import 'pages/student/student_counselors.dart';
-import 'pages/student/student_appointments.dart';
 import 'pages/student/questionnaire_summary.dart';
 import 'pages/student/questionnaire_history.dart';
 import 'pages/student/counselor_profile_view.dart';
