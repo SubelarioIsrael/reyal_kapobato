@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -109,6 +110,7 @@ class _QuestionnaireSummaryState extends State<QuestionnaireSummary> {
 
       if (answers.isEmpty) {
         // If no answers found, use static insights
+        print('No answers found, using static insights');
         return _generateInsights(_determineSeverityLevel(widget.totalScore));
       }
 
@@ -132,8 +134,14 @@ class _QuestionnaireSummaryState extends State<QuestionnaireSummary> {
       // Combine all questions and answers into a single text
       final combinedText = answerTexts.join('. ');
 
-      // Analyze sentiment
-      final sentimentResult = await analyzeSentiment(combinedText);
+      // Try to analyze sentiment with a timeout
+      final sentimentResult = await analyzeSentiment(combinedText).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          print('Sentiment analysis timed out, using static insights');
+          throw TimeoutException('Sentiment API timed out');
+        },
+      );
 
       // Debug: Print the API response to understand the structure
       print('Sentiment analysis result: $sentimentResult');
@@ -145,14 +153,15 @@ class _QuestionnaireSummaryState extends State<QuestionnaireSummary> {
           sentimentResult['analysis'] as String? ??
           sentimentResult['summary'] as String? ??
           sentimentResult['result'] as String? ??
-          sentimentResult['response'] as String?;
+          sentimentResult['response'] as String? ??
+          sentimentResult['reflection'] as String?;
 
       // If no specific field is found, try to get any string value from the response
       if (thought == null || thought.isEmpty) {
         // Look for any string value in the response
         for (final key in sentimentResult.keys) {
           final value = sentimentResult[key];
-          if (value is String && value.isNotEmpty) {
+          if (value is String && value.isNotEmpty && !value.contains('Error:') && !value.contains('429')) {
             thought = value;
             break;
           }
@@ -160,8 +169,8 @@ class _QuestionnaireSummaryState extends State<QuestionnaireSummary> {
       }
 
       // If AI analysis failed or returned empty, use static insights
-      if (thought == null || thought.isEmpty) {
-        print('AI analysis failed or returned empty, using static insights');
+      if (thought == null || thought.isEmpty || thought.contains('Error:') || thought.contains('429')) {
+        print('AI analysis failed or returned empty/error, using static insights');
         return _generateInsights(_determineSeverityLevel(widget.totalScore));
       }
 
@@ -175,14 +184,14 @@ class _QuestionnaireSummaryState extends State<QuestionnaireSummary> {
 
   String _generateInsights(String severityLevel) {
     switch (severityLevel) {
-      case 'minimal':
-        return 'Your responses suggest you are experiencing minimal symptoms that are common in daily life. This indicates good emotional well-being. Continue maintaining healthy habits and self-care practices to support your mental health.';
       case 'mild':
         return 'Your responses indicate some symptoms that may occasionally affect your daily life. These experiences are manageable with good self-care strategies. Consider incorporating stress management techniques and maintaining social connections.';
       case 'moderate':
         return 'Your responses suggest you are experiencing symptoms that may be impacting your daily functioning and well-being. These feelings are valid and treatable. Consider reaching out to support services and practicing regular self-care activities.';
-      case 'elevated':
+      case 'severe':
         return 'Your responses indicate significant symptoms that may be substantially affecting your daily life and well-being. Please know that you are not alone and that effective help is available. We strongly encourage you to connect with campus counseling services or a mental health professional.';
+      case 'critical':
+        return 'Your responses indicate very significant symptoms. We strongly urge you to seek immediate professional support. Campus counseling services and crisis resources are available to help you. Please know that seeking help is a sign of strength.';
       default:
         return 'Thank you for completing the assessment. Based on your responses, we recommend continuing to monitor your mental health and practicing self-care.';
     }
@@ -190,14 +199,14 @@ class _QuestionnaireSummaryState extends State<QuestionnaireSummary> {
 
   String _generateRecommendations(String severityLevel) {
     switch (severityLevel) {
-      case 'minimal':
-        return '• Continue your current self-care practices\n• Maintain regular exercise and healthy sleep habits\n• Practice the recommended breathing exercises for stress management\n• Stay connected with friends and family\n• Consider keeping a mood journal to track patterns';
       case 'mild':
         return '• Practice the recommended breathing exercises regularly\n• Maintain a consistent daily routine\n• Engage in physical activity and outdoor time\n• Connect with supportive friends or family members\n• Use campus resources like study groups or recreational activities\n• Consider speaking with a counselor if symptoms persist';
       case 'moderate':
         return '• Practice the recommended breathing exercises daily\n• Consider scheduling a consultation with campus counseling services\n• Reach out to your support network regularly\n• Maintain healthy sleep and eating habits\n• Use the mood tracking features in the app\n• Explore stress reduction techniques like mindfulness or meditation';
-      case 'elevated':
+      case 'severe':
         return '• We strongly recommend connecting with campus counseling services\n• Practice the recommended breathing exercises multiple times daily\n• Reach out to trusted friends, family, or mentors for support\n• Use crisis resources if you need immediate support\n• Consider joining a support group\n• Prioritize basic self-care: sleep, nutrition, and gentle movement\n• Remember that seeking help is a sign of strength, not weakness';
+      case 'critical':
+        return '• URGENT: Please connect with campus counseling services or crisis resources immediately\n• National Suicide Prevention Lifeline: 988\n• Crisis Text Line: Text HOME to 741741\n• Reach out to trusted individuals for immediate support\n• Practice breathing exercises to help manage acute distress\n• Remember: You are not alone, and help is available 24/7';
       default:
         return '• Practice regular self-care and stress management\n• Maintain healthy lifestyle habits\n• Stay connected with your support network\n• Reach out for help when needed';
     }
@@ -219,7 +228,6 @@ class _QuestionnaireSummaryState extends State<QuestionnaireSummary> {
 
       // Select appropriate exercise based on severity
       switch (severityLevel) {
-        case 'minimal':
         case 'mild':
           return exercises.firstWhere(
             (e) => e['name'] == 'Deep Breathing',
@@ -230,7 +238,8 @@ class _QuestionnaireSummaryState extends State<QuestionnaireSummary> {
             (e) => e['name'] == 'Box Breathing',
             orElse: () => exercises.first,
           )['id'];
-        case 'elevated':
+        case 'severe':
+        case 'critical':
           return exercises.firstWhere(
             (e) => e['name'] == '4-7-8 Breathing',
             orElse: () => exercises.first,
@@ -445,7 +454,7 @@ class _QuestionnaireSummaryState extends State<QuestionnaireSummary> {
                 const SizedBox(height: 24),
 
                 // Action Buttons
-                if (summaryData!['severity_level'] == 'elevated') ...[
+                if (summaryData!['severity_level'] == 'severe' || summaryData!['severity_level'] == 'critical') ...[
                   Center(
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
@@ -545,14 +554,14 @@ class _QuestionnaireSummaryState extends State<QuestionnaireSummary> {
 
   Color _getSeverityColor(String severityLevel) {
     switch (severityLevel) {
-      case 'minimal':
-        return Colors.green;
       case 'mild':
         return Colors.lightGreen;
       case 'moderate':
         return Colors.orange;
-      case 'elevated':
+      case 'severe':
         return Colors.deepOrange;
+      case 'critical':
+        return Colors.red;
       default:
         return Colors.grey;
     }
@@ -560,14 +569,14 @@ class _QuestionnaireSummaryState extends State<QuestionnaireSummary> {
 
   IconData _getSeverityIcon(String severityLevel) {
     switch (severityLevel) {
-      case 'minimal':
-        return Icons.sentiment_very_satisfied;
       case 'mild':
         return Icons.sentiment_satisfied;
       case 'moderate':
         return Icons.sentiment_neutral;
-      case 'elevated':
+      case 'severe':
         return Icons.sentiment_dissatisfied;
+      case 'critical':
+        return Icons.sentiment_very_dissatisfied;
       default:
         return Icons.sentiment_neutral;
     }

@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:math';
 import '../../models/appointment.dart';
-import '../chat/appointment_chat.dart';
+import '../chat/direct_chat.dart';
 
 import '../../widgets/student_avatar.dart';
 import '../../components/counselor_drawer.dart';
@@ -896,12 +896,15 @@ class _CounselorHomeState extends State<CounselorHome> {
             ),
             IconButton(
               onPressed: () {
+                final studentName = _studentInfo[appt.userId]?['name'] ?? 'Student';
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => AppointmentChat(
-                      appointment: appt,
+                    builder: (context) => DirectChat(
+                      otherUserId: appt.userId,
+                      otherUserName: studentName,
                       isCounselor: true,
+                      studentUserId: appt.userId,
                     ),
                   ),
                 );

@@ -98,7 +98,7 @@ class ActivityService {
 
   static Future<Map<String, bool>> getTodayCompletions() async {
     try {
-      final now = DateTime.now().toUtc();
+      final now = DateTime.now();
       final todayStart =
           DateTime(now.year, now.month, now.day).toIso8601String();
       final todayEnd = DateTime(now.year, now.month, now.day, 23, 59, 59, 999)

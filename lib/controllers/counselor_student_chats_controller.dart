@@ -1,117 +1,169 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../utils/department_mapping.dart';
 
 class CounselorStudentChatsController {
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  /// Get counselor ID for the current user
-  Future<int?> getCounselorId() async {
+  /// Get counselor ID and department for the current user
+  Future<Map<String, dynamic>?> getCounselorInfo() async {
     try {
       final currentUser = _supabase.auth.currentUser;
       if (currentUser == null) return null;
 
       final counselorResponse = await _supabase
           .from('counselors')
-          .select('counselor_id')
+          .select('counselor_id, department_assigned')
           .eq('user_id', currentUser.id)
           .single();
 
-      return counselorResponse['counselor_id'] as int;
+      return {
+        'counselor_id': counselorResponse['counselor_id'] as int,
+        'department': counselorResponse['department_assigned'] as String,
+      };
     } catch (e) {
-      print('Error getting counselor ID: $e');
+      print('Error getting counselor info: $e');
       return null;
     }
   }
 
-  /// Load appointments with messages for a counselor
-  Future<List<Map<String, dynamic>>> loadAppointmentsWithMessages(int counselorId) async {
+  /// Get counselor ID for the current user (backward compatibility)
+  Future<int?> getCounselorId() async {
+    final info = await getCounselorInfo();
+    return info?['counselor_id'] as int?;
+  }
+
+  /// Load students from counselor's department with direct messages (no appointment required)
+  Future<List<Map<String, dynamic>>> loadAppointmentsWithMessages(int counselorId, String? counselorDepartment) async {
     try {
       final currentUser = _supabase.auth.currentUser;
       if (currentUser == null) {
         throw Exception('User not authenticated');
       }
 
-      // Get accepted appointments
-      final acceptedAppointments = await _supabase
-          .from('counseling_appointments')
-          .select('appointment_id, user_id, counselor_id, appointment_date, start_time, end_time, status, notes')
-          .eq('counselor_id', counselorId)
-          .eq('status', 'accepted');
+      // Get all students from the counselor's department if not volunteer
+      List<Map<String, dynamic>> departmentStudents = [];
+      
+      if (counselorDepartment != null && counselorDepartment != 'Volunteer') {
+        // Get all students from this department
+        final allStudents = await _supabase
+            .from('students')
+            .select('user_id, first_name, last_name, education_level, course, strand');
 
-      if (acceptedAppointments.isEmpty) {
-        return [];
-      }
+        for (var student in allStudents) {
+          final educationLevel = student['education_level'] as String?;
+          final course = student['course'] as String?;
+          final strand = student['strand'] as String?;
+          
+          // Use the DepartmentMapping utility
+          final studentDepartment = DepartmentMapping.getStudentDepartment(
+            educationLevel: educationLevel?.toLowerCase(),
+            course: course,
+            strand: strand,
+          );
 
-      final appointmentIds = acceptedAppointments.map((a) => a['appointment_id']).toList();
-
-      // Get messages for accepted appointments
-      final appointmentsWithMessages = await _supabase
-          .from('messages')
-          .select('appointment_id, sender_id, receiver_id, created_at, message, is_read')
-          .inFilter('appointment_id', appointmentIds)
-          .order('created_at', ascending: false);
-
-      // Create appointment groups
-      Map<int, Map<String, dynamic>> appointmentGroups = {};
-
-      // Initialize groups for all accepted appointments
-      for (var appointment in acceptedAppointments) {
-        final appointmentId = appointment['appointment_id'];
-        appointmentGroups[appointmentId] = {
-          'appointment': appointment,
-          'user_name': 'Unknown User',
-          'user_initials': 'UU',
-          'messages': [],
-          'unread_count': 0,
-          'last_message': null,
-          'last_message_time': null,
-        };
-      }
-
-      // Add messages to their respective appointment groups
-      for (var message in appointmentsWithMessages) {
-        final appointmentId = message['appointment_id'];
-        
-        if (appointmentGroups.containsKey(appointmentId)) {
-          appointmentGroups[appointmentId]!['messages'].add(message);
-
-          // Update last message if this is more recent
-          final messageTime = DateTime.parse(message['created_at']);
-          if (appointmentGroups[appointmentId]!['last_message_time'] == null ||
-              messageTime.isAfter(appointmentGroups[appointmentId]!['last_message_time'])) {
-            appointmentGroups[appointmentId]!['last_message'] = message['message'];
-            appointmentGroups[appointmentId]!['last_message_time'] = messageTime;
+          if (studentDepartment == counselorDepartment) {
+            departmentStudents.add(student);
           }
+        }
+      } else {
+        // Volunteer counselors: get all students who have sent them messages
+        final messagedStudents = await _supabase
+            .from('messages')
+            .select('sender_id, receiver_id')
+            .or('sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}')
+            .isFilter('appointment_id', null);
 
-          // Count unread messages (from student to counselor)
-          if (message['receiver_id'] == currentUser.id && !message['is_read']) {
-            appointmentGroups[appointmentId]!['unread_count']++;
+        final studentUserIds = <String>{};
+        for (var msg in messagedStudents) {
+          if (msg['sender_id'] != currentUser.id) {
+            studentUserIds.add(msg['sender_id']);
           }
+          if (msg['receiver_id'] != currentUser.id) {
+            studentUserIds.add(msg['receiver_id']);
+          }
+        }
+
+        if (studentUserIds.isNotEmpty) {
+          departmentStudents = await _supabase
+              .from('students')
+              .select('user_id, first_name, last_name, education_level, course, strand')
+              .inFilter('user_id', studentUserIds.toList());
         }
       }
 
-      // Fetch student information for each appointment
-      for (var appointmentGroup in appointmentGroups.values) {
-        final userId = appointmentGroup['appointment']['user_id'];
-        final studentInfo = await _getStudentInfo(userId);
+      if (departmentStudents.isEmpty) {
+        return [];
+      }
+
+      // Create student chat groups
+      Map<String, Map<String, dynamic>> studentGroups = {};
+
+      for (var student in departmentStudents) {
+        final studentUserId = student['user_id'] as String;
         
-        appointmentGroup['user_name'] = studentInfo['name'];
-        appointmentGroup['user_initials'] = studentInfo['initials'];
+        // Get direct messages with this student
+        final messages = await _supabase
+            .from('messages')
+            .select('sender_id, receiver_id, created_at, message, is_read')
+            .or('and(sender_id.eq.$studentUserId,receiver_id.eq.${currentUser.id}),and(sender_id.eq.${currentUser.id},receiver_id.eq.$studentUserId)')
+            .isFilter('appointment_id', null)
+            .order('created_at', ascending: false);
+        
+        // Filter to messages between counselor and this student
+        final relevantMessages = messages.where((msg) {
+          return (msg['sender_id'] == currentUser.id && msg['receiver_id'] == studentUserId) ||
+                 (msg['sender_id'] == studentUserId && msg['receiver_id'] == currentUser.id);
+        }).toList();
+
+        String? lastMessage;
+        DateTime? lastMessageTime;
+        int unreadCount = 0;
+
+        if (relevantMessages.isNotEmpty) {
+          final latestMessage = relevantMessages.first;
+          lastMessage = latestMessage['message'];
+          lastMessageTime = DateTime.parse(latestMessage['created_at']);
+
+          // Count unread messages from student
+          unreadCount = relevantMessages.where((msg) =>
+              msg['receiver_id'] == currentUser.id && !(msg['is_read'] ?? true)
+          ).length;
+        } else {
+          lastMessage = 'No messages yet';
+          lastMessageTime = null;
+        }
+
+        final studentInfo = await _getStudentInfo(studentUserId);
+
+        studentGroups[studentUserId] = {
+          'appointment': {
+            'user_id': studentUserId,
+            'counselor_id': counselorId,
+            'status': 'direct_chat',
+          },
+          'user_name': studentInfo['name'],
+          'user_initials': studentInfo['initials'],
+          'messages': relevantMessages,
+          'unread_count': unreadCount,
+          'last_message': lastMessage,
+          'last_message_time': lastMessageTime,
+        };
       }
 
       // Convert to list and sort by last message time
-      final appointmentsList = appointmentGroups.values.toList();
-      appointmentsList.sort((a, b) {
+      final studentsList = studentGroups.values.toList();
+      studentsList.sort((a, b) {
         final timeA = a['last_message_time'] as DateTime?;
         final timeB = b['last_message_time'] as DateTime?;
         if (timeA == null && timeB == null) return 0;
         if (timeA == null) return 1;
         if (timeB == null) return -1;
-        return timeB.compareTo(timeA); // Most recent first
+        return timeB.compareTo(timeA);
       });
 
-      return appointmentsList;
+      return studentsList;
     } catch (e) {
-      print('Error loading appointments with messages: $e');
+      print('Error loading student chats: $e');
       rethrow;
     }
   }
@@ -170,6 +222,19 @@ class CounselorStudentChatsController {
       'name': 'Unknown User',
       'initials': 'UU',
     };
+  }
+
+  /// Search students by name
+  List<Map<String, dynamic>> searchStudents(List<Map<String, dynamic>> chats, String query) {
+    if (query.trim().isEmpty) {
+      return chats;
+    }
+
+    final searchQuery = query.trim().toLowerCase();
+    return chats.where((chat) {
+      final userName = (chat['user_name'] as String).toLowerCase();
+      return userName.contains(searchQuery);
+    }).toList();
   }
 
   /// Subscribe to realtime updates for messages

@@ -225,6 +225,21 @@ CREATE TABLE public.questions (
   category text CHECK (category = ANY (ARRAY['PHQ-9'::text, 'GAD-7'::text])),
   CONSTRAINT questions_pkey PRIMARY KEY (question_id)
 );
+CREATE TABLE public.risk_alerts (
+  alert_id bigint NOT NULL DEFAULT nextval('risk_alerts_alert_id_seq'::regclass),
+  user_id uuid NOT NULL,
+  trigger_reason text,
+  trigger_timestamp timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+  is_notified boolean DEFAULT false,
+  is_acknowledged boolean DEFAULT false,
+  is_resolved boolean DEFAULT false,
+  resolved_timestamp timestamp with time zone,
+  handled_by uuid,
+  action_notes text,
+  CONSTRAINT risk_alerts_pkey PRIMARY KEY (alert_id),
+  CONSTRAINT risk_alerts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(user_id),
+  CONSTRAINT risk_alerts_handled_by_fkey FOREIGN KEY (handled_by) REFERENCES public.users(user_id)
+);
 CREATE TABLE public.student_ids (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   student_id character varying,

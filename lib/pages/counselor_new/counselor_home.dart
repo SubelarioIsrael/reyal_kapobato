@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../controllers/counselor_home_controller.dart';
 import '../../models/appointment.dart';
-import '../chat/appointment_chat.dart';
+import '../chat/direct_chat.dart';
 import '../../widgets/student_avatar.dart';
 import '../../components/counselor_drawer.dart';
 import '../../components/video_call_dialog.dart';
@@ -20,7 +20,7 @@ class _CounselorHomeState extends State<CounselorHome> {
 
   List<Appointment> _appointments = [];
   Map<String, Map<String, String>> _studentInfo = {};
-  Map<int, int> _unreadCounts = {}; // appointmentId -> unread count
+  Map<String, int> _unreadCounts = {}; // userId -> unread count
   bool _isLoading = true;
   String? _errorMessage;
   String? _counselorName;
@@ -77,23 +77,30 @@ class _CounselorHomeState extends State<CounselorHome> {
   Future<void> _loadUnreadMessages() async {
     final today = DateTime.now();
     
-    final todayAppointmentIds = _appointments.where((appt) {
+    final todayAppointments = _appointments.where((appt) {
       final apptDate = appt.appointmentDate;
       final isToday = apptDate.year == today.year &&
           apptDate.month == today.month &&
           apptDate.day == today.day;
       final isAccepted = appt.status.toLowerCase() == 'accepted';
       return isToday && isAccepted;
-    }).map((a) => a.id).toList();
+    }).toList();
 
-    if (todayAppointmentIds.isEmpty) {
+    if (todayAppointments.isEmpty) {
       return;
     }
 
+    final todayAppointmentIds = todayAppointments.map((a) => a.id).toList();
     final result = await _controller.getUnreadMessageCounts(todayAppointmentIds);
     if (result.success) {
+      // Map appointment IDs to user IDs for the unread counts
+      Map<String, int> userUnreadCounts = {};
+      for (var appt in todayAppointments) {
+        final count = result.unreadCounts[appt.id] ?? 0;
+        userUnreadCounts[appt.userId] = count;
+      }
       setState(() {
-        _unreadCounts = result.unreadCounts;
+        _unreadCounts = userUnreadCounts;
       });
     }
   }
@@ -1046,7 +1053,7 @@ class _CounselorHomeState extends State<CounselorHome> {
   Widget _buildTodayAppointmentCard(Appointment appt) {
     final studentInfo = _studentInfo[appt.userId.toString().trim()] ?? {};
     final studentName = studentInfo['student_name'] ?? 'Unknown Student';
-    final unreadCount = _unreadCounts[appt.id] ?? 0;
+    final unreadCount = _unreadCounts[appt.userId] ?? 0;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -1121,12 +1128,16 @@ class _CounselorHomeState extends State<CounselorHome> {
               children: [
                 IconButton(
                   onPressed: () async {
+                    final studentKey = appt.userId.toString().trim();
+                    final studentName = _studentInfo[studentKey]?['student_name'] ?? 'Student';
                     await Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => AppointmentChat(
-                          appointment: appt,
+                        builder: (context) => DirectChat(
+                          otherUserId: appt.userId,
+                          otherUserName: studentName,
                           isCounselor: true,
+                          studentUserId: appt.userId,
                         ),
                       ),
                     );
