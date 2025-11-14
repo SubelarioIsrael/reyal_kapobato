@@ -505,6 +505,63 @@ class _StudentJournalEntriesNewState extends State<StudentJournalEntriesNew> {
 
                       const SizedBox(height: 20),
 
+                      // Insight section (if available and sentiment is not positive)
+                      if (entry.insight != null && entry.insight!.isNotEmpty) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: entry.sentiment?.toLowerCase() == 'negative'
+                                ? Colors.orange.shade50
+                                : const Color(0xFF7C83FD).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: entry.sentiment?.toLowerCase() == 'negative'
+                                  ? Colors.orange.shade200
+                                  : const Color(0xFF7C83FD).withOpacity(0.3),
+                              width: 1,
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.lightbulb_outline_rounded,
+                                    size: 18,
+                                    color: entry.sentiment?.toLowerCase() == 'negative'
+                                        ? Colors.orange.shade700
+                                        : const Color(0xFF7C83FD),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Insight',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: entry.sentiment?.toLowerCase() == 'negative'
+                                          ? Colors.orange.shade700
+                                          : const Color(0xFF7C83FD),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                entry.insight!,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 14,
+                                  color: const Color(0xFF3A3A50),
+                                  height: 1.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                      ],
+
                       // Entry content
                       Container(
                         width: double.infinity,

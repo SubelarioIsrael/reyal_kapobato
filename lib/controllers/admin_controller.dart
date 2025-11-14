@@ -42,23 +42,16 @@ class AdminController {
   /// Get dashboard statistics (total users, active users, completed appointments)
   Future<DashboardStatsResult> getDashboardStats() async {
     try {
-      // Get total users count
-      final totalUsersResponse = await _supabase.from('users').select('user_id');
-      final totalUsersCount = totalUsersResponse.length;
+      // Execute all queries in parallel using Future.wait
+      final results = await Future.wait([
+        _supabase.from('users').select('user_id'),
+        _supabase.from('users').select('user_id').eq('status', 'active'),
+        _supabase.from('counseling_appointments').select('appointment_id').eq('status', 'completed'),
+      ]);
 
-      // Get active users
-      final activeUsersResponse = await _supabase
-          .from('users')
-          .select('user_id')
-          .eq('status', 'active');
-      final activeUsersCount = activeUsersResponse.length;
-
-      // Get completed appointments count
-      final completedAppointmentsResponse = await _supabase
-          .from('counseling_appointments')
-          .select('appointment_id')
-          .eq('status', 'completed');
-      final completedAppointmentsCount = completedAppointmentsResponse.length;
+      final totalUsersCount = results[0].length;
+      final activeUsersCount = results[1].length;
+      final completedAppointmentsCount = results[2].length;
 
       return DashboardStatsResult(
         success: true,
@@ -80,13 +73,48 @@ class AdminController {
     try {
       final List<Map<String, dynamic>> allActivities = [];
 
-      // 1. New user registrations
-      final registrations = await _supabase
-          .from('users')
-          .select('user_id, email, registration_date, user_type')
-          .order('registration_date', ascending: false)
-          .limit(10);
+      // Execute all queries in parallel
+      final results = await Future.wait([
+        // 1. New user registrations
+        _supabase
+            .from('users')
+            .select('user_id, email, registration_date, user_type')
+            .order('registration_date', ascending: false)
+            .limit(10),
+        
+        // 2. Appointments with JOINs through users table to get student and counselor names
+        _supabase
+            .from('counseling_appointments')
+            .select('''
+              appointment_id,
+              appointment_date,
+              status,
+              status_message,
+              notes,
+              user_id,
+              counselor_id,
+              users!counseling_appointments_user_id_fkey!inner(
+                students!inner(first_name, last_name)
+              ),
+              counselors!inner(first_name, last_name)
+            ''')
+            .order('appointment_date', ascending: false)
+            .limit(50),
+        
+        // 3. New counselor accounts
+        _supabase
+            .from('users')
+            .select('user_id, email, registration_date')
+            .eq('user_type', 'counselor')
+            .order('registration_date', ascending: false)
+            .limit(10),
+      ]);
 
+      final registrations = results[0] as List<dynamic>;
+      final appointments = results[1] as List<dynamic>;
+      final newCounselors = results[2] as List<dynamic>;
+
+      // Process registrations
       for (var reg in registrations) {
         allActivities.add({
           'type': 'registration',
@@ -98,53 +126,94 @@ class AdminController {
         });
       }
 
-      // 2. New appointments booked (all statuses)
-      final appointments = await _supabase
-          .from('counseling_appointments')
-          .select('''
-            appointment_id,
-            appointment_date,
-            status,
-            user_id,
-            counselor_id
-          ''')
-          .order('appointment_date', ascending: false)
-          .limit(50);
-
+      // Process appointments by status
       for (var apt in appointments) {
         try {
-          // Fetch student details
-          final studentData = await _supabase
-              .from('users')
-              .select('user_id')
-              .eq('user_id', apt['user_id'])
-              .single();
+          final status = apt['status'];
           
-          final studentInfo = await _supabase
-              .from('students')
-              .select('first_name, last_name')
-              .eq('user_id', studentData['user_id'])
-              .maybeSingle();
+          // Extract student info from nested users.students relationship
+          final usersData = apt['users'];
+          final studentInfo = usersData != null && usersData is Map && usersData['students'] is List && (usersData['students'] as List).isNotEmpty
+              ? (usersData['students'] as List)[0]
+              : null;
           
-          // Fetch counselor details
-          final counselorData = await _supabase
-              .from('counselors')
-              .select('first_name, last_name')
-              .eq('counselor_id', apt['counselor_id'])
-              .single();
+          final counselorInfo = apt['counselors'];
           
-          if (studentInfo != null) {
-            final studentName = '${studentInfo['first_name']} ${studentInfo['last_name']}';
-            final counselorName = '${counselorData['first_name']} ${counselorData['last_name']}';
-            
-            allActivities.add({
-              'type': 'appointment_booked',
-              'icon': 'event',
-              'color': 'green',
-              'title': 'New appointment booked',
-              'subtitle': '$studentName with $counselorName',
-              'timestamp': DateTime.parse(apt['appointment_date']),
-            });
+          if (studentInfo == null || counselorInfo == null) continue;
+          
+          final studentName = '${studentInfo['first_name']} ${studentInfo['last_name']}';
+          final counselorName = '${counselorInfo['first_name']} ${counselorInfo['last_name']}';
+          final timestamp = DateTime.parse(apt['appointment_date']);
+
+          switch (status) {
+            case 'pending':
+              allActivities.add({
+                'type': 'pending',
+                'icon': 'pending_actions',
+                'color': 'orange',
+                'title': 'Pending approval',
+                'subtitle': '$studentName with $counselorName',
+                'timestamp': timestamp,
+              });
+              break;
+
+            case 'booked':
+            case 'confirmed':
+              allActivities.add({
+                'type': 'appointment_booked',
+                'icon': 'event',
+                'color': 'green',
+                'title': 'New appointment booked',
+                'subtitle': '$studentName with $counselorName',
+                'timestamp': timestamp,
+              });
+              break;
+
+            case 'cancelled':
+              final reason = apt['status_message'] ?? apt['notes'] ?? 'No reason provided';
+              final cancelledBy = (apt['status_message'] != null && 
+                                   apt['status_message'].toString().toLowerCase().contains('counselor'))
+                  ? 'counselor'
+                  : 'student';
+              
+              allActivities.add({
+                'type': cancelledBy == 'counselor' ? 'counselor_cancelled' : 'cancelled',
+                'icon': 'cancel_outlined',
+                'color': cancelledBy == 'counselor' ? 'orange_dark' : 'red',
+                'title': cancelledBy == 'counselor' 
+                    ? 'Session cancelled by counselor'
+                    : 'Session cancelled by student',
+                'subtitle': cancelledBy == 'counselor'
+                    ? '$counselorName cancelled session with $studentName'
+                    : '$studentName cancelled session with $counselorName',
+                'detail': 'Reason: $reason',
+                'timestamp': timestamp,
+              });
+              break;
+
+            case 'rejected':
+              final reason = apt['status_message'] ?? apt['notes'] ?? 'No reason provided';
+              allActivities.add({
+                'type': 'rejected',
+                'icon': 'block',
+                'color': 'deep_orange',
+                'title': 'Session rejected by counselor',
+                'subtitle': '$counselorName rejected $studentName',
+                'detail': 'Reason: $reason',
+                'timestamp': timestamp,
+              });
+              break;
+
+            case 'completed':
+              allActivities.add({
+                'type': 'completed',
+                'icon': 'check_circle',
+                'color': 'teal',
+                'title': 'Session completed',
+                'subtitle': '$counselorName completed session with $studentName',
+                'timestamp': timestamp,
+              });
+              break;
           }
         } catch (e) {
           print('Error processing appointment ${apt['appointment_id']}: $e');
@@ -152,224 +221,7 @@ class AdminController {
         }
       }
 
-      // 3. Cancelled sessions
-      final counselorCancelled = await _supabase
-          .from('counseling_appointments')
-          .select('''
-            appointment_id,
-            appointment_date,
-            status_message,
-            notes,
-            user_id,
-            counselor_id
-          ''')
-          .eq('status', 'cancelled')
-          .order('appointment_date', ascending: false)
-          .limit(10);
-
-      for (var cancel in counselorCancelled) {
-        try {
-          // Fetch student details
-          final studentInfo = await _supabase
-              .from('students')
-              .select('first_name, last_name')
-              .eq('user_id', cancel['user_id'])
-              .maybeSingle();
-          
-          // Fetch counselor details
-          final counselorData = await _supabase
-              .from('counselors')
-              .select('first_name, last_name')
-              .eq('counselor_id', cancel['counselor_id'])
-              .single();
-          
-          if (studentInfo != null) {
-            final studentName = '${studentInfo['first_name']} ${studentInfo['last_name']}';
-            final counselorName = '${counselorData['first_name']} ${counselorData['last_name']}';
-            final reason = cancel['status_message'] ?? cancel['notes'] ?? 'No reason provided';
-            
-            // Check if cancellation was by counselor
-            final cancelledBy = (cancel['status_message'] != null && 
-                                 cancel['status_message'].toString().toLowerCase().contains('counselor'))
-                ? 'counselor'
-                : 'student';
-            
-            allActivities.add({
-              'type': cancelledBy == 'counselor' ? 'counselor_cancelled' : 'cancelled',
-              'icon': 'cancel_outlined',
-              'color': cancelledBy == 'counselor' ? 'orange_dark' : 'red',
-              'title': cancelledBy == 'counselor' 
-                  ? 'Session cancelled by counselor'
-                  : 'Session cancelled by student',
-              'subtitle': cancelledBy == 'counselor'
-                  ? '$counselorName cancelled session with $studentName'
-                  : '$studentName cancelled session with $counselorName',
-              'detail': 'Reason: $reason',
-              'timestamp': DateTime.parse(cancel['appointment_date']),
-            });
-          }
-        } catch (e) {
-          print('Error processing cancelled appointment ${cancel['appointment_id']}: $e');
-          continue;
-        }
-      }
-
-      // 4. Rejected sessions (by counselor)
-      final rejected = await _supabase
-          .from('counseling_appointments')
-          .select('''
-            appointment_id,
-            appointment_date,
-            status_message,
-            notes,
-            user_id,
-            counselor_id
-          ''')
-          .eq('status', 'rejected')
-          .order('appointment_date', ascending: false)
-          .limit(10);
-
-      for (var reject in rejected) {
-        try {
-          // Fetch student details
-          final studentInfo = await _supabase
-              .from('students')
-              .select('first_name, last_name')
-              .eq('user_id', reject['user_id'])
-              .maybeSingle();
-          
-          // Fetch counselor details
-          final counselorData = await _supabase
-              .from('counselors')
-              .select('first_name, last_name')
-              .eq('counselor_id', reject['counselor_id'])
-              .single();
-          
-          if (studentInfo != null) {
-            final studentName = '${studentInfo['first_name']} ${studentInfo['last_name']}';
-            final counselorName = '${counselorData['first_name']} ${counselorData['last_name']}';
-            final reason = reject['status_message'] ?? reject['notes'] ?? 'No reason provided';
-            
-            allActivities.add({
-              'type': 'rejected',
-              'icon': 'block',
-              'color': 'deep_orange',
-              'title': 'Session rejected by counselor',
-              'subtitle': '$counselorName rejected $studentName',
-              'detail': 'Reason: $reason',
-              'timestamp': DateTime.parse(reject['appointment_date']),
-            });
-          }
-        } catch (e) {
-          print('Error processing rejected appointment ${reject['appointment_id']}: $e');
-          continue;
-        }
-      }
-
-      // 5. Completed sessions
-      final completed = await _supabase
-          .from('counseling_appointments')
-          .select('''
-            appointment_id,
-            appointment_date,
-            user_id,
-            counselor_id
-          ''')
-          .eq('status', 'completed')
-          .order('appointment_date', ascending: false)
-          .limit(10);
-
-      for (var comp in completed) {
-        try {
-          // Fetch student details
-          final studentInfo = await _supabase
-              .from('students')
-              .select('first_name, last_name')
-              .eq('user_id', comp['user_id'])
-              .maybeSingle();
-          
-          // Fetch counselor details
-          final counselorData = await _supabase
-              .from('counselors')
-              .select('first_name, last_name')
-              .eq('counselor_id', comp['counselor_id'])
-              .single();
-          
-          if (studentInfo != null) {
-            final studentName = '${studentInfo['first_name']} ${studentInfo['last_name']}';
-            final counselorName = '${counselorData['first_name']} ${counselorData['last_name']}';
-            
-            allActivities.add({
-              'type': 'completed',
-              'icon': 'check_circle',
-              'color': 'teal',
-              'title': 'Session completed',
-              'subtitle': '$counselorName completed session with $studentName',
-              'timestamp': DateTime.parse(comp['appointment_date']),
-            });
-          }
-        } catch (e) {
-          print('Error processing completed appointment ${comp['appointment_id']}: $e');
-          continue;
-        }
-      }
-
-      // 6. Pending appointment approvals
-      final pending = await _supabase
-          .from('counseling_appointments')
-          .select('''
-            appointment_id,
-            appointment_date,
-            user_id,
-            counselor_id
-          ''')
-          .eq('status', 'pending')
-          .order('appointment_date', ascending: false)
-          .limit(10);
-
-      for (var pend in pending) {
-        try {
-          // Fetch student details
-          final studentInfo = await _supabase
-              .from('students')
-              .select('first_name, last_name')
-              .eq('user_id', pend['user_id'])
-              .maybeSingle();
-          
-          // Fetch counselor details
-          final counselorData = await _supabase
-              .from('counselors')
-              .select('first_name, last_name')
-              .eq('counselor_id', pend['counselor_id'])
-              .single();
-          
-          if (studentInfo != null) {
-            final studentName = '${studentInfo['first_name']} ${studentInfo['last_name']}';
-            final counselorName = '${counselorData['first_name']} ${counselorData['last_name']}';
-            
-            allActivities.add({
-              'type': 'pending',
-              'icon': 'pending_actions',
-              'color': 'orange',
-              'title': 'Pending approval',
-              'subtitle': '$studentName with $counselorName',
-              'timestamp': DateTime.parse(pend['appointment_date']),
-            });
-          }
-        } catch (e) {
-          print('Error processing pending appointment ${pend['appointment_id']}: $e');
-          continue;
-        }
-      }
-
-      // 7. New counselor accounts
-      final newCounselors = await _supabase
-          .from('users')
-          .select('user_id, email, registration_date')
-          .eq('user_type', 'counselor')
-          .order('registration_date', ascending: false)
-          .limit(10);
-
+      // Process new counselors
       for (var counselor in newCounselors) {
         allActivities.add({
           'type': 'counselor_added',
@@ -401,33 +253,24 @@ class AdminController {
   /// Generate analytics data for PDF report
   Future<Map<String, dynamic>> getAnalyticsData() async {
     try {
-      // Fetch analytics data
-      final totalUsersResult = await _supabase
-          .from('users')
-          .select('user_id');
-      
-      final activeUsersResult = await _supabase
-          .from('users')
-          .select('user_id')
-          .eq('status', 'active');
-      
-      final completedSessionsResult = await _supabase
-          .from('counseling_appointments')
-          .select('appointment_id')
-          .eq('status', 'completed');
-      
-      final recentRegistrationsResult = await _supabase
-          .from('users')
-          .select('user_id, email, registration_date')
-          .gte('registration_date', DateTime.now().subtract(const Duration(days: 30)).toIso8601String())
-          .order('registration_date', ascending: false)
-          .limit(10);
+      // Execute all queries in parallel
+      final results = await Future.wait([
+        _supabase.from('users').select('user_id'),
+        _supabase.from('users').select('user_id').eq('status', 'active'),
+        _supabase.from('counseling_appointments').select('appointment_id').eq('status', 'completed'),
+        _supabase
+            .from('users')
+            .select('user_id, email, registration_date')
+            .gte('registration_date', DateTime.now().subtract(const Duration(days: 30)).toIso8601String())
+            .order('registration_date', ascending: false)
+            .limit(10),
+      ]);
 
       return {
-        'totalUsers': totalUsersResult.length,
-        'activeUsers': activeUsersResult.length,
-        'completedSessions': completedSessionsResult.length,
-        'recentRegistrations': recentRegistrationsResult as List<dynamic>,
+        'totalUsers': results[0].length,
+        'activeUsers': results[1].length,
+        'completedSessions': results[2].length,
+        'recentRegistrations': results[3] as List<dynamic>,
       };
     } catch (e) {
       print('Error getting analytics data: $e');

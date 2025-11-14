@@ -21,13 +21,13 @@ import 'pages/student_new/student_wellness_resources.dart';
 import 'pages/student_new/student_chats.dart';
 import 'pages/student_new/student_counselors.dart';
 import 'pages/student_new/student_appointments.dart';
+import 'pages/student_new/student_assessment_summary.dart';
+import 'pages/student_new/student_assessment_history.dart';
+import 'pages/student_new/student_chatbot.dart';
+import 'pages/student_new/student_mood_journal.dart';
 
 //student
-import 'pages/student/student_mood_journal.dart';
-import 'pages/student/student_chatbot.dart';
 import 'pages/student/student_profile.dart';
-import 'pages/student/questionnaire_summary.dart';
-import 'pages/student/questionnaire_history.dart';
 import 'pages/student/counselor_profile_view.dart';
 
 //admin
@@ -76,14 +76,14 @@ final Map<String, WidgetBuilder> appRoutes = {
       );
     }
     return AuthGuard(
-      child: QuestionnaireSummary(
+      child: StudentAssessmentSummary(
         responseId: args['responseId'] as int,
         totalScore: args['totalScore'] as int,
       ),
     );
   },
   'questionnaire-history': (context) =>
-      const AuthGuard(child: QuestionnaireHistory()),
+      const AuthGuard(child: StudentAssessmentHistory()),
   'student-breathing-exercises': (context) =>
       const AuthGuard(child: StudentBreathingExercises()),
   'student-mood-journal': (context) =>
