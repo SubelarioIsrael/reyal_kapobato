@@ -18,18 +18,14 @@ class _CounselorNotificationButtonState extends State<CounselorNotificationButto
   void initState() {
     super.initState();
     _loadNotifications();
-    
-    // Listen for real-time updates
     _setupRealtimeListener();
   }
 
   void _setupRealtimeListener() {
     final supabase = Supabase.instance.client;
     final userId = supabase.auth.currentUser?.id;
-    
+
     if (userId != null) {
-      print('Setting up counselor notification listener for user: $userId');
-      // Listen for new notifications in user_notifications table
       supabase
           .channel('counselor_notifications')
           .onPostgresChanges(
@@ -42,12 +38,16 @@ class _CounselorNotificationButtonState extends State<CounselorNotificationButto
               value: userId,
             ),
             callback: (payload) {
-              print('Counselor notification: notification change detected - ${payload.eventType}');
               _loadNotifications();
             },
           )
           .subscribe();
     }
+  }
+
+  // make a public method so parent can trigger refresh on swipe-to-refresh
+  Future<void> refreshNotifications() async {
+    await _loadNotifications();
   }
 
   Future<void> _loadNotifications() async {
@@ -57,14 +57,8 @@ class _CounselorNotificationButtonState extends State<CounselorNotificationButto
       final supabase = Supabase.instance.client;
       final userId = supabase.auth.currentUser?.id;
 
-      if (userId == null) {
-        print('Counselor notifications: No user ID found');
-        return;
-      }
+      if (userId == null) return;
 
-      print('Loading counselor notifications for user: $userId');
-
-      // Fetch notifications from user_notifications table
       final response = await supabase
           .from('user_notifications')
           .select()
@@ -80,39 +74,26 @@ class _CounselorNotificationButtonState extends State<CounselorNotificationButto
         final timestamp = DateTime.parse(notification['timestamp'] as String);
         final isRead = notification['is_read'] as bool? ?? false;
         final actionUrl = notification['action_url'] as String?;
+        final title = notification['title'] ?? _mapDefaultTitle(notificationType);
 
-        NotificationType? type;
-        String title = 'Notification';
+        NotificationType? type = _mapType(notificationType);
 
-        if (notificationType == 'appointment_booked') {
-          type = NotificationType.newAppointment;
-          title = 'New Appointment Request';
-        } else if (notificationType == 'appointment_cancelled') {
-          type = NotificationType.cancelledAppointment;
-          title = 'Appointment Cancelled';
-        }
-
-        if (type != null) {
-          notifications.add(NotificationItem(
-            type: type,
-            title: title,
-            message: content,
-            timestamp: timestamp,
-            isUnread: !isRead,
-            relatedId: notification['notification_id'].toString(),
-            actionUrl: actionUrl,
-          ));
-        }
+        notifications.add(NotificationItem(
+          type: type,
+          title: title,
+          message: content,
+          timestamp: timestamp,
+          isUnread: !isRead,
+          relatedId: notification['notification_id'].toString(),
+          actionUrl: actionUrl,
+        ));
       }
-
-      print('Total notifications: ${notifications.length}, Unread: ${notifications.where((n) => n.isUnread).length}');
 
       setState(() {
         _notifications = notifications;
         _notificationCount = notifications.where((n) => n.isUnread).length;
       });
-    } catch (e) {
-      print('Error loading counselor notifications: $e');
+    } catch (_) {
       if (mounted) {
         setState(() {
           _notifications = [];
@@ -130,16 +111,14 @@ class _CounselorNotificationButtonState extends State<CounselorNotificationButto
           .eq('notification_id', notificationId);
 
       setState(() {
-        final index = _notifications
-            .indexWhere((n) => n.relatedId == notificationId.toString());
+        final index =
+            _notifications.indexWhere((n) => n.relatedId == notificationId.toString());
         if (index != -1) {
           _notifications[index].isUnread = false;
           _notificationCount = _notifications.where((n) => n.isUnread).length;
         }
       });
-    } catch (e) {
-      print('Error marking notification as read: $e');
-    }
+    } catch (_) {}
   }
 
   Future<void> _markAllAsRead() async {
@@ -154,14 +133,12 @@ class _CounselorNotificationButtonState extends State<CounselorNotificationButto
           .eq('is_read', false);
 
       setState(() {
-        for (var notification in _notifications) {
-          notification.isUnread = false;
+        for (var n in _notifications) {
+          n.isUnread = false;
         }
         _notificationCount = 0;
       });
-    } catch (e) {
-      print('Error marking all notifications as read: $e');
-    }
+    } catch (_) {}
   }
 
   @override
@@ -221,7 +198,6 @@ class _CounselorNotificationButtonState extends State<CounselorNotificationButto
         ),
         child: Column(
           children: [
-            // Header
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -255,8 +231,6 @@ class _CounselorNotificationButtonState extends State<CounselorNotificationButto
                 ],
               ),
             ),
-            
-            // Notifications List
             Expanded(
               child: _notifications.isEmpty
                   ? Center(
@@ -293,18 +267,16 @@ class _CounselorNotificationButtonState extends State<CounselorNotificationButto
     );
   }
 
-  Widget _buildNotificationItem(NotificationItem notification) {
+  Widget _buildNotificationItem(NotificationItem n) {
+    final color = _getTypeColor(n.type);
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
-        color: notification.isUnread
-            ? _getTypeColor(notification.type).withOpacity(0.05)
-            : Colors.transparent,
+        color: n.isUnread ? color.withOpacity(0.05) : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: notification.isUnread
-              ? _getTypeColor(notification.type).withOpacity(0.2)
-              : Colors.grey.shade200,
+          color: n.isUnread ? color.withOpacity(0.2) : Colors.grey.shade200,
         ),
       ),
       child: ListTile(
@@ -312,20 +284,20 @@ class _CounselorNotificationButtonState extends State<CounselorNotificationButto
         leading: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: _getTypeColor(notification.type).withOpacity(0.1),
+            color: color.withOpacity(0.1),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(
-            _getTypeIcon(notification.type),
-            color: _getTypeColor(notification.type),
+            _getTypeIcon(n.type),
+            color: color,
             size: 24,
           ),
         ),
         title: Text(
-          notification.title,
+          n.title,
           style: GoogleFonts.poppins(
             fontSize: 14,
-            fontWeight: notification.isUnread ? FontWeight.w600 : FontWeight.w500,
+            fontWeight: n.isUnread ? FontWeight.w600 : FontWeight.w500,
             color: const Color(0xFF3A3A50),
           ),
         ),
@@ -334,7 +306,7 @@ class _CounselorNotificationButtonState extends State<CounselorNotificationButto
           children: [
             const SizedBox(height: 4),
             Text(
-              notification.message,
+              n.message,
               style: GoogleFonts.poppins(
                 fontSize: 13,
                 color: const Color(0xFF5D5D72),
@@ -342,7 +314,7 @@ class _CounselorNotificationButtonState extends State<CounselorNotificationButto
             ),
             const SizedBox(height: 4),
             Text(
-              _formatTimestamp(notification.timestamp),
+              _formatTimestamp(n.timestamp),
               style: GoogleFonts.poppins(
                 fontSize: 11,
                 color: Colors.grey[500],
@@ -350,55 +322,48 @@ class _CounselorNotificationButtonState extends State<CounselorNotificationButto
             ),
           ],
         ),
-        onTap: () => _handleNotificationTap(notification),
+        onTap: () => _handleNotificationTap(n),
       ),
     );
   }
 
-  IconData _getTypeIcon(NotificationType type) {
+  IconData _getTypeIcon(NotificationType? type) {
     switch (type) {
       case NotificationType.newAppointment:
         return Icons.event_available;
       case NotificationType.cancelledAppointment:
         return Icons.event_busy;
+      default:
+        return Icons.notifications;
     }
   }
 
-  Color _getTypeColor(NotificationType type) {
+  Color _getTypeColor(NotificationType? type) {
     switch (type) {
       case NotificationType.newAppointment:
         return Colors.blue;
       case NotificationType.cancelledAppointment:
         return Colors.orange;
+      default:
+        return Colors.grey;
     }
   }
 
-  String _formatTimestamp(DateTime dateTime) {
+  String _formatTimestamp(DateTime dt) {
     final now = DateTime.now();
-    final difference = now.difference(dateTime);
+    final diff = now.difference(dt);
 
-    if (difference.inMinutes < 1) {
-      return 'Just now';
-    } else if (difference.inMinutes < 60) {
-      return '${difference.inMinutes}m ago';
-    } else if (difference.inHours < 24) {
-      return '${difference.inHours}h ago';
-    } else if (difference.inDays < 7) {
-      return '${difference.inDays}d ago';
-    } else {
-      return DateFormat('MMM dd, yyyy').format(dateTime);
-    }
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return DateFormat('MMM dd, yyyy').format(dt);
   }
 
-  void _handleNotificationTap(NotificationItem notification) async {
-    // Mark as read
-    await _markAsRead(int.parse(notification.relatedId));
-    
-    Navigator.pop(context); // Close bottom sheet
-    
-    // Navigate to action URL or default to appointments page
-    final route = notification.actionUrl ?? '/counselor_appointments';
-    Navigator.pushNamed(context, route);
+  void _handleNotificationTap(NotificationItem n) async {
+    await _markAsRead(int.parse(n.relatedId));
+    Navigator.pop(context);
+    Navigator.pushNamed(context, n.actionUrl ?? '/counselor_appointments');
   }
 
   @override
@@ -406,15 +371,28 @@ class _CounselorNotificationButtonState extends State<CounselorNotificationButto
     Supabase.instance.client.removeAllChannels();
     super.dispose();
   }
+
+  NotificationType? _mapType(String? raw) {
+    switch (raw) {
+      case 'appointment_booked':
+        return NotificationType.newAppointment;
+      case 'appointment_cancelled':
+        return NotificationType.cancelledAppointment;
+      default:
+        return null;
+    }
+  }
+
+  String _mapDefaultTitle(String? raw) {
+    if (raw == null) return 'Notification';
+    return raw.replaceAll('_', ' ').toUpperCase();
+  }
 }
 
-enum NotificationType {
-  newAppointment,
-  cancelledAppointment,
-}
+enum NotificationType { newAppointment, cancelledAppointment }
 
 class NotificationItem {
-  final NotificationType type;
+  final NotificationType? type;
   final String title;
   final String message;
   final DateTime timestamp;
@@ -427,7 +405,7 @@ class NotificationItem {
     required this.title,
     required this.message,
     required this.timestamp,
-    this.isUnread = true,
+    required this.isUnread,
     required this.relatedId,
     this.actionUrl,
   });

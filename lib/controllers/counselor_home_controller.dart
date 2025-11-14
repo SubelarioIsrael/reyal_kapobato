@@ -440,14 +440,13 @@ class CounselorHomeController {
 
       // Build a concise prompt for the model
       final buffer = StringBuffer();
-      buffer.writeln('You are a clinical-support assistant (Eirene). Given the recent intervention log messages below, provide a concise analysis for the counselor including: key themes/trends, any urgent safety concerns, prioritized suggested actions, short suggested outreach messages to students, and recommended resources/referrals. Keep the response short and actionable (bullet points).');
+      buffer.writeln('You are Eirene, a clinical-support assistant. Analyze the recent intervention log messages and produce: key themes or trends, any urgent safety concerns, prioritized counselor actions, brief outreach messages, and recommended resources or referrals. Keep it concise, strictly actionable, and formatted as a short prioritized list. No markdown, no bullets, no greetings, no introductions.');
       buffer.writeln('');
       buffer.writeln('Recent intervention log messages (most recent first):');
       for (var i = 0; i < messages.length; i++) {
         buffer.writeln('${i + 1}. ${messages[i]}');
       }
       buffer.writeln('');
-      buffer.writeln('Return the output as a short, prioritized list (use bullets).');
 
       final prompt = buffer.toString();
 
@@ -458,7 +457,7 @@ class CounselorHomeController {
       try {
         final trimmed = (aiResponse ?? '').trim();
         if (trimmed.isNotEmpty) {
-          await NotificationService.createInAppNotificationForUser(
+          await NotificationService.createInAppNotificationForCounselor(
             userId: user.id,
             title: 'Weekly Intervention Analysis',
             content: trimmed,

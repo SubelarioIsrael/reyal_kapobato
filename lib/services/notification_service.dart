@@ -109,7 +109,7 @@ class NotificationService {
   }
 
   /// Create an in-app notification for a user and optionally send a push.
-  static Future<void> createInAppNotificationForUser(
+  static Future<void> createInAppNotificationForCounselor(
       {required String userId,
       required String title,
       required String content,
