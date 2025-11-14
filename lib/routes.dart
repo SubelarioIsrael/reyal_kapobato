@@ -57,7 +57,6 @@ final Map<String, WidgetBuilder> appRoutes = {
 
   //home page routes
   'student-home': (context) => const AuthGuard(child: StudentHomeNew()),
-  'student-home-new': (context) => const AuthGuard(child: StudentHomeNew()),
   'admin-home': (context) => const AuthGuard(child: AdminHome()),
   'counselor-home': (context) => const AuthGuard(child: CounselorHome()),
 

@@ -73,9 +73,9 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: assets/icon/bblogotrans.png
+  image_path: assets/icon/breathebetterlogo2.png
   adaptive_icon_background: "#FFFFFF"
-  adaptive_icon_foreground: assets/icon/bblogotrans.png
+  adaptive_icon_foreground: assets/icon/breathebetterlogo2.png
   adaptive_icon_foreground_inset: "24"
 
 # For information on the generic Dart part of this file, see the

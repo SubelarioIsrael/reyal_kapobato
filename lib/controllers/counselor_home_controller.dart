@@ -1,5 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/appointment.dart';
+import '../../services/chatbot_service.dart'; // existing import
+import '../../services/notification_service.dart'; // new import
 
 // Result classes
 class LoadAppointmentsResult {
@@ -70,6 +72,19 @@ class UnreadMessagesResult {
   UnreadMessagesResult({
     required this.success,
     this.unreadCounts = const {},
+    this.errorMessage,
+  });
+}
+
+// New result class for intervention log analysis
+class InterventionAnalysisResult {
+  final bool success;
+  final String? analysis;
+  final String? errorMessage;
+
+  InterventionAnalysisResult({
+    required this.success,
+    this.analysis,
     this.errorMessage,
   });
 }
@@ -387,6 +402,78 @@ class CounselorHomeController {
         success: false,
         errorMessage: 'Error loading unread messages: ${e.toString()}',
       );
+    }
+  }
+
+  // Analyze recent intervention logs (last 7 days) using the ChatbotService
+  Future<InterventionAnalysisResult> getWeeklyInterventionAnalysis({int days = 7, int maxMessages = 50}) async {
+    try {
+      final user = _supabase.auth.currentUser;
+      if (user == null) {
+        return InterventionAnalysisResult(success: false, errorMessage: 'Not logged in');
+      }
+
+      // Fetch recent intervention logs (trigger_message and timestamp)
+      final since = DateTime.now().subtract(Duration(days: days)).toIso8601String();
+      final logsResponse = await _supabase
+          .from('intervention_logs')
+          .select('trigger_message, triggered_at')
+          .gte('triggered_at', since)
+          .order('triggered_at', ascending: false);
+
+      if (logsResponse == null || (logsResponse as List).isEmpty) {
+        return InterventionAnalysisResult(success: true, analysis: '', errorMessage: 'No recent intervention logs');
+      }
+
+      final logsList = (logsResponse as List).cast<Map<String, dynamic>>();
+
+      // Extract messages and limit
+      final messages = logsList
+          .map((r) => (r['trigger_message'] ?? '').toString().trim())
+          .where((m) => m.isNotEmpty)
+          .take(maxMessages)
+          .toList();
+
+      if (messages.isEmpty) {
+        return InterventionAnalysisResult(success: true, analysis: '', errorMessage: 'No recent intervention messages');
+      }
+
+      // Build a concise prompt for the model
+      final buffer = StringBuffer();
+      buffer.writeln('You are a clinical-support assistant (Eirene). Given the recent intervention log messages below, provide a concise analysis for the counselor including: key themes/trends, any urgent safety concerns, prioritized suggested actions, short suggested outreach messages to students, and recommended resources/referrals. Keep the response short and actionable (bullet points).');
+      buffer.writeln('');
+      buffer.writeln('Recent intervention log messages (most recent first):');
+      for (var i = 0; i < messages.length; i++) {
+        buffer.writeln('${i + 1}. ${messages[i]}');
+      }
+      buffer.writeln('');
+      buffer.writeln('Return the output as a short, prioritized list (use bullets).');
+
+      final prompt = buffer.toString();
+
+      // Call ChatbotService to generate analysis
+      final aiResponse = await ChatbotService.generateResponse(prompt);
+
+      // Save generated analysis as an in-app notification and optionally send push
+      try {
+        final trimmed = (aiResponse ?? '').trim();
+        if (trimmed.isNotEmpty) {
+          await NotificationService.createInAppNotificationForUser(
+            userId: user.id,
+            title: 'Weekly Intervention Analysis',
+            content: trimmed,
+            sendPush: true,
+            pushData: {'type': 'weekly_intervention_analysis'},
+          );
+        }
+      } catch (e) {
+        // notification failure should not fail the analysis call
+        print('Failed to save/send AI analysis notification: $e');
+      }
+
+      return InterventionAnalysisResult(success: true, analysis: aiResponse);
+    } catch (e) {
+      return InterventionAnalysisResult(success: false, errorMessage: 'Analysis failed: ${e.toString()}');
     }
   }
 

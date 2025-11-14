@@ -107,4 +107,40 @@ class NotificationService {
       data: {'type': 'all_activities_completed'},
     );
   }
+
+  /// Create an in-app notification for a user and optionally send a push.
+  static Future<void> createInAppNotificationForUser(
+      {required String userId,
+      required String title,
+      required String content,
+      bool sendPush = false,
+      Map<String, dynamic>? pushData}) async {
+    try {
+      // Respect user's notification preference
+      if (!await areNotificationsEnabled()) {
+        return;
+      }
+
+      // Insert an in-app notification
+      await supabase.from('user_notifications').insert({
+        'user_id': userId,
+        'notification_type': title,
+        'content': content,
+        'is_read': false,
+        'action_url': '/counselor/analysis', // optional deep link
+      });
+
+      // Optionally trigger a push notification
+      if (sendPush) {
+        await sendPushNotification(
+          userId: userId,
+          title: title,
+          body: content.length > 120 ? '${content.substring(0, 117)}...' : content,
+          data: pushData ?? {},
+        );
+      }
+    } catch (e) {
+      print('Error creating in-app notification: $e');
+    }
+  }
 }

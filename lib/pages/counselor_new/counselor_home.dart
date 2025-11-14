@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../controllers/counselor_home_controller.dart';
 import '../../models/appointment.dart';
 import '../chat/direct_chat.dart';
@@ -57,6 +58,9 @@ class _CounselorHomeState extends State<CounselorHome> {
 
       // Load unread message counts for today's appointments
       _loadUnreadMessages();
+
+      // New: possibly show weekly intervention analysis dialog
+      _maybeShowWeeklyAnalysis();
     } else {
       // Handle special error codes
       if (result.errorMessage == 'PROFILE_NOT_FOUND' || result.errorMessage == 'PROFILE_INCOMPLETE') {
@@ -568,6 +572,149 @@ class _CounselorHomeState extends State<CounselorHome> {
           ),
         ),
       );
+    }
+  }
+
+  // New helper: check SharedPreferences and show AI analysis at most once every 7 days
+  Future<void> _maybeShowWeeklyAnalysis() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final lastShownStr = prefs.getString('last_weekly_analysis_shown');
+      if (lastShownStr != null) {
+        final lastShown = DateTime.tryParse(lastShownStr);
+        if (lastShown != null && DateTime.now().difference(lastShown) < Duration(days: 7)) {
+          return; // already shown this week
+        }
+      }
+
+      // Show a small loading dialog while analysis runs
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          content: SizedBox(
+            height: 80,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: const [
+                CircularProgressIndicator(),
+                SizedBox(height: 12),
+                Text('Analyzing recent intervention logs...')
+              ],
+            ),
+          ),
+        ),
+      );
+
+      final analysisResult = await _controller.getWeeklyInterventionAnalysis();
+
+      // Dismiss loading dialog
+      if (mounted) Navigator.pop(context);
+
+      if (!analysisResult.success) {
+        return;
+      }
+
+      final analysisText = (analysisResult.analysis ?? '').trim();
+      if (analysisText.isEmpty) {
+        await prefs.setString('last_weekly_analysis_shown', DateTime.now().toIso8601String());
+        return;
+      }
+
+      // Prepare compact bullets
+      final lines = analysisText.split(RegExp(r'\n+')).map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+
+      // Show formatted modern dialog
+      if (!mounted) return;
+      await showDialog(
+        context: context,
+        barrierDismissible: true,
+        builder: (ctx) => Dialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.7),
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF7C83FD).withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.analytics_outlined, color: Color(0xFF7C83FD)),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Weekly Intervention Analysis',
+                          style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.black54),
+                        onPressed: () => Navigator.pop(ctx),
+                      )
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: lines.map((line) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('• ', style: TextStyle(fontSize: 18)),
+                                Expanded(
+                                  child: Text(
+                                    line,
+                                    style: GoogleFonts.poppins(fontSize: 14, height: 1.4, color: const Color(0xFF3A3A50)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF7C83FD),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: Text('Close', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // Mark as shown now
+      await prefs.setString('last_weekly_analysis_shown', DateTime.now().toIso8601String());
+    } catch (e) {
+      // ignore failures silently to avoid breaking UI; could log
+      return;
     }
   }
 

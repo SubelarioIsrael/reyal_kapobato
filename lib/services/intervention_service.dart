@@ -8,27 +8,20 @@ class InterventionService {
 
   // Keywords and phrases that might indicate concerning content
   static const List<String> _concerningKeywords = [
-    'suicide',
-    'kill myself',
-    'want to die',
-    'end it all',
-    'no reason to live',
-    'self harm',
-    'cut myself',
-    'hurt myself',
-    'self injury',
     'depression',
     'hopeless',
+    'i feel hopeless',
     'worthless',
+    'i feel worthless',
     'useless',
     'burden',
     'anxiety',
     'panic attack',
     'can\'t breathe',
-    'heart attack',
-    'abuse',
-    'domestic violence',
-    'sexual assault',
+    'stress',
+    'overwhelmed',
+    'can\'t cope',
+    'breaking point',
     'trauma',
     'drugs',
     'alcohol',
@@ -40,22 +33,23 @@ class InterventionService {
     'lonely',
     'isolated',
     'no friends',
-    'no one cares',
-    'stress',
-    'overwhelmed',
-    'can\'t cope',
-    'breaking point'
+    'no one cares'
   ];
 
   // High-risk phrases that require immediate attention
   static const List<String> _highRiskPhrases = [
     'suicide',
     'kill myself',
+    'kill me',
     'want to die',
+    'i don\'t want to live',
     'end it all',
     'self harm',
     'cut myself',
+    'cutting',
     'hurt myself',
+    'hang myself',
+    'jump off',
     'abuse',
     'domestic violence',
     'sexual assault'
