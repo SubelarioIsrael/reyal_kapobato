@@ -15,24 +15,24 @@ import 'package:breathe_better/services/push_noti_service.dart';
 import 'package:breathe_better/services/notification_api.dart'; // added for local testing examples
 import 'routes.dart';
 
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  print('FCM background message received: ${message.messageId}, data: ${message.data}');
-}
+// Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+//   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+//   print('FCM background message received: ${message.messageId}, data: ${message.data}');
+// }
 
 Future<void> initApp() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  // FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  await FirebaseMessaging.instance.requestPermission(
-    alert: true,
-    badge: true,
-    sound: true,
-    provisional: false,
-  );
+  // await FirebaseMessaging.instance.requestPermission(
+  //   alert: true,
+  //   badge: true,
+  //   sound: true,
+  //   provisional: false,
+  // );
 
   OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
   OneSignal.initialize("c0c552e3-f8d6-49fc-9d0c-a7b23267b9f0");
@@ -105,8 +105,8 @@ class _MyAppState extends State<MyApp> {
     PushNotiService.setNavigatorKey(_navigatorKey);
     _setupAuthListener();
     _setupDeepLinkListener();
-    _setupFcmListeners(); // add FCM listeners
-    _saveDeviceToken(); // persist token to Firestore
+    // _setupFcmListeners(); // add FCM listeners
+    // _saveDeviceToken(); // persist token to Firestore
   }
 
   void _setupAuthListener() {
@@ -211,93 +211,93 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
-  // FCM: terminated / foreground / background -> opened handlers
-  void _setupFcmListeners() {
-    // Terminated: app opened from a notification
-    FirebaseMessaging.instance.getInitialMessage().then((RemoteMessage? message) {
-      if (message != null) {
-        print('FCM initialMessage (terminated -> opened): ${message.messageId}');
-        _handleMessageOpenedApp(message);
-      }
-    });
+  // // FCM: terminated / foreground / background -> opened handlers
+  // void _setupFcmListeners() {
+  //   // Terminated: app opened from a notification
+  //   FirebaseMessaging.instance.getInitialMessage().then((RemoteMessage? message) {
+  //     if (message != null) {
+  //       print('FCM initialMessage (terminated -> opened): ${message.messageId}');
+  //       _handleMessageOpenedApp(message);
+  //     }
+  //   });
 
-    // Foreground: show in-app feedback
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      print('FCM onMessage (foreground): ${message.messageId}');
-      _showForegroundNotification(message);
-    });
+  //   // Foreground: show in-app feedback
+  //   FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+  //     print('FCM onMessage (foreground): ${message.messageId}');
+  //     _showForegroundNotification(message);
+  //   });
 
-    // Background -> opened: user taps notification
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      print('FCM onMessageOpenedApp (background -> opened): ${message.messageId}');
-      _handleMessageOpenedApp(message);
-    });
-  }
+  //   // Background -> opened: user taps notification
+  //   FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+  //     print('FCM onMessageOpenedApp (background -> opened): ${message.messageId}');
+  //     _handleMessageOpenedApp(message);
+  //   });
+  // }
 
-  // Show a brief SnackBar (and optional dialog) for foreground notifications
-  void _showForegroundNotification(RemoteMessage message) {
-    final ctx = _navigatorKey.currentContext;
-    if (ctx == null) return;
+  // // Show a brief SnackBar (and optional dialog) for foreground notifications
+  // void _showForegroundNotification(RemoteMessage message) {
+  //   final ctx = _navigatorKey.currentContext;
+  //   if (ctx == null) return;
 
-    final notif = message.notification;
-    final title = notif?.title ?? message.data['title'] ?? 'Notification';
-    final body = notif?.body ?? message.data['body'] ?? '';
+  //   final notif = message.notification;
+  //   final title = notif?.title ?? message.data['title'] ?? 'Notification';
+  //   final body = notif?.body ?? message.data['body'] ?? '';
 
-    ScaffoldMessenger.of(ctx).showSnackBar(
-      SnackBar(
-        content: Text('$title — $body', maxLines: 2, overflow: TextOverflow.ellipsis),
-        duration: const Duration(seconds: 4),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+  //   ScaffoldMessenger.of(ctx).showSnackBar(
+  //     SnackBar(
+  //       content: Text('$title — $body', maxLines: 2, overflow: TextOverflow.ellipsis),
+  //       duration: const Duration(seconds: 4),
+  //       behavior: SnackBarBehavior.floating,
+  //     ),
+  //   );
 
-    // Optional: show dialog for important notifications
-    // showDialog(
-    //   context: ctx,
-    //   builder: (_) => AlertDialog(
-    //     title: Text(title),
-    //     content: Text(body),
-    //     actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
-    //   ),
-    // );
-  }
+  //   // Optional: show dialog for important notifications
+  //   // showDialog(
+  //   //   context: ctx,
+  //   //   builder: (_) => AlertDialog(
+  //   //     title: Text(title),
+  //   //     content: Text(body),
+  //   //     actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
+  //   //   ),
+  //   // );
+  // }
 
-  // Handle navigation when a notification is opened (from background or terminated).
-  void _handleMessageOpenedApp(RemoteMessage message) {
-    final data = message.data;
-    final route = (data['route'] as String?) ?? '/messages';
+  // // Handle navigation when a notification is opened (from background or terminated).
+  // void _handleMessageOpenedApp(RemoteMessage message) {
+  //   final data = message.data;
+  //   final route = (data['route'] as String?) ?? '/messages';
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _navigatorKey.currentState?.pushNamed(route, arguments: data);
-    });
-  }
+  //   WidgetsBinding.instance.addPostFrameCallback((_) {
+  //     _navigatorKey.currentState?.pushNamed(route, arguments: data);
+  //   });
+  // }
 
-  // Save the FCM token to Firestore (collection: device_tokens)
-  Future<void> _saveDeviceToken() async {
-    try {
-      final fcmToken = await FirebaseMessaging.instance.getToken();
-      if (fcmToken == null) return;
+  // // Save the FCM token to Firestore (collection: device_tokens)
+  // Future<void> _saveDeviceToken() async {
+  //   try {
+  //     final fcmToken = await FirebaseMessaging.instance.getToken();
+  //     if (fcmToken == null) return;
 
-      final supabaseUserId = Supabase.instance.client.auth.currentUser?.id;
-      final platform = Platform.isAndroid ? 'android' : (Platform.isIOS ? 'ios' : 'unknown');
+  //     final supabaseUserId = Supabase.instance.client.auth.currentUser?.id;
+  //     final platform = Platform.isAndroid ? 'android' : (Platform.isIOS ? 'ios' : 'unknown');
 
-      final doc = FirebaseFirestore.instance.collection('device_tokens').doc(fcmToken);
-      await doc.set({
-        'token': fcmToken,
-        'userId': supabaseUserId ?? '',
-        'platform': platform,
-        'createdAt': DateTime.now().toIso8601String(),
-      }, SetOptions(merge: true));
+  //     final doc = FirebaseFirestore.instance.collection('device_tokens').doc(fcmToken);
+  //     await doc.set({
+  //       'token': fcmToken,
+  //       'userId': supabaseUserId ?? '',
+  //       'platform': platform,
+  //       'createdAt': DateTime.now().toIso8601String(),
+  //     }, SetOptions(merge: true));
  
-       print('Saved FCM token to Firestore: $fcmToken');
+  //      print('Saved FCM token to Firestore: $fcmToken');
 
-      // Example: how to trigger a test notification from the app (only for debugging)
-      // Note: ensure NOTIF_SERVER_URL and NOTIF_SERVER_TOKEN are set in your important_stuff.env
-      // await NotificationApi.sendToToken(fcmToken, title: 'Test', body: 'Hello from app');
-    } catch (e) {
-      print('Error saving FCM token: $e');
-    }
-  }
+  //     // Example: how to trigger a test notification from the app (only for debugging)
+  //     // Note: ensure NOTIF_SERVER_URL and NOTIF_SERVER_TOKEN are set in your important_stuff.env
+  //     // await NotificationApi.sendToToken(fcmToken, title: 'Test', body: 'Hello from app');
+  //   } catch (e) {
+  //     print('Error saving FCM token: $e');
+  //   }
+  // }
 
   @override
   Widget build(BuildContext context) {

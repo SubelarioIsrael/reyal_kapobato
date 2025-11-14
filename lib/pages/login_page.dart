@@ -668,11 +668,10 @@ class _LoginPageState extends State<LoginPage> {
               children: [
                 const SizedBox(height: 40),
                 // Logo
-                Image.asset(
-                  'assets/icon/breathebetterlogo2.png',
-                  height: 80,
-                  width: 80,
-                  color: const Color(0xFF7C83FD), // optional tint
+                Icon(
+                  Icons.spa,
+                  size: 80,
+                  color: const Color(0xFF7C83FD).withOpacity(0.8),
                 ),
                 const SizedBox(height: 20),
                 // Title
