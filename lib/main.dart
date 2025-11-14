@@ -1,18 +1,11 @@
 import 'dart:async';
-import 'dart:io';
-
-import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:app_links/app_links.dart';
-import 'firebase_options.dart';
 import 'package:breathe_better/services/push_noti_service.dart';
-import 'package:breathe_better/services/notification_api.dart'; // added for local testing examples
 import 'routes.dart';
 
 // Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -23,45 +16,50 @@ import 'routes.dart';
 Future<void> initApp() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  try {
+    // await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    // FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  // await FirebaseMessaging.instance.requestPermission(
-  //   alert: true,
-  //   badge: true,
-  //   sound: true,
-  //   provisional: false,
-  // );
+    // await FirebaseMessaging.instance.requestPermission(
+    //   alert: true,
+    //   badge: true,
+    //   sound: true,
+    //   provisional: false,
+    // );
 
-  OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
-  OneSignal.initialize("c0c552e3-f8d6-49fc-9d0c-a7b23267b9f0");
-  await OneSignal.Notifications.requestPermission(true);
+    OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
+    OneSignal.initialize("c0c552e3-f8d6-49fc-9d0c-a7b23267b9f0");
+    await OneSignal.Notifications.requestPermission(true);
 
-  await dotenv.load(fileName: 'important_stuff.env');
+    await dotenv.load(fileName: 'important_stuff.env');
 
-  final url = dotenv.env['SUPABASE_URL'];
-  final anonKey = dotenv.env['SUPABASE_ANON_KEY'];
-  if (url == null || anonKey == null || url.isEmpty || anonKey.isEmpty) {
-    throw Exception('Missing SUPABASE_URL or SUPABASE_ANON_KEY');
-  }
-
-  await Supabase.initialize(url: url, anonKey: anonKey);
-
-  final pushNotiService = PushNotiService();
-  await pushNotiService.initNotification();
-
-  await _registerDeviceWithSupabase(pushNotiService);
-
-  Supabase.instance.client.auth.onAuthStateChange.listen((data) async {
-    final event = data.event;
-    if (event == AuthChangeEvent.signedIn ||
-        event == AuthChangeEvent.tokenRefreshed) {
-      await _registerDeviceWithSupabase(pushNotiService);
-    } else if (event == AuthChangeEvent.signedOut) {
-      pushNotiService.setCurrentUserId('');
+    final url = dotenv.env['SUPABASE_URL'];
+    final anonKey = dotenv.env['SUPABASE_ANON_KEY'];
+    if (url == null || anonKey == null || url.isEmpty || anonKey.isEmpty) {
+      throw Exception('Missing SUPABASE_URL or SUPABASE_ANON_KEY');
     }
-  });
+
+    await Supabase.initialize(url: url, anonKey: anonKey);
+
+    final pushNotiService = PushNotiService();
+    await pushNotiService.initNotification();
+
+    await _registerDeviceWithSupabase(pushNotiService);
+
+    Supabase.instance.client.auth.onAuthStateChange.listen((data) async {
+      final event = data.event;
+      if (event == AuthChangeEvent.signedIn ||
+          event == AuthChangeEvent.tokenRefreshed) {
+        await _registerDeviceWithSupabase(pushNotiService);
+      } else if (event == AuthChangeEvent.signedOut) {
+        pushNotiService.setCurrentUserId('');
+      }
+    });
+  } catch (e) {
+    print('Error initializing app: $e');
+    // Continue app startup even if some services fail
+  }
 }
 
 Future<void> _registerDeviceWithSupabase(PushNotiService pushNotiService) async {

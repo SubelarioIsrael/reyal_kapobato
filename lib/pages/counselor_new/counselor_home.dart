@@ -6,6 +6,7 @@ import '../../models/appointment.dart';
 import '../chat/direct_chat.dart';
 import '../../widgets/student_avatar.dart';
 import '../../components/counselor_drawer.dart';
+import '../../components/counselor_notification_button.dart';
 import '../../components/video_call_dialog.dart';
 import 'counselor_appointments.dart';
 
@@ -742,6 +743,9 @@ class _CounselorHomeState extends State<CounselorHome> {
           ),
         ),
         centerTitle: true,
+        actions: const [
+          CounselorNotificationButton(),
+        ],
       ),
       drawer: const CounselorDrawer(),
       body: _isLoading
@@ -1388,11 +1392,16 @@ class _CounselorHomeState extends State<CounselorHome> {
             const SizedBox(width: 16),
             Expanded(
               child: _buildQuickActionCard(
-                'Video Calls',
+                'Video Call',
                 Icons.video_call,
                 Colors.orange,
                 () {
-                  _showVideoCallDialog();
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (context) => const VideoCallDialog(userRole: 'counselor'),
+                  );
                 },
               ),
             ),
@@ -1439,12 +1448,4 @@ class _CounselorHomeState extends State<CounselorHome> {
     );
   }
 
-  void _showVideoCallDialog() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => const VideoCallDialog(),
-    );
-  }
 }

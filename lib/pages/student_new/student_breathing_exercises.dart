@@ -20,8 +20,6 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises>
 
   static const double _minCircleSize = 200;
   static const double _maxCircleSize = 300;
-  
-  int _selectedIndex = 0;
 
   @override
   void initState() {
@@ -237,22 +235,6 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises>
         ),
       ),
     );
-  }
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-    switch (index) {
-      case 0:
-        break;
-      case 1:
-        Navigator.pushReplacementNamed(context, 'student-home');
-        break;
-      case 2:
-        Navigator.pushReplacementNamed(context, '/student-daily-checkin');
-        break;
-    }
   }
 
   Widget _buildExerciseView() {

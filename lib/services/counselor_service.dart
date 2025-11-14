@@ -224,11 +224,41 @@ class CounselorService {
       final formattedDate = '${appointmentDate.day}/${appointmentDate.month}/${appointmentDate.year}';
       final formattedTime = '${startTime.hour.toString().padLeft(2, '0')}:${startTime.minute.toString().padLeft(2, '0')}';
 
+      // Get student name
+      String studentName = 'A student';
+      if (currentUserId != null) {
+        try {
+          final studentResponse = await _supabase
+              .from('students')
+              .select('first_name, last_name')
+              .eq('user_id', currentUserId)
+              .maybeSingle();
+          
+          if (studentResponse != null) {
+            final firstName = studentResponse['first_name'] as String? ?? '';
+            final lastName = studentResponse['last_name'] as String? ?? '';
+            studentName = '$firstName $lastName'.trim();
+            if (studentName.isEmpty) studentName = 'A student';
+          }
+        } catch (e) {
+          print('Error fetching student name: $e');
+        }
+      }
+
+      // Create persistent notification for counselor
+      await _supabase.from('user_notifications').insert({
+        'user_id': counselorUserId,
+        'notification_type': 'appointment_booked',
+        'content': 'Your appointment with $studentName on $formattedDate at $formattedTime has been requested.',
+        'action_url': '/counselor_appointments',
+        'is_read': false,
+      });
+
       // This will only show when the counselor is logged in due to the user context check in PushNotiService
       await _pushNotiService.showNotificationToUser(
         userId: counselorUserId,
         title: 'New Appointment Request',
-        body: 'A student has requested an appointment on $formattedDate at $formattedTime',
+        body: '$studentName requested an appointment on $formattedDate at $formattedTime',
         route: '/counselor-appointments',
       );
     } catch (e) {
