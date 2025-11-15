@@ -98,20 +98,27 @@ class ActivityService {
 
   static Future<Map<String, bool>> getTodayCompletions() async {
     try {
-      final now = DateTime.now();
-      final todayStart =
-          DateTime(now.year, now.month, now.day).toIso8601String();
-      final todayEnd = DateTime(now.year, now.month, now.day, 23, 59, 59, 999)
-          .toIso8601String();
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) {
+        return {
+          'mood_journal': false,
+          'daily_checkin': false,
+          'breathing_exercise': false,
+        };
+      }
 
-      print(
-          'Fetching completions for date range: $todayStart to $todayEnd'); // Debug log
+      // Use UTC+8 (Philippine Time) for today's date
+      final now = DateTime.now().toUtc().add(const Duration(hours: 8));
+      final todayDate = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+
+      print('Fetching completions for user: ${user.id}, date: $todayDate'); // Debug log
 
       final response = await supabase
           .from('activity_completions')
-          .select('activity_id')
-          .gte('completed_at', todayStart)
-          .lte('completed_at', todayEnd);
+          .select('activity_id, completed_at')
+          .eq('user_id', user.id)
+          .gte('completed_at', '$todayDate 00:00:00')
+          .lte('completed_at', '$todayDate 23:59:59');
 
       print('Response from Supabase: $response'); // Debug log
 

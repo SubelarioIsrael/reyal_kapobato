@@ -41,18 +41,8 @@ class _StudentNotificationButtonState extends State<StudentNotificationButton> {
           .order('timestamp', ascending: false)
           .limit(50); // Increased limit to show more notifications
 
-      // Convert timestamps from UTC to UTC+8 (Asia/Manila)
-      final notifications = List<Map<String, dynamic>>.from(response).map((notification) {
-        if (notification['timestamp'] != null) {
-          final utcTime = DateTime.parse(notification['timestamp'] as String);
-          final utcPlus8Time = utcTime.add(const Duration(hours: 8));
-          notification['timestamp'] = utcPlus8Time.toIso8601String();
-        }
-        return notification;
-      }).toList();
-
       setState(() {
-        _notifications = notifications;
+        _notifications = List<Map<String, dynamic>>.from(response);
         _isLoading = false;
       });
     } catch (e) {

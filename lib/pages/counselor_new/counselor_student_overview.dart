@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../widgets/student_avatar.dart';
 import '../../controllers/counselor_student_overview_controller.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
 import 'package:path_provider/path_provider.dart';
@@ -1588,6 +1589,24 @@ class _CounselorStudentOverviewState extends State<CounselorStudentOverview>
 
   Future<void> _generateStudentReportPdf() async {
     try {
+      // Fetch mental health assessments from questionnaire_responses
+      final assessmentsResponse = await Supabase.instance.client
+          .from('questionnaire_responses')
+          .select('*')
+          .eq('user_id', widget.userId)
+          .order('submission_timestamp', ascending: false)
+          .limit(10);
+      final assessments = List<Map<String, dynamic>>.from(assessmentsResponse);
+
+      // Fetch detailed counseling sessions
+      final sessionsResponse = await Supabase.instance.client
+          .from('counseling_appointments')
+          .select('*, counselors(first_name, last_name)')
+          .eq('user_id', widget.userId)
+          .order('appointment_date', ascending: false)
+          .limit(15);
+      final sessions = List<Map<String, dynamic>>.from(sessionsResponse);
+
       final pdf = pw.Document();
 
       pdf.addPage(
@@ -1708,6 +1727,205 @@ class _CounselorStudentOverviewState extends State<CounselorStudentOverview>
               ),
               
               pw.SizedBox(height: 30),
+              
+              // Mental Health Assessments Section
+              if (assessments.isNotEmpty)
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(20),
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: PdfColors.grey300),
+                    borderRadius: pw.BorderRadius.circular(8),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        'Mental Health Assessments',
+                        style: pw.TextStyle(
+                          fontSize: 18,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.indigo,
+                        ),
+                      ),
+                      pw.SizedBox(height: 15),
+                      ...assessments.take(8).map((assessment) {
+                        final submissionDate = DateTime.parse(assessment['submission_timestamp']);
+                        final formattedDate = '${submissionDate.day}/${submissionDate.month}/${submissionDate.year}';
+                        final score = assessment['total_score'] ?? 'N/A';
+                        // Calculate risk level based on score
+                        String riskLevel = 'LOW';
+                        if (score != 'N/A') {
+                          final scoreValue = score as int;
+                          if (scoreValue >= 20) {
+                            riskLevel = 'HIGH';
+                          } else if (scoreValue >= 10) {
+                            riskLevel = 'MODERATE';
+                          }
+                        }
+                        
+                        return pw.Padding(
+                          padding: const pw.EdgeInsets.only(bottom: 10),
+                          child: pw.Row(
+                            children: [
+                              pw.Container(
+                                width: 4,
+                                height: 4,
+                                decoration: pw.BoxDecoration(
+                                  color: PdfColors.orange,
+                                  shape: pw.BoxShape.circle,
+                                ),
+                                margin: const pw.EdgeInsets.only(right: 8, top: 4),
+                              ),
+                              pw.Expanded(
+                                flex: 2,
+                                child: pw.Text(
+                                  formattedDate,
+                                  style: pw.TextStyle(
+                                    fontSize: 11,
+                                    color: PdfColors.grey800,
+                                  ),
+                                ),
+                              ),
+                              pw.Expanded(
+                                flex: 2,
+                                child: pw.Text(
+                                  'Score: $score',
+                                  style: pw.TextStyle(
+                                    fontSize: 11,
+                                    color: PdfColors.grey700,
+                                  ),
+                                ),
+                              ),
+                              pw.Expanded(
+                                flex: 2,
+                                child: pw.Text(
+                                  'Risk: $riskLevel',
+                                  style: pw.TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: pw.FontWeight.bold,
+                                    color: riskLevel == 'HIGH' ? PdfColors.red : 
+                                           riskLevel == 'MODERATE' ? PdfColors.orange : PdfColors.green,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ],
+                  ),
+                ),
+                
+              if (assessments.isNotEmpty)
+                pw.SizedBox(height: 30),
+              
+              // Counseling Sessions Section
+              if (sessions.isNotEmpty)
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(20),
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: PdfColors.grey300),
+                    borderRadius: pw.BorderRadius.circular(8),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        'Counseling Sessions',
+                        style: pw.TextStyle(
+                          fontSize: 18,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.indigo,
+                        ),
+                      ),
+                      pw.SizedBox(height: 15),
+                      ...sessions.take(12).map((session) {
+                        final counselor = session['counselors'] as Map<String, dynamic>?;
+                        final counselorName = counselor != null && 
+                                              counselor['first_name'] != null && 
+                                              counselor['last_name'] != null
+                            ? '${counselor['first_name']} ${counselor['last_name']}'
+                            : 'Unknown Counselor';
+                        final appointmentDate = DateTime.parse(session['appointment_date']);
+                        final formattedDate = '${appointmentDate.day}/${appointmentDate.month}/${appointmentDate.year}';
+                        final status = session['status']?.toString().toUpperCase() ?? 'PENDING';
+                        final notes = session['notes']?.toString() ?? 'No notes';
+                        
+                        return pw.Padding(
+                          padding: const pw.EdgeInsets.only(bottom: 12),
+                          child: pw.Column(
+                            crossAxisAlignment: pw.CrossAxisAlignment.start,
+                            children: [
+                              pw.Row(
+                                children: [
+                                  pw.Container(
+                                    width: 4,
+                                    height: 4,
+                                    decoration: pw.BoxDecoration(
+                                      color: PdfColors.purple,
+                                      shape: pw.BoxShape.circle,
+                                    ),
+                                    margin: const pw.EdgeInsets.only(right: 8, top: 4),
+                                  ),
+                                  pw.Expanded(
+                                    flex: 2,
+                                    child: pw.Text(
+                                      formattedDate,
+                                      style: pw.TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: pw.FontWeight.bold,
+                                        color: PdfColors.grey800,
+                                      ),
+                                    ),
+                                  ),
+                                  pw.Expanded(
+                                    flex: 2,
+                                    child: pw.Text(
+                                      counselorName,
+                                      style: pw.TextStyle(
+                                        fontSize: 11,
+                                        color: PdfColors.grey700,
+                                      ),
+                                    ),
+                                  ),
+                                  pw.Expanded(
+                                    flex: 1,
+                                    child: pw.Text(
+                                      status,
+                                      style: pw.TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: pw.FontWeight.bold,
+                                        color: status == 'COMPLETED' ? PdfColors.green : 
+                                               status == 'CANCELLED' ? PdfColors.red : PdfColors.orange,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (notes.length > 5 && notes != 'No notes')
+                                pw.SizedBox(height: 4),
+                              if (notes.length > 5 && notes != 'No notes')
+                                pw.Padding(
+                                  padding: const pw.EdgeInsets.only(left: 12),
+                                  child: pw.Text(
+                                    'Notes: ${notes.length > 80 ? notes.substring(0, 80) + '...' : notes}',
+                                    style: pw.TextStyle(
+                                      fontSize: 9,
+                                      color: PdfColors.grey600,
+                                      fontStyle: pw.FontStyle.italic,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ],
+                  ),
+                ),
+                
+              if (sessions.isNotEmpty)
+                pw.SizedBox(height: 30),
               
               // Recent Activity Details Section
               if (_recentActivities.isNotEmpty) ...[

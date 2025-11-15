@@ -113,6 +113,55 @@ class StudentCounselorsController {
         'notes': notes,
       });
 
+      // Get student name and counselor user_id for notification
+      final studentData = await _supabase
+          .from('students')
+          .select('first_name, last_name')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+      final counselorData = await _supabase
+          .from('counselors')
+          .select('user_id, first_name, last_name')
+          .eq('counselor_id', counselorId)
+          .maybeSingle();
+
+      if (studentData != null && counselorData != null) {
+        final studentName = '${studentData['first_name']} ${studentData['last_name']}';
+        final formattedDate = '${appointmentDate.month}/${appointmentDate.day}/${appointmentDate.year}';
+        final formattedTime = '${startTime.hour > 12 ? startTime.hour - 12 : startTime.hour}:${startTime.minute.toString().padLeft(2, '0')} ${startTime.hour >= 12 ? 'PM' : 'AM'}';
+
+        // Send notification to counselor
+        try {
+          await _supabase.from('user_notifications').insert({
+            'user_id': counselorData['user_id'],
+            'notification_type': 'New Appointment',
+            'content': '$studentName booked an appointment with you on $formattedDate at $formattedTime.',
+            'action_url': '/counselor-appointments'
+          });
+
+          // Try to send push notification via Edge Function
+          try {
+            await _supabase.functions.invoke(
+              'send-notification',
+              body: {
+                'user_id': counselorData['user_id'],
+                'title': 'New Appointment Request',
+                'body': '$studentName booked an appointment with you on $formattedDate at $formattedTime.',
+                'data': {
+                  'action': 'new_appointment',
+                  'route': '/counselor-appointments'
+                }
+              },
+            );
+          } catch (pushError) {
+            print('Push notification failed: $pushError');
+          }
+        } catch (notificationError) {
+          print('Failed to send notification: $notificationError');
+        }
+      }
+
       return BookAppointmentResult(success: true);
     } catch (e) {
       print('Error booking appointment: $e');

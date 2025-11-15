@@ -350,6 +350,7 @@ class _CounselorNotificationButtonState extends State<CounselorNotificationButto
   }
 
   String _formatTimestamp(DateTime dt) {
+    // Timestamps are already in Philippine time (UTC+8)
     final now = DateTime.now();
     final diff = now.difference(dt);
 

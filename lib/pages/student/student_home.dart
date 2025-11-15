@@ -95,7 +95,7 @@ class _StudentHomeState extends State<StudentHome> {
       route: 'student-counselors',
     ),
     const _FeatureCardData(
-      title: 'My Appointments',
+      title: 'Appointments',
       image:
           'https://3veta.com/wp-content/uploads/2021/11/66.-How-to-effectively-schedule-appointments.png',
       route: 'student-appointments',

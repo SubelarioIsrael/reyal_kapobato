@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:breathe_better/controllers/admin_controller.dart';
 import 'package:breathe_better/components/admin_drawer.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
@@ -632,6 +633,23 @@ class _AdminHomeState extends State<AdminHome> {
       final completedSessions = analyticsData['completedSessions'] as int;
       final recentRegistrations = analyticsData['recentRegistrations'] as List<dynamic>;
 
+      // Fetch recent activities (daily check-ins, mood journals, breathing exercises)
+      final recentActivitiesResponse = await Supabase.instance.client
+          .from('activity_completions')
+          .select('*, users(email), activities(name)')
+          .order('completed_at', ascending: false)
+          .limit(20);
+      final recentActivities = List<Map<String, dynamic>>.from(recentActivitiesResponse);
+
+      // Fetch recent counseling sessions with details
+      final counselingSessionsResponse = await Supabase.instance.client
+          .from('counseling_appointments')
+          .select('*, counselors(first_name, last_name), users(email)')
+          .eq('status', 'completed')
+          .order('appointment_date', ascending: false)
+          .limit(15);
+      final counselingSessions = List<Map<String, dynamic>>.from(counselingSessionsResponse);
+
       final pdf = pw.Document();
 
       pdf.addPage(
@@ -795,6 +813,203 @@ class _AdminHomeState extends State<AdminHome> {
                 ),
                 pw.SizedBox(height: 30),
               ],
+              
+              // Recent Activities Section
+              if (recentActivities.isNotEmpty)
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(20),
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: PdfColors.grey300),
+                    borderRadius: pw.BorderRadius.circular(8),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        'Recent User Activities',
+                        style: pw.TextStyle(
+                          fontSize: 18,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.indigo,
+                        ),
+                      ),
+                      pw.SizedBox(height: 15),
+                      ...recentActivities.take(15).map((activity) {
+                        final userEmail = activity['users']?['email'] ?? 'Unknown User';
+                        final activityName = activity['activities']?['name'] ?? 'Unknown Activity';
+                        final completedAt = DateTime.parse(activity['completed_at']);
+                        final formattedDate = '${completedAt.day}/${completedAt.month}/${completedAt.year} ${completedAt.hour.toString().padLeft(2, '0')}:${completedAt.minute.toString().padLeft(2, '0')}';
+                        
+                        // Create descriptive activity text
+                        String activityDescription = '';
+                        switch (activityName.toLowerCase()) {
+                          case 'daily_checkin':
+                            activityDescription = 'Completed daily mental health check-in';
+                            break;
+                          case 'mood_journal':
+                            activityDescription = 'Recorded mood entry in journal';
+                            break;
+                          case 'breathing_exercise':
+                            activityDescription = 'Completed breathing exercise session';
+                            break;
+                          case 'weekly_mood':
+                            activityDescription = 'Submitted weekly mood assessment';
+                            break;
+                          case 'mental_health_assessment':
+                            activityDescription = 'Completed mental health questionnaire';
+                            break;
+                          default:
+                            activityDescription = activityName.replaceAll('_', ' ').split(' ').map((word) => 
+                              word.isNotEmpty ? word[0].toUpperCase() + word.substring(1) : ''
+                            ).join(' ');
+                        }
+                        
+                        return pw.Padding(
+                          padding: const pw.EdgeInsets.only(bottom: 10),
+                          child: pw.Column(
+                            crossAxisAlignment: pw.CrossAxisAlignment.start,
+                            children: [
+                              pw.Row(
+                                children: [
+                                  pw.Container(
+                                    width: 4,
+                                    height: 4,
+                                    decoration: pw.BoxDecoration(
+                                      color: PdfColors.indigo,
+                                      shape: pw.BoxShape.circle,
+                                    ),
+                                    margin: const pw.EdgeInsets.only(right: 8, top: 4),
+                                  ),
+                                  pw.Expanded(
+                                    flex: 3,
+                                    child: pw.Text(
+                                      userEmail,
+                                      style: pw.TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: pw.FontWeight.bold,
+                                        color: PdfColors.grey800,
+                                      ),
+                                    ),
+                                  ),
+                                  pw.Expanded(
+                                    flex: 2,
+                                    child: pw.Text(
+                                      formattedDate,
+                                      style: pw.TextStyle(
+                                        fontSize: 10,
+                                        color: PdfColors.grey600,
+                                      ),
+                                      textAlign: pw.TextAlign.right,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              pw.Padding(
+                                padding: const pw.EdgeInsets.only(left: 12, top: 2),
+                                child: pw.Text(
+                                  activityDescription,
+                                  style: pw.TextStyle(
+                                    fontSize: 10,
+                                    color: PdfColors.grey700,
+                                    fontStyle: pw.FontStyle.italic,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ],
+                  ),
+                ),
+                
+              if (recentActivities.isNotEmpty)
+                pw.SizedBox(height: 30),
+              
+              // Counseling Sessions Section
+              if (counselingSessions.isNotEmpty)
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(20),
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: PdfColors.grey300),
+                    borderRadius: pw.BorderRadius.circular(8),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        'Recent Counseling Sessions',
+                        style: pw.TextStyle(
+                          fontSize: 18,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.indigo,
+                        ),
+                      ),
+                      pw.SizedBox(height: 15),
+                      ...counselingSessions.take(12).map((session) {
+                        final counselor = session['counselors'] as Map<String, dynamic>?;
+                        final counselorName = counselor != null && 
+                                              counselor['first_name'] != null && 
+                                              counselor['last_name'] != null
+                            ? '${counselor['first_name']} ${counselor['last_name']}'
+                            : 'Unknown Counselor';
+                        final studentEmail = session['users']?['email'] ?? 'Unknown Student';
+                        final appointmentDate = DateTime.parse(session['appointment_date']);
+                        final formattedDate = '${appointmentDate.day}/${appointmentDate.month}/${appointmentDate.year}';
+                        
+                        return pw.Padding(
+                          padding: const pw.EdgeInsets.only(bottom: 8),
+                          child: pw.Row(
+                            children: [
+                              pw.Container(
+                                width: 4,
+                                height: 4,
+                                decoration: pw.BoxDecoration(
+                                  color: PdfColors.purple,
+                                  shape: pw.BoxShape.circle,
+                                ),
+                                margin: const pw.EdgeInsets.only(right: 8, top: 4),
+                              ),
+                              pw.Expanded(
+                                flex: 3,
+                                child: pw.Text(
+                                  studentEmail,
+                                  style: pw.TextStyle(
+                                    fontSize: 11,
+                                    color: PdfColors.grey800,
+                                  ),
+                                ),
+                              ),
+                              pw.Expanded(
+                                flex: 2,
+                                child: pw.Text(
+                                  counselorName,
+                                  style: pw.TextStyle(
+                                    fontSize: 11,
+                                    color: PdfColors.grey700,
+                                  ),
+                                ),
+                              ),
+                              pw.Expanded(
+                                flex: 2,
+                                child: pw.Text(
+                                  formattedDate,
+                                  style: pw.TextStyle(
+                                    fontSize: 10,
+                                    color: PdfColors.grey600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ],
+                  ),
+                ),
+                
+              if (counselingSessions.isNotEmpty)
+                pw.SizedBox(height: 30),
               
               // Additional Information Section
               pw.Container(

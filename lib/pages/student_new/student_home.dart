@@ -63,7 +63,7 @@ class _StudentHomeNewState extends State<StudentHomeNew> {
       route: 'student-counselors',
     ),
     const _FeatureCardData(
-      title: 'My Appointments',
+      title: 'Appointments\n',
       image: 'https://3veta.com/wp-content/uploads/2021/11/66.-How-to-effectively-schedule-appointments.png',
       route: 'student-appointments',
     ),
@@ -256,97 +256,102 @@ class _StudentHomeNewState extends State<StudentHomeNew> {
 
   Widget _buildWeeklyMoodBar() {
     return ValueListenableBuilder(
-      valueListenable: controller.isWeeklyMoodLoading,
-      builder: (_, bool loading, __) {
-        if (loading) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16.0),
-            child: Center(child: CircularProgressIndicator()),
-          );
-        }
-        final week = controller.getWeekDaysWithMood();
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12.0),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Row(
-              key: const Key('weekly_mood_bar'),
-              children: week.asMap().entries.map((entry) {
-                final index = entry.key;
-                final day = entry.value;
-                final isToday = day['isToday'];
-                final checkedIn = day['checkedIn'];
-                final emoji = day['emoji'];
-                final date = day['date'] as DateTime;
-                Color bgColor;
-                if (checkedIn) {
-                  bgColor = Colors.green;
-                } else if (isToday) {
-                  bgColor = Colors.orange;
-                } else {
-                  bgColor = Colors.grey[200]!;
-                }
-                return Padding(
-                  padding: EdgeInsets.only(right: index < week.length - 1 ? 12.0 : 0),
-                  child: Column(
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          color: bgColor,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                        child: Column(
-                          children: [
-                            Text(
-                              DateFormat('E').format(date),
-                              style: TextStyle(
-                                color: checkedIn
-                                    ? Colors.white
-                                    : (isToday ? Colors.white : Colors.black87),
-                                fontWeight: FontWeight.bold,
-                              ),
+      valueListenable: controller.weeklyMood,
+      builder: (_, List<Map<String, dynamic>> moodData, __) {
+        return ValueListenableBuilder(
+          valueListenable: controller.isWeeklyMoodLoading,
+          builder: (_, bool loading, __) {
+            if (loading) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16.0),
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+            final week = controller.getWeekDaysWithMood();
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12.0),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Row(
+                  key: const Key('weekly_mood_bar'),
+                  children: week.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final day = entry.value;
+                    final isToday = day['isToday'];
+                    final checkedIn = day['checkedIn'];
+                    final emoji = day['emoji'];
+                    final date = day['date'] as DateTime;
+                    Color bgColor;
+                    if (checkedIn) {
+                      bgColor = Colors.green;
+                    } else if (isToday) {
+                      bgColor = Colors.orange;
+                    } else {
+                      bgColor = Colors.grey[200]!;
+                    }
+                    return Padding(
+                      padding: EdgeInsets.only(right: index < week.length - 1 ? 12.0 : 0),
+                      child: Column(
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              color: bgColor,
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                            Text(
-                              '${date.day}',
-                              style: TextStyle(
-                                color: checkedIn
-                                    ? Colors.white
-                                    : (isToday ? Colors.white : Colors.black87),
-                                fontWeight: FontWeight.bold,
-                              ),
+                            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                            child: Column(
+                              children: [
+                                Text(
+                                  DateFormat('E').format(date),
+                                  style: TextStyle(
+                                    color: checkedIn
+                                        ? Colors.white
+                                        : (isToday ? Colors.white : Colors.black87),
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Text(
+                                  '${date.day}',
+                                  style: TextStyle(
+                                    color: checkedIn
+                                        ? Colors.white
+                                        : (isToday ? Colors.white : Colors.black87),
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      if (checkedIn)
-                        Text(emoji ?? '', style: const TextStyle(fontSize: 24))
-                      else if (isToday)
-                        ElevatedButton(
-                          onPressed: () async {
-                            final result = await Navigator.pushNamed(context, '/student-daily-checkin');
-                            // Refresh home page data if check-in was completed
-                            if (result == true) {
-                              _refreshPageData();
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            shape: const CircleBorder(),
-                            padding: const EdgeInsets.all(8),
-                            minimumSize: const Size(36, 36),
                           ),
-                          child: const Icon(Icons.add, size: 18),
-                        )
-                      else
-                        const SizedBox(height: 36),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
+                          const SizedBox(height: 4),
+                          if (checkedIn)
+                            Text(emoji ?? '', style: const TextStyle(fontSize: 24))
+                          else if (isToday)
+                            ElevatedButton(
+                              onPressed: () async {
+                                final result = await Navigator.pushNamed(context, '/student-daily-checkin');
+                                // Refresh home page data if check-in was completed
+                                if (result == true) {
+                                  _refreshPageData();
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                shape: const CircleBorder(),
+                                padding: const EdgeInsets.all(8),
+                                minimumSize: const Size(36, 36),
+                              ),
+                              child: const Icon(Icons.add, size: 18),
+                            )
+                          else
+                            const SizedBox(height: 36),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            );
+          },
         );
       },
     );

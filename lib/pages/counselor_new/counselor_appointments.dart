@@ -86,7 +86,7 @@ class _CounselorAppointmentsState extends State<CounselorAppointments> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'All Appointments',
+          'Appointments',
           style: GoogleFonts.poppins(
             fontSize: 20,
             fontWeight: FontWeight.bold,
