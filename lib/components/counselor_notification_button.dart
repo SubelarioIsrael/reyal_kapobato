@@ -7,10 +7,10 @@ class CounselorNotificationButton extends StatefulWidget {
   const CounselorNotificationButton({super.key});
 
   @override
-  State<CounselorNotificationButton> createState() => _CounselorNotificationButtonState();
+  State<CounselorNotificationButton> createState() => CounselorNotificationButtonState();
 }
 
-class _CounselorNotificationButtonState extends State<CounselorNotificationButton> {
+class CounselorNotificationButtonState extends State<CounselorNotificationButton> {
   int _notificationCount = 0;
   List<NotificationItem> _notifications = [];
 

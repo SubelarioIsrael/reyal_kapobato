@@ -32,6 +32,9 @@ class _CounselorHomeState extends State<CounselorHome> {
   int _completedSessions = 0;
   int _upcomingSessions = 0;
 
+  // Add GlobalKey for notification button so we can trigger refresh from here
+  final GlobalKey<CounselorNotificationButtonState> _notifKey = GlobalKey<CounselorNotificationButtonState>();
+
   @override
   void initState() {
     super.initState();
@@ -719,6 +722,16 @@ class _CounselorHomeState extends State<CounselorHome> {
     }
   }
 
+  // New combined refresh used by pull-to-refresh
+  Future<void> _refreshAll() async {
+    // start both refreshes concurrently and wait for both to finish
+    final futures = <Future<void>>[
+      _loadAppointments(),
+      _notifKey.currentState?.refreshNotifications() ?? Future.value(),
+    ];
+    await Future.wait(futures);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -743,8 +756,8 @@ class _CounselorHomeState extends State<CounselorHome> {
           ),
         ),
         centerTitle: true,
-        actions: const [
-          CounselorNotificationButton(),
+        actions: [
+          CounselorNotificationButton(key: _notifKey),
         ],
       ),
       drawer: const CounselorDrawer(),
@@ -753,28 +766,28 @@ class _CounselorHomeState extends State<CounselorHome> {
           : _errorMessage != null
               ? Center(child: Text(_errorMessage!))
               : RefreshIndicator(
-                  onRefresh: _loadAppointments,
-                  child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    child: Padding(
-                      padding: const EdgeInsets.all(20.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildWelcomeSection(),
-                          const SizedBox(height: 32),
-                          _buildStatsCards(),
-                          const SizedBox(height: 32),
-                          _buildPendingRequestsSection(),
-                          const SizedBox(height: 32),
-                          _buildTodayAppointmentsSection(),
-                          const SizedBox(height: 32),
-                          _buildQuickActionsSection(),
-                          const SizedBox(height: 24),
-                        ],
-                      ),
-                    ),
-                  ),
+                  onRefresh: _refreshAll,
+                   child: SingleChildScrollView(
+                     physics: const AlwaysScrollableScrollPhysics(),
+                     child: Padding(
+                       padding: const EdgeInsets.all(20.0),
+                       child: Column(
+                         crossAxisAlignment: CrossAxisAlignment.start,
+                         children: [
+                           _buildWelcomeSection(),
+                           const SizedBox(height: 32),
+                           _buildStatsCards(),
+                           const SizedBox(height: 32),
+                           _buildPendingRequestsSection(),
+                           const SizedBox(height: 32),
+                           _buildTodayAppointmentsSection(),
+                           const SizedBox(height: 32),
+                           _buildQuickActionsSection(),
+                           const SizedBox(height: 24),
+                         ],
+                       ),
+                     ),
+                   ),
                 ),
     );
   }
