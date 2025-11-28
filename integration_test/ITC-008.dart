@@ -45,32 +45,115 @@ void main() {
       await tester.pumpAndSettle();
     }
     Future<void> logout(WidgetTester tester) async {
-      await tester.tap(find.byKey(const Key('drawer_button')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Logout'));
-      await tester.pumpAndSettle();
-      // Wait for login screen to reappear
-      await tester.pumpUntilFound(find.byKey(const Key('login_email')));
+      try {
+        await tester.tap(find.byKey(const Key('drawer_button')));
+        await tester.pumpAndSettle();
+        if (find.byKey(const Key('logout_button')).evaluate().isNotEmpty) {
+          await tester.tap(find.byKey(const Key('logout_button')));
+        } else if (find.text('Logout').evaluate().isNotEmpty) {
+          await tester.tap(find.text('Logout'));
+        }
+        await tester.pumpAndSettle();
+        await tester.pumpUntilFound(find.byKey(const Key('login_email')));
+      } catch (_) {}
     }
-    testWidgets('Dashboard displays daily mood entries throughout the week.', (tester) async {
+
+    testWidgets('Change password updates authentication and allows login with new credentials.', (tester) async {
       await app.testMain();
       await tester.pumpAndSettle();
 
-      await login(tester, 'itzmethresh@gmail.com', 'allan123');
+      final email = dotenv.env['ITC008_EMAIL'] ?? 'itzmethresh@gmail.com';
+      final oldPass = dotenv.env['ITC008_OLD_PASSWORD'] ?? 'allan123';
+      final newPass = dotenv.env['ITC008_NEW_PASSWORD'] ?? 'NewPass123!';
 
-      final studentHomeFinder = find.byKey(const Key('studentHomeScreen'));
+      // Log in with current credentials
+      await login(tester, email, oldPass);
+
+      // Ensure at student home
       try {
-        await tester.pumpUntilFound(studentHomeFinder);
-        expect(studentHomeFinder, findsOneWidget);
+        await tester.pumpUntilFound(find.byKey(const Key('studentHomeScreen')), timeout: const Duration(seconds: 15));
+      } catch (_) {}
+      await tester.pumpAndSettle();
+
+      // Open drawer -> Settings
+      await tester.pumpUntilFound(find.byKey(const Key('drawer_button')));
+      await tester.tap(find.byKey(const Key('drawer_button')));
+      await tester.pumpAndSettle();
+
+      await tester.pumpUntilFound(find.text('Settings'));
+      await tester.tap(find.text('Settings'));
+      await tester.pumpAndSettle();
+
+      // Tap Change Password item on Settings page
+      await tester.pumpUntilFound(find.text('Change Password'));
+      await tester.tap(find.text('Change Password'));
+      await tester.pumpAndSettle();
+
+      // Fill current and new password fields
+      await tester.pumpUntilFound(find.widgetWithText(TextFormField, 'Current Password'));
+      await tester.enterText(find.widgetWithText(TextFormField, 'Current Password'), oldPass);
+      await tester.enterText(find.widgetWithText(TextFormField, 'New Password'), newPass);
+      await tester.enterText(find.widgetWithText(TextFormField, 'Confirm New Password'), newPass);
+      await tester.pumpAndSettle();
+
+      // Submit Update Password
+      await tester.tap(find.text('Update Password'));
+      await tester.pumpAndSettle(const Duration(seconds: 3));
+
+      // Expect success dialog and press Done
+      await tester.pumpUntilFound(find.text('Password Updated'), timeout: const Duration(seconds: 10));
+      await tester.pumpAndSettle();
+      if (find.text('Done').evaluate().isNotEmpty) {
+        await tester.tap(find.text('Done'));
         await tester.pumpAndSettle();
-      } catch (_) {
-        // continue
+      } else if (find.text('OK').evaluate().isNotEmpty) {
+        await tester.tap(find.text('OK'));
+        await tester.pumpAndSettle();
       }
 
-      final weeklyFinder = find.byKey(const Key('weekly_mood_bar'));
-      if (weeklyFinder.evaluate().isNotEmpty) {
-        expect(weeklyFinder, findsOneWidget);
-      }
-    });
+      // Return to home (pop settings if needed)
+      try {
+        if (find.byIcon(Icons.arrow_back_ios).evaluate().isNotEmpty) {
+          await tester.tap(find.byIcon(Icons.arrow_back_ios));
+          await tester.pumpAndSettle();
+        }
+      } catch (_) {}
+
+      // Open drawer and logout to reach login screen
+      try {
+        await tester.pumpUntilFound(find.byKey(const Key('drawer_button')));
+        await tester.tap(find.byKey(const Key('drawer_button')));
+        await tester.pumpAndSettle();
+        if (find.byKey(const Key('logout_button')).evaluate().isNotEmpty) {
+          await tester.tap(find.byKey(const Key('logout_button')));
+        } else if (find.text('Logout').evaluate().isNotEmpty) {
+          await tester.tap(find.text('Logout'));
+        }
+        await tester.pumpAndSettle();
+        await tester.pumpUntilFound(find.byKey(const Key('login_email')));
+      } catch (_) {}
+
+      // Try login with new password (should succeed)
+      await login(tester, email, newPass);
+      await tester.pumpAndSettle();
+      await tester.pumpUntilFound(find.byKey(const Key('studentHomeScreen')), timeout: const Duration(seconds: 15));
+      expect(find.byKey(const Key('studentHomeScreen')), findsOneWidget);
+
+      // Cleanup: try to reset password back to oldPass (best-effort)
+      try {
+        // Navigate to Settings -> Change Password and set back (silent best-effort)
+        await tester.tap(find.byKey(const Key('drawer_button')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Settings'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Change Password'));
+        await tester.pumpAndSettle();
+        await tester.enterText(find.widgetWithText(TextFormField, 'Current Password'), newPass);
+        await tester.enterText(find.widgetWithText(TextFormField, 'New Password'), oldPass);
+        await tester.enterText(find.widgetWithText(TextFormField, 'Confirm New Password'), oldPass);
+        await tester.tap(find.text('Update Password'));
+        await tester.pumpAndSettle(const Duration(seconds: 2));
+      } catch (_) {}
+    }, timeout: const Timeout(Duration(seconds: 120)));
   });
 }
