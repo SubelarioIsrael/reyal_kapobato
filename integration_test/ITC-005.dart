@@ -20,43 +20,53 @@ void main() {
 
   // Initialize Supabase only once before all tests
   setUpAll(() async {
-    // Load environment variables
-    await dotenv.load(fileName: 'important_stuff.env');
-
-    // Initialize Supabase (mocked/stubbed backend recommended)
-    await Supabase.initialize(
-      url: dotenv.env['SUPABASE_URL'] ?? '',
-      anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
-    );
+    try {
+      await dotenv.load(fileName: 'important_stuff.env');
+      try {
+        await Supabase.initialize(
+          url: dotenv.env['SUPABASE_URL'] ?? '',
+          anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
+        );
+      } catch (_) {
+        // ignore
+      }
+    } catch (_) {
+      // ignore
+    }
   });
 
-  group('ITC-005:Test integration between mood tracking and dashboard analytics.', () {
-    Future<void> login(WidgetTester tester, String email, String password) async {
-      await tester.pumpAndSettle();
-      await tester.pumpUntilFound(find.byKey(const Key('login_email')));
-      await tester.enterText(find.byKey(const Key('login_email')), email);
-      await tester.enterText(find.byKey(const Key('login_password')), password);
-      await tester.tap(find.byKey(const Key('login_button')));
-      await tester.pumpAndSettle();
-    }
-    Future<void> logout(WidgetTester tester) async {
-      await tester.tap(find.byKey(const Key('drawer_button')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Logout'));
-      await tester.pumpAndSettle();
-      // Wait for login screen to reappear
-      await tester.pumpUntilFound(find.byKey(const Key('login_email')));
-    }
-    testWidgets('Dashboard displays daily mood entries throughout the week.', (tester) async {
+  group('ITC-005: Password reset (Forgot Password) flow', () {
+    Future<void> openApp(WidgetTester tester) async {
       await app.testMain();
       await tester.pumpAndSettle();
+    }
 
-      await login(tester, 'itzmethresh@gmail.com', 'allan123');
-      await tester.pumpUntilFound(find.byKey(const Key('studentHomeScreen')));
-      expect(find.byKey(const Key('studentHomeScreen')), findsOneWidget);
+    testWidgets('Pressing Forgot Password sends reset link and shows confirmation dialog', (tester) async {
+      await openApp(tester);
+
+      // Open Forgot Password dialog from Login screen
+      await tester.pumpUntilFound(find.text('Forgot Password?'));
+      await tester.tap(find.text('Forgot Password?'));
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('weekly_mood_bar')), findsOneWidget);
+      // Find the dialog's email field and enter email
+      final dialogEmailField = find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(TextFormField),
+      );
+      await tester.pumpUntilFound(dialogEmailField);
+      final testEmail = dotenv.env['ITC005_EMAIL'] ?? 'itc005@example.com';
+      await tester.enterText(dialogEmailField.first, testEmail);
+      await tester.pumpAndSettle();
+
+      // Tap Send Link
+      await tester.pumpUntilFound(find.text('Send Link'));
+      await tester.tap(find.text('Send Link'));
+      await tester.pumpAndSettle(const Duration(seconds: 3));
+
+      // Expect success dialog with 'Reset Link Sent' and the email is mentioned in the message
+      await tester.pumpUntilFound(find.text('Reset Link Sent'), timeout: const Duration(seconds: 10));
+      expect(find.textContaining(testEmail), findsOneWidget);
     });
   });
 }

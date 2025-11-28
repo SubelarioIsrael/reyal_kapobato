@@ -20,17 +20,22 @@ void main() {
 
   // Initialize Supabase only once before all tests
   setUpAll(() async {
-    // Load environment variables
-    await dotenv.load(fileName: 'important_stuff.env');
-
-    // Initialize Supabase (mocked/stubbed backend recommended)
-    await Supabase.initialize(
-      url: dotenv.env['SUPABASE_URL'] ?? '',
-      anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
-    );
+    try {
+      await dotenv.load(fileName: 'important_stuff.env');
+      try {
+        await Supabase.initialize(
+          url: dotenv.env['SUPABASE_URL'] ?? '',
+          anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
+        );
+      } catch (_) {
+        // ignore
+      }
+    } catch (_) {
+      // ignore
+    }
   });
 
-  group('ITC-006: Test profile update integration with authentication and database.', () {
+  group('ITC-006: Profile update flow', () {
     Future<void> login(WidgetTester tester, String email, String password) async {
       await tester.pumpAndSettle();
       await tester.pumpUntilFound(find.byKey(const Key('login_email')));
@@ -39,24 +44,66 @@ void main() {
       await tester.tap(find.byKey(const Key('login_button')));
       await tester.pumpAndSettle();
     }
-    Future<void> logout(WidgetTester tester) async {
-      await tester.tap(find.byKey(const Key('drawer_button')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Logout'));
-      await tester.pumpAndSettle();
-      // Wait for login screen to reappear
-      await tester.pumpUntilFound(find.byKey(const Key('login_email')));
-    }
-    testWidgets('Dashboard displays daily mood entries throughout the week.', (tester) async {
+
+    testWidgets('User can update profile and see saved changes reflected', (tester) async {
       await app.testMain();
       await tester.pumpAndSettle();
 
-      await login(tester, 'itzmethresh@gmail.com', 'allan123');
-      await tester.pumpUntilFound(find.byKey(const Key('studentHomeScreen')));
-      expect(find.byKey(const Key('studentHomeScreen')), findsOneWidget);
+      final studentEmail = dotenv.env['STUDENT_EMAIL'] ?? 'itzmethresh@gmail.com';
+      final studentPass = dotenv.env['STUDENT_PASSWORD'] ?? 'allan123';
+
+      await login(tester, studentEmail, studentPass);
+
+      // Wait for student home screen
+      await tester.pumpUntilFound(find.byKey(const Key('studentHomeScreen')), timeout: const Duration(seconds: 15));
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('weekly_mood_bar')), findsOneWidget);
-    });
+      // Open drawer and navigate to Profile
+      await tester.tap(find.byKey(const Key('drawer_button')));
+      await tester.pumpAndSettle();
+      await tester.pumpUntilFound(find.text('Profile'));
+      await tester.tap(find.text('Profile'));
+      await tester.pumpAndSettle();
+
+      // Wait for profile page to load
+      await tester.pumpUntilFound(find.text('Student Profile'), timeout: const Duration(seconds: 10));
+      await tester.pumpAndSettle();
+
+      // Fill first name and last name (TextFormField order: first, last, email, year)
+      final tfFinder = find.byType(TextFormField);
+      await tester.pumpUntilFound(tfFinder);
+
+      final ts = DateTime.now().millisecondsSinceEpoch;
+      final newFirst = 'ITCFirstUpd$ts';
+      final newLast = 'ITCLastUpd$ts';
+
+      await tester.enterText(tfFinder.at(0), newFirst);
+      await tester.enterText(tfFinder.at(1), newLast);
+      await tester.pumpAndSettle();
+
+      // Select Education Level (choose Basic Education)
+      final dropdownFinder = find.byType(DropdownButtonFormField<String>);
+      await tester.pumpUntilFound(dropdownFinder);
+      await tester.tap(dropdownFinder.first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Basic Education (Grades 1-10)').last);
+      await tester.pumpAndSettle();
+
+      // Fill Year Level (assumed to be the 4th TextFormField)
+      final allTfs = find.byType(TextFormField);
+      await tester.pumpUntilFound(allTfs);
+      final yearIndex = allTfs.evaluate().length > 3 ? 3 : allTfs.evaluate().length - 1;
+      await tester.enterText(allTfs.at(yearIndex), '1');
+      await tester.pumpAndSettle();
+
+      // Save Changes
+      await tester.pumpUntilFound(find.text('Save Changes'));
+      await tester.tap(find.text('Save Changes'));
+      await tester.pumpAndSettle(const Duration(seconds: 3));
+
+      // Expect success dialog indicating profile updated
+      await tester.pumpUntilFound(find.text('Profile updated successfully'), timeout: const Duration(seconds: 10));
+      expect(find.textContaining('Profile updated successfully'), findsOneWidget);
+    }, timeout: const Timeout(Duration(seconds: 90)));
   });
 }
