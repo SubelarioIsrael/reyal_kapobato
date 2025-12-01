@@ -56,6 +56,66 @@ class _AdminMentalHealthHotlinesState extends State<AdminMentalHealthHotlines> {
     });
   }
 
+  void _showDuplicateWarningDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        contentPadding: const EdgeInsets.all(24),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 48),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Duplicate Hotline',
+              style: GoogleFonts.poppins(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF3A3A50),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'A hotline with this phone number already exists.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                color: const Color(0xFF5D5D72),
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF7C83FD),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text(
+                  'OK',
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _applyFilters() {
     final query = _searchController.text.toLowerCase();
     setState(() {
@@ -405,6 +465,9 @@ class _AdminMentalHealthHotlinesState extends State<AdminMentalHealthHotlines> {
                                   Navigator.pop(context);
                                   _showSuccessDialog('Hotline added successfully');
                                   _loadHotlines();
+                                } else if (result.isDuplicate == true) {
+                                  Navigator.pop(context);
+                                  _showDuplicateWarningDialog();
                                 } else {
                                   _showErrorDialog(result.errorMessage ?? 'Failed to add hotline');
                                 }
@@ -784,6 +847,9 @@ class _AdminMentalHealthHotlinesState extends State<AdminMentalHealthHotlines> {
                                   Navigator.pop(context);
                                   _showSuccessDialog('Hotline updated successfully');
                                   _loadHotlines();
+                                } else if (result.isDuplicate == true) {
+                                  Navigator.pop(context);
+                                  _showDuplicateWarningDialog();
                                 } else {
                                   _showErrorDialog(result.errorMessage ?? 'Failed to update hotline');
                                 }

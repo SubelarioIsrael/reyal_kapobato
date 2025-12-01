@@ -17,12 +17,14 @@ class LoadHotlinesResult {
 class CreateHotlineResult {
   final bool success;
   final String? errorMessage;
+  final bool isDuplicate;
   final int? hotlineId;
 
   CreateHotlineResult({
     required this.success,
     this.errorMessage,
     this.hotlineId,
+    this.isDuplicate = false,
   });
 }
 
@@ -30,10 +32,12 @@ class CreateHotlineResult {
 class UpdateHotlineResult {
   final bool success;
   final String? errorMessage;
+  final bool isDuplicate;
 
   UpdateHotlineResult({
     required this.success,
     this.errorMessage,
+    this.isDuplicate = false,
   });
 }
 
@@ -84,11 +88,29 @@ class AdminMentalHealthHotlinesController {
     String? profilePicture,
   }) async {
     try {
+      // normalize phone to digits only for consistent duplicate checks
+      final cleanedPhone = phone.replaceAll(RegExp(r'\D'), '');
+
+      // check duplicate phone
+      final duplicate = await _supabase
+          .from('mental_health_hotlines')
+          .select('hotline_id')
+          .eq('phone', cleanedPhone)
+          .maybeSingle();
+
+      if (duplicate != null) {
+        return CreateHotlineResult(
+          success: false,
+          errorMessage: 'duplicate',
+          isDuplicate: true,
+        );
+      }
+
       final response = await _supabase
           .from('mental_health_hotlines')
           .insert({
             'name': name.trim(),
-            'phone': phone.trim(),
+            'phone': cleanedPhone,
             'city_or_region': cityOrRegion?.trim(),
             'notes': notes?.trim(),
             'profile_picture': profilePicture,
@@ -119,11 +141,28 @@ class AdminMentalHealthHotlinesController {
     String? profilePicture,
   }) async {
     try {
+      final cleanedPhone = phone.replaceAll(RegExp(r'\D'), '');
+
+      // check duplicate phone for other records
+      final duplicate = await _supabase
+          .from('mental_health_hotlines')
+          .select('hotline_id')
+          .eq('phone', cleanedPhone)
+          .maybeSingle();
+
+      if (duplicate != null && duplicate['hotline_id'] != hotlineId) {
+        return UpdateHotlineResult(
+          success: false,
+          errorMessage: 'duplicate',
+          isDuplicate: true,
+        );
+      }
+
       await _supabase
           .from('mental_health_hotlines')
           .update({
             'name': name.trim(),
-            'phone': phone.trim(),
+            'phone': cleanedPhone,
             'city_or_region': cityOrRegion?.trim(),
             'notes': notes?.trim(),
             'profile_picture': profilePicture,
