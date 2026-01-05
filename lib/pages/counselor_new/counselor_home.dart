@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../controllers/counselor_home_controller.dart';
 import '../../models/appointment.dart';
 import '../chat/direct_chat.dart';
@@ -26,6 +27,7 @@ class _CounselorHomeState extends State<CounselorHome> {
   bool _isLoading = true;
   String? _errorMessage;
   String? _counselorName;
+  RealtimeChannel? _appointmentsChannel;
 
   // Stats
   int _totalStudents = 0;
@@ -39,6 +41,52 @@ class _CounselorHomeState extends State<CounselorHome> {
   void initState() {
     super.initState();
     _loadAppointments();
+    _setupRealtimeListener();
+  }
+
+  void _setupRealtimeListener() {
+    final supabase = Supabase.instance.client;
+    final userId = supabase.auth.currentUser?.id;
+
+    if (userId != null) {
+      supabase
+          .from('counselors')
+          .select('counselor_id')
+          .eq('user_id', userId)
+          .maybeSingle()
+          .then((counselorData) {
+        if (counselorData != null && mounted) {
+          final counselorId = counselorData['counselor_id'];
+          
+          _appointmentsChannel = supabase
+              .channel('counselor_appointments_$counselorId')
+              .onPostgresChanges(
+                event: PostgresChangeEvent.all,
+                schema: 'public',
+                table: 'counseling_appointments',
+                filter: PostgresChangeFilter(
+                  type: PostgresChangeFilterType.eq,
+                  column: 'counselor_id',
+                  value: counselorId,
+                ),
+                callback: (payload) {
+                  if (mounted) {
+                    _loadAppointments();
+                    // Also refresh notification button
+                    _notifKey.currentState?.refreshNotifications();
+                  }
+                },
+              )
+              .subscribe();
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _appointmentsChannel?.unsubscribe();
+    super.dispose();
   }
 
   Future<void> _loadAppointments() async {

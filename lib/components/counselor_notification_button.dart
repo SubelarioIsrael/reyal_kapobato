@@ -13,6 +13,7 @@ class CounselorNotificationButton extends StatefulWidget {
 class CounselorNotificationButtonState extends State<CounselorNotificationButton> {
   int _notificationCount = 0;
   List<NotificationItem> _notifications = [];
+  RealtimeChannel? _notificationChannel;
 
   @override
   void initState() {
@@ -26,7 +27,7 @@ class CounselorNotificationButtonState extends State<CounselorNotificationButton
     final userId = supabase.auth.currentUser?.id;
 
     if (userId != null) {
-      supabase
+      _notificationChannel = supabase
           .channel('counselor_notifications')
           .onPostgresChanges(
             event: PostgresChangeEvent.all,
@@ -38,11 +39,19 @@ class CounselorNotificationButtonState extends State<CounselorNotificationButton
               value: userId,
             ),
             callback: (payload) {
-              _loadNotifications();
+              if (mounted) {
+                _loadNotifications();
+              }
             },
           )
           .subscribe();
     }
+  }
+
+  @override
+  void dispose() {
+    _notificationChannel?.unsubscribe();
+    super.dispose();
   }
 
   // make a public method so parent can trigger refresh on swipe-to-refresh
@@ -365,12 +374,6 @@ class CounselorNotificationButtonState extends State<CounselorNotificationButton
     await _markAsRead(int.parse(n.relatedId));
     Navigator.pop(context);
     Navigator.pushNamed(context, n.actionUrl ?? '/counselor_appointments');
-  }
-
-  @override
-  void dispose() {
-    Supabase.instance.client.removeAllChannels();
-    super.dispose();
   }
 
   NotificationType? _mapType(String? raw) {

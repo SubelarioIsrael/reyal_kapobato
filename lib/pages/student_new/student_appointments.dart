@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/appointment.dart';
 import '../../controllers/student_appointments_controller.dart';
 import '../../widgets/counselor_avatar.dart';
@@ -18,6 +19,7 @@ class _StudentAppointmentsState extends State<StudentAppointments> {
   final StudentAppointmentsController _controller = StudentAppointmentsController();
   List<Appointment> _appointments = [];
   bool _isLoading = true;
+  RealtimeChannel? _appointmentsChannel;
 
   // Filtering state
   String _selectedDateRange = 'All Appointments';
@@ -109,6 +111,39 @@ class _StudentAppointmentsState extends State<StudentAppointments> {
   void initState() {
     super.initState();
     _loadAppointments();
+    _setupRealtimeListener();
+  }
+
+  void _setupRealtimeListener() {
+    final supabase = Supabase.instance.client;
+    final userId = supabase.auth.currentUser?.id;
+
+    if (userId != null) {
+      _appointmentsChannel = supabase
+          .channel('student_appointments_$userId')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'counseling_appointments',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'user_id',
+              value: userId,
+            ),
+            callback: (payload) {
+              if (mounted) {
+                _loadAppointments();
+              }
+            },
+          )
+          .subscribe();
+    }
+  }
+
+  @override
+  void dispose() {
+    _appointmentsChannel?.unsubscribe();
+    super.dispose();
   }
 
   Future<void> _loadAppointments() async {

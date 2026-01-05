@@ -119,23 +119,6 @@ class StudentSupportContactsController with ChangeNotifier {
       // Clean phone number to digits only
       final cleanedNumber = phoneNumber.replaceAll(RegExp(r'\D'), '');
 
-      // Check for duplicate phone number
-      final duplicateCheck = await Supabase.instance.client
-          .from('emergency_contacts')
-          .select('contact_id, contact_name')
-          .eq('user_id', userId)
-          .eq('contact_number', cleanedNumber)
-          .maybeSingle();
-
-      // If duplicate exists and it's not the current contact being edited
-      if (duplicateCheck != null && duplicateCheck['contact_id'] != contactId) {
-        return {
-          'success': false,
-          'message': 'duplicate',
-          'isDuplicate': true,
-        };
-      }
-
       if (contactId != null) {
         // Update existing contact
         await Supabase.instance.client

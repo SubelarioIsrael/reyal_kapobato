@@ -15,11 +15,39 @@ class _StudentNotificationButtonState extends State<StudentNotificationButton> {
   List<Map<String, dynamic>> _notifications = [];
   bool _isLoading = true;
   final _refreshKey = GlobalKey<RefreshIndicatorState>();
+  RealtimeChannel? _notificationChannel;
 
   @override
   void initState() {
     super.initState();
     _fetchNotifications();
+    _setupRealtimeListener();
+  }
+
+  void _setupRealtimeListener() {
+    final supabase = Supabase.instance.client;
+    final userId = supabase.auth.currentUser?.id;
+
+    if (userId != null) {
+      _notificationChannel = supabase
+          .channel('student_notifications')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'user_notifications',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'user_id',
+              value: userId,
+            ),
+            callback: (payload) {
+              if (mounted) {
+                _fetchNotifications();
+              }
+            },
+          )
+          .subscribe();
+    }
   }
 
   @override
@@ -27,6 +55,12 @@ class _StudentNotificationButtonState extends State<StudentNotificationButton> {
     super.didChangeDependencies();
     // Refresh notifications when dependencies change (e.g., when returning to page)
     _fetchNotifications();
+  }
+
+  @override
+  void dispose() {
+    _notificationChannel?.unsubscribe();
+    super.dispose();
   }
 
   Future<void> _fetchNotifications() async {

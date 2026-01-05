@@ -405,6 +405,70 @@ class _AppointmentChatState extends State<AppointmentChat> {
 
       print('Message sent successfully'); // Debug log
 
+      // Send push notification to receiver
+      try {
+        print('🔔 Preparing to send push notification...');
+        print('🔔 Target user ID: $targetUserId');
+        print('🔔 Sender user ID: ${currentUser.id}');
+        
+        // Get sender name
+        String senderName = 'Someone';
+        if (widget.isCounselor) {
+          final counselorData = await _supabase
+              .from('counselors')
+              .select('first_name, last_name')
+              .eq('user_id', currentUser.id)
+              .maybeSingle();
+          
+          if (counselorData != null) {
+            senderName = '${counselorData['first_name']} ${counselorData['last_name']}';
+          }
+          print('🔔 Sender is COUNSELOR: $senderName');
+        } else {
+          final studentData = await _supabase
+              .from('students')
+              .select('first_name, last_name')
+              .eq('user_id', currentUser.id)
+              .maybeSingle();
+          
+          if (studentData != null) {
+            senderName = '${studentData['first_name']} ${studentData['last_name']}';
+          }
+          print('🔔 Sender is STUDENT: $senderName');
+        }
+
+        // Truncate message for preview
+        final messageText = _messageController.text.trim();
+        final messagePreview = messageText.length > 50
+            ? '${messageText.substring(0, 50)}...'
+            : messageText;
+
+        print('🔔 Calling Edge Function send-notification...');
+        print('🔔 Notification title: New message from $senderName');
+        print('🔔 Notification body: $messagePreview');
+        
+        final response = await _supabase.functions.invoke(
+          'send-notification',
+          body: {
+            'user_id': targetUserId,
+            'title': 'New message from $senderName',
+            'body': messagePreview,
+            'data': {
+              'type': 'chat_message',
+              'appointment_id': widget.appointment.id.toString(),
+              'sender_id': currentUser.id,
+              'sender_name': senderName,
+            },
+          },
+        );
+        
+        print('🔔 ✅ Push notification Edge Function response: ${response.data}');
+        print('🔔 ✅ Push notification sent successfully!');
+      } catch (e, stackTrace) {
+        print('🔔 ❌ Error sending push notification: $e');
+        print('🔔 ❌ Stack trace: $stackTrace');
+      }
+
       _messageController.clear();
       // Explicitly reload messages to ensure the sent message appears immediately
       await _loadMessages();

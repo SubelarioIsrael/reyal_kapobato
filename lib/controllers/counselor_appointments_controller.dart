@@ -191,10 +191,80 @@ class CounselorAppointmentsController {
     String? statusMessage,
   }) async {
     try {
+      // Get appointment details first
+      final appointmentData = await _supabase
+          .from('counseling_appointments')
+          .select('''
+            user_id,
+            appointment_date,
+            start_time
+          ''')
+          .eq('appointment_id', appointmentId)
+          .single();
+
+      final studentUserId = appointmentData['user_id'] as String;
+      final appointmentDate = appointmentData['appointment_date'] as String;
+      final startTime = appointmentData['start_time'] as String;
+
+      // Update status
       await _supabase
           .from('counseling_appointments')
           .update({'status': newStatus})
           .eq('appointment_id', appointmentId);
+
+      // Create in-app notification for student
+      String notificationContent = '';
+      String notificationType = '';
+      
+      switch (newStatus.toLowerCase()) {
+        case 'accepted':
+          notificationContent = 'Your appointment on $appointmentDate at $startTime has been accepted.';
+          notificationType = 'appointment_accepted';
+          break;
+        case 'rejected':
+          notificationContent = 'Your appointment on $appointmentDate at $startTime has been rejected.';
+          notificationType = 'appointment_rejected';
+          break;
+        case 'completed':
+          notificationContent = 'Your appointment on $appointmentDate at $startTime has been completed.';
+          notificationType = 'appointment_completed';
+          break;
+        case 'rescheduled':
+          notificationContent = 'Your appointment has been rescheduled.';
+          notificationType = 'appointment_rescheduled';
+          break;
+        default:
+          notificationContent = 'Your appointment status has been updated to $newStatus.';
+          notificationType = 'appointment_status_changed';
+      }
+
+      await _supabase.from('user_notifications').insert({
+        'user_id': studentUserId,
+        'notification_type': notificationType,
+        'content': notificationContent,
+        'action_url': '/student_appointments',
+        'is_read': false,
+      });
+
+      // Send push notification
+      try {
+        await _supabase.functions.invoke(
+          'send-notification',
+          body: {
+            'user_id': studentUserId,
+            'title': 'Appointment ${newStatus.substring(0, 1).toUpperCase()}${newStatus.substring(1)}',
+            'body': notificationContent,
+            'data': {
+              'type': notificationType,
+              'appointment_id': appointmentId.toString(),
+              'status': newStatus,
+              'route': '/student_appointments',
+            },
+          },
+        );
+      } catch (e) {
+        print('Error sending push notification: $e');
+      }
 
       return UpdateAppointmentStatusResult(success: true);
     } catch (e) {

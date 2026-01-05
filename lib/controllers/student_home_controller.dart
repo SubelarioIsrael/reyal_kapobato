@@ -28,6 +28,7 @@ class StudentHomeController {
   final ValueNotifier<bool> isDailyUpliftLoading = ValueNotifier(true);
 
   StreamSubscription? _studentNameSubscription;
+  RealtimeChannel? _messagesChannel;
 
   void init() {
     loadStudentName();
@@ -37,10 +38,51 @@ class StudentHomeController {
     loadTodayProgress();
     loadUnreadMessagesCount();
     loadDailyUplift();
+    _setupMessagesRealtimeListener();
+  }
+
+  void _setupMessagesRealtimeListener() {
+    final supabase = Supabase.instance.client;
+    final userId = supabase.auth.currentUser?.id;
+
+    print('[StudentHome] Setting up messages real-time listener for user: $userId');
+    
+    if (userId != null) {
+      _messagesChannel = supabase
+          .channel('student_home_messages_$userId')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'messages',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'receiver_id',
+              value: userId,
+            ),
+            callback: (payload) {
+              print('[StudentHome] 🔥 NEW MESSAGE EVENT RECEIVED!');
+              print('[StudentHome] Event type: ${payload.eventType}');
+              print('[StudentHome] Message data: ${payload.newRecord}');
+              // Reload unread count when new message arrives
+              loadUnreadMessagesCount();
+            },
+          )
+          .subscribe((status, error) {
+            print('[StudentHome] Channel status: $status');
+            if (error != null) {
+              print('[StudentHome] ❌ Channel error: $error');
+            } else {
+              print('[StudentHome] ✅ Messages real-time listener ACTIVE');
+            }
+          });
+    } else {
+      print('[StudentHome] ❌ Cannot setup listener - userId is null');
+    }
   }
 
   void dispose() {
     _studentNameSubscription?.cancel();
+    _messagesChannel?.unsubscribe();
   }
 
   void listenToStudentNameChanges() {

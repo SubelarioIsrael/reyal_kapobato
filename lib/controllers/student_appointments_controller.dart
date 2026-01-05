@@ -149,6 +149,26 @@ class StudentAppointmentsController {
           'action_url': '/counselor_appointments',
           'is_read': false,
         });
+
+        // Send push notification
+        try {
+          await _supabase.functions.invoke(
+            'send-notification',
+            body: {
+              'user_id': counselorUserId,
+              'title': 'Appointment Cancelled',
+              'body': 'Your appointment with $studentName on $appointmentDate at $startTime has been cancelled.',
+              'data': {
+                'type': 'appointment_cancelled',
+                'appointment_id': appointmentId.toString(),
+                'student_name': studentName,
+                'route': '/counselor_appointments',
+              },
+            },
+          );
+        } catch (e) {
+          print('Error sending push notification: $e');
+        }
       }
 
       return CancelAppointmentResult(success: true);
