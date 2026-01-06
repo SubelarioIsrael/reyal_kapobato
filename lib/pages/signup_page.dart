@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../utils/department_mapping.dart';
 import '../controllers/user_controller.dart';
+import 'terms_and_conditions_page.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -80,48 +81,53 @@ class _SignUpPageState extends State<SignUpPage> {
 
   Future<void> _handlePhase2() async {
     if (_formKey.currentState?.validate() ?? false) {
-      setState(() {
-        _isLoading = true;
-      });
+      // Show Terms and Conditions dialog first
+      _showTermsAndConditionsDialog();
+    }
+  }
 
-      try {
-        // Use controller to create student account
-        final result = await _userController.createStudentAccount(
-          email: _emailController.text.trim(),
-          password: _passwordController.text.trim(),
-          studentCode: _studentIdController.text.trim(),
-          firstName: _firstNameController.text.trim(),
-          lastName: _lastNameController.text.trim(),
-          educationLevel: _selectedEducationLevel!,
-          course: _selectedCourse,
-          strand: _selectedStrand,
-          yearLevel: int.parse(_yearLevelController.text.trim()),
+  Future<void> _proceedWithSignup() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Use controller to create student account
+      final result = await _userController.createStudentAccount(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+        studentCode: _studentIdController.text.trim(),
+        firstName: _firstNameController.text.trim(),
+        lastName: _lastNameController.text.trim(),
+        educationLevel: _selectedEducationLevel!,
+        course: _selectedCourse,
+        strand: _selectedStrand,
+        yearLevel: int.parse(_yearLevelController.text.trim()),
+      );
+
+      if (!result.success) {
+        _showErrorDialog(
+          result.errorTitle ?? 'Registration Failed',
+          result.errorMessage ?? 'Something went wrong. Please try again.',
         );
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
 
-        if (!result.success) {
-          _showErrorDialog(
-            result.errorTitle ?? 'Registration Failed',
-            result.errorMessage ?? 'Something went wrong. Please try again.',
-          );
-          setState(() {
-            _isLoading = false;
-          });
-          return;
-        }
-
-        // Show success dialog
-        _showSuccessDialog();
-        
-      } catch (e) {
-        print('Phase 2 signup error: $e');
-        _showErrorDialog('Registration Failed',
-            'Something went wrong. Please try again later.');
-      } finally {
-        if (context.mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-        }
+      // Show success dialog
+      _showSuccessDialog();
+      
+    } catch (e) {
+      print('Phase 2 signup error: $e');
+      _showErrorDialog('Registration Failed',
+          'Something went wrong. Please try again later.');
+    } finally {
+      if (context.mounted) {
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
   }
@@ -218,6 +224,192 @@ class _SignUpPageState extends State<SignUpPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showTermsAndConditionsDialog() {
+    bool hasReadTerms = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          contentPadding: const EdgeInsets.all(24),
+          title: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF7C83FD).withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.description_outlined,
+                  color: Color(0xFF7C83FD),
+                  size: 40,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Accept Terms and Conditions',
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF2D3748),
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'To proceed, please accept our Terms and Conditions.',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    color: const Color(0xFF4A5568),
+                    height: 1.5,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF7FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        'It\'s important that you read and understand them before continuing to use our services.',
+                        style: GoogleFonts.poppins(
+                          fontSize: 13,
+                          color: const Color(0xFF4A5568),
+                          height: 1.5,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      InkWell(
+                        onTap: () async {
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const TermsAndConditionsPage(),
+                            ),
+                          );
+                          if (result == true) {
+                            setDialogState(() {
+                              hasReadTerms = true;
+                            });
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: hasReadTerms ? const Color(0xFF48BB78).withOpacity(0.1) : Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: hasReadTerms ? const Color(0xFF48BB78) : const Color(0xFF7C83FD),
+                              width: 2,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                hasReadTerms ? Icons.check_circle : Icons.article_outlined,
+                                color: hasReadTerms ? const Color(0xFF48BB78) : const Color(0xFF7C83FD),
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  hasReadTerms ? 'Terms Read & Agreed' : 'Terms and Conditions',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: hasReadTerms ? const Color(0xFF48BB78) : const Color(0xFF7C83FD),
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      side: const BorderSide(color: Color(0xFFE2E8F0)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      'Maybe later',
+                      style: GoogleFonts.poppins(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF4A5568),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: hasReadTerms
+                        ? () {
+                            Navigator.pop(dialogContext);
+                            _proceedWithSignup();
+                          }
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      backgroundColor: const Color(0xFF7C83FD),
+                      disabledBackgroundColor: Colors.grey.shade300,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      'Continue',
+                      style: GoogleFonts.poppins(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: hasReadTerms ? Colors.white : Colors.grey.shade500,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

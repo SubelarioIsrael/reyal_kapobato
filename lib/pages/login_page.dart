@@ -270,24 +270,25 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ],
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 8),
-              Text(
-                'Your email address has not been verified. Please check your inbox and click the verification link before logging in.',
-                style: GoogleFonts.poppins(
-                  fontSize: 16,
-                  color: const Color(0xFF3A3A50),
-                  fontWeight: FontWeight.w500,
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 8),
+                Text(
+                  'Your email address has not been verified. Please check your inbox and click the verification link before logging in.',
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    color: const Color(0xFF3A3A50),
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: Colors.blue.shade200,
@@ -317,7 +318,8 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ],
           ),
-          actions: [
+        ),
+        actions: [
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -381,52 +383,54 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ],
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 8),
-              Text(
-                'Your account has been suspended. Please contact support for assistance.',
-                style: GoogleFonts.poppins(
-                  fontSize: 16,
-                  color: const Color(0xFF3A3A50),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Colors.blue.shade200,
-                    width: 1,
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 8),
+                Text(
+                  'Your account has been suspended. Please contact support for assistance.',
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    color: const Color(0xFF3A3A50),
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      color: Colors.blue.shade700,
-                      size: 24,
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.blue.shade200,
+                      width: 1,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Contact your administrator or support team for more information.',
-                        style: GoogleFonts.poppins(
-                          fontSize: 13,
-                          color: const Color(0xFF5D5D72),
-                          height: 1.4,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        color: Colors.blue.shade700,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Contact your administrator or support team for more information.',
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            color: const Color(0xFF5D5D72),
+                            height: 1.4,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           actions: [
             SizedBox(
@@ -495,20 +499,21 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ],
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 8),
-              Text(
-                'Enter your email address and we\'ll send you a link to reset your password.',
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  color: const Color(0xFF5D5D72),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 8),
+                Text(
+                  'Enter your email address and we\'ll send you a link to reset your password.',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    color: const Color(0xFF5D5D72),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              TextFormField(
+                const SizedBox(height: 20),
+                TextFormField(
                 controller: emailController,
                 keyboardType: TextInputType.emailAddress,
                 style: GoogleFonts.poppins(),
@@ -561,12 +566,13 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
             ],
+            ),
           ),
           actions: [
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton(
+                  child: TextButton(
                     onPressed: isLoading ? null : () => Navigator.pop(ctx),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),

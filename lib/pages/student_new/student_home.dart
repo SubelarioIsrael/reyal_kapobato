@@ -145,24 +145,25 @@ class _StudentHomeNewState extends State<StudentHomeNew> {
             ),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 8),
-            Text(
-              'You still have not added your emergency contacts.',
-              style: GoogleFonts.poppins(
-                fontSize: 16,
-                color: const Color(0xFF3A3A50),
-                fontWeight: FontWeight.w500,
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 8),
+              Text(
+                'You still have not added your emergency contacts.',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  color: const Color(0xFF3A3A50),
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: Colors.blue.shade200,
@@ -191,6 +192,7 @@ class _StudentHomeNewState extends State<StudentHomeNew> {
               ),
             ),
           ],
+          ),
         ),
         actions: [
           Row(
