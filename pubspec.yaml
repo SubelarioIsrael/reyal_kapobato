@@ -53,6 +53,7 @@ dependencies:
   cloud_firestore: ^4.0.0 # optional — only add if you use Firestore
   shared_preferences: ^2.3.2
   flutter_local_notifications: ^19.5.0
+  permission_handler: ^12.0.1
   
 
 dev_dependencies:

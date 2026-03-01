@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
 
 class AdminHome extends StatefulWidget {
@@ -757,403 +758,347 @@ class _AdminHomeState extends State<AdminHome> {
       final counselingSessions = List<Map<String, dynamic>>.from(counselingSessionsResponse);
 
       final pdf = pw.Document();
+      final reportRef = 'BB-ADM-${DateTime.now().year}${DateTime.now().month.toString().padLeft(2, '0')}${DateTime.now().day.toString().padLeft(2, '0')}-${DateTime.now().millisecondsSinceEpoch % 100000}';
+      final generatedOn = DateTime.now();
+      final formattedGenDate =
+          '${generatedOn.day.toString().padLeft(2, '0')} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][generatedOn.month - 1]} ${generatedOn.year}  ${generatedOn.hour.toString().padLeft(2, '0')}:${generatedOn.minute.toString().padLeft(2, '0')}';
+
+      // ── colour palette ──────────────────────────────────────────────────────
+      const headerBg      = PdfColor.fromInt(0xFF1A237E); // deep indigo
+      const accentBlue    = PdfColor.fromInt(0xFF1565C0);
+      const accentGreen   = PdfColor.fromInt(0xFF2E7D32);
+      const accentOrange  = PdfColor.fromInt(0xFFE65100);
+      const accentPurple  = PdfColor.fromInt(0xFF6A1B9A);
+      const tableHeader   = PdfColor.fromInt(0xFF3949AB);
+      const rowAlt        = PdfColor.fromInt(0xFFF3F4FF);
+      const borderGrey    = PdfColor.fromInt(0xFFCFD8DC);
+      const textDark      = PdfColor.fromInt(0xFF1A1A2E);
+      const textMid       = PdfColor.fromInt(0xFF424242);
+      const textLight     = PdfColor.fromInt(0xFF757575);
+      const white         = PdfColors.white;
+
+      // ── helper: section title bar ───────────────────────────────────────────
+      pw.Widget sectionTitle(String title, PdfColor accent) {
+        return pw.Container(
+          margin: const pw.EdgeInsets.only(bottom: 12),
+          padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: pw.BoxDecoration(
+            color: accent,
+            borderRadius: pw.BorderRadius.circular(4),
+          ),
+          child: pw.Text(
+            title,
+            style: pw.TextStyle(
+              fontSize: 13,
+              fontWeight: pw.FontWeight.bold,
+              color: white,
+              letterSpacing: 0.5,
+            ),
+          ),
+        );
+      }
+
+      // ── helper: table header row ─────────────────────────────────────────────
+      pw.Widget tableHeaderRow(List<String> cols, List<int> flex) {
+        return pw.Container(
+          color: tableHeader,
+          padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          child: pw.Row(
+            children: List.generate(cols.length, (i) => pw.Expanded(
+              flex: flex[i],
+              child: pw.Text(
+                cols[i].toUpperCase(),
+                style: pw.TextStyle(
+                  fontSize: 9,
+                  fontWeight: pw.FontWeight.bold,
+                  color: white,
+                  letterSpacing: 0.4,
+                ),
+              ),
+            )),
+          ),
+        );
+      }
+
+      // ── helper: table data row ───────────────────────────────────────────────
+      pw.Widget tableDataRow(List<String> cells, List<int> flex, bool isAlt) {
+        return pw.Container(
+          color: isAlt ? rowAlt : white,
+          padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          child: pw.Row(
+            children: List.generate(cells.length, (i) => pw.Expanded(
+              flex: flex[i],
+              child: pw.Text(
+                cells[i],
+                style: pw.TextStyle(fontSize: 10, color: textMid),
+              ),
+            )),
+          ),
+        );
+      }
 
       pdf.addPage(
         pw.MultiPage(
+          margin: const pw.EdgeInsets.symmetric(horizontal: 40, vertical: 36),
+          header: (pw.Context ctx) {
+            if (ctx.pageNumber == 1) return pw.SizedBox();
+            // continuation header on subsequent pages
+            return pw.Container(
+              margin: const pw.EdgeInsets.only(bottom: 16),
+              padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: const pw.BoxDecoration(
+                color: headerBg,
+                borderRadius: pw.BorderRadius.all(pw.Radius.circular(4)),
+              ),
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('BREATHE BETTER — Admin Analytics Report',
+                      style: pw.TextStyle(fontSize: 9, color: white, fontWeight: pw.FontWeight.bold)),
+                  pw.Text('Ref: $reportRef  |  Page ${ctx.pageNumber}',
+                      style: pw.TextStyle(fontSize: 9, color: PdfColors.indigo100)),
+                ],
+              ),
+            );
+          },
+          footer: (pw.Context ctx) => pw.Container(
+            margin: const pw.EdgeInsets.only(top: 12),
+            padding: const pw.EdgeInsets.only(top: 6),
+            decoration: const pw.BoxDecoration(
+              border: pw.Border(top: pw.BorderSide(color: borderGrey, width: 0.8)),
+            ),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text('CONFIDENTIAL — FOR AUTHORISED PERSONNEL ONLY',
+                    style: pw.TextStyle(fontSize: 7.5, color: textLight, letterSpacing: 0.3)),
+                pw.Text('© ${generatedOn.year} Breathe Better  |  Page ${ctx.pageNumber} of ${ctx.pagesCount}',
+                    style: pw.TextStyle(fontSize: 7.5, color: textLight)),
+              ],
+            ),
+          ),
           build: (pw.Context context) {
             return [
-              // Header
+              // ── COVER HEADER ─────────────────────────────────────────────────
               pw.Container(
-                alignment: pw.Alignment.center,
-                padding: const pw.EdgeInsets.only(bottom: 30),
-                child: pw.Column(
-                  children: [
-                    pw.Text(
-                      'BREATHE BETTER',
-                      style: pw.TextStyle(
-                        fontSize: 28,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.indigo,
-                      ),
-                    ),
-                    pw.SizedBox(height: 8),
-                    pw.Text(
-                      'Admin Analytics Report',
-                      style: pw.TextStyle(
-                        fontSize: 20,
-                        fontWeight: pw.FontWeight.normal,
-                        color: PdfColors.grey700,
-                      ),
-                    ),
-                    pw.SizedBox(height: 4),
-                    pw.Text(
-                      'Generated on ${DateTime.now().toString().split('.')[0]}',
-                      style: pw.TextStyle(
-                        fontSize: 12,
-                        color: PdfColors.grey600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              
-              // Divider line
-              pw.Container(
-                height: 2,
-                color: PdfColors.indigo,
-                margin: const pw.EdgeInsets.only(bottom: 30),
-              ),
-              
-              // Analytics Summary Section
-              pw.Container(
-                padding: const pw.EdgeInsets.all(20),
-                decoration: pw.BoxDecoration(
-                  border: pw.Border.all(color: PdfColors.grey300),
-                  borderRadius: pw.BorderRadius.circular(8),
+                width: double.infinity,
+                padding: const pw.EdgeInsets.symmetric(horizontal: 28, vertical: 28),
+                decoration: const pw.BoxDecoration(
+                  color: headerBg,
+                  borderRadius: pw.BorderRadius.all(pw.Radius.circular(6)),
                 ),
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Text(
-                      'System Overview',
-                      style: pw.TextStyle(
-                        fontSize: 18,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.indigo,
-                      ),
-                    ),
-                    pw.SizedBox(height: 20),
-                    
-                    // Statistics Grid
                     pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
-                        pw.Expanded(
-                          child: _buildPdfStatCard('Total Users', totalUsers.toString(), PdfColors.blue),
+                        pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Text('BREATHE BETTER',
+                                style: pw.TextStyle(
+                                    fontSize: 26, fontWeight: pw.FontWeight.bold, color: white, letterSpacing: 2)),
+                            pw.SizedBox(height: 6),
+                            pw.Text('Admin Analytics Report',
+                                style: pw.TextStyle(fontSize: 15, color: PdfColors.indigo100, letterSpacing: 0.5)),
+                          ],
                         ),
-                        pw.SizedBox(width: 20),
-                        pw.Expanded(
-                          child: _buildPdfStatCard('Active Users (30 days)', activeUsers.toString(), PdfColors.green),
+                        pw.Container(
+                          padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: pw.BoxDecoration(
+                            color: PdfColors.red700,
+                            borderRadius: pw.BorderRadius.circular(3),
+                          ),
+                          child: pw.Text('CONFIDENTIAL',
+                              style: pw.TextStyle(
+                                  fontSize: 8, fontWeight: pw.FontWeight.bold, color: white, letterSpacing: 1.2)),
                         ),
                       ],
                     ),
-                    pw.SizedBox(height: 15),
+                    pw.SizedBox(height: 18),
+                    pw.Container(height: 0.8, color: PdfColors.indigo300),
+                    pw.SizedBox(height: 12),
                     pw.Row(
                       children: [
-                        pw.Expanded(
-                          child: _buildPdfStatCard('Completed Sessions', completedSessions.toString(), PdfColors.orange),
-                        ),
-                        pw.SizedBox(width: 20),
-                        pw.Expanded(
-                          child: _buildPdfStatCard('Recent Registrations (30 days)', recentRegistrations.length.toString(), PdfColors.purple),
-                        ),
+                        _buildHeaderMeta('Generated', formattedGenDate, white),
+                        pw.SizedBox(width: 40),
+                        _buildHeaderMeta('Reference No.', reportRef, white),
+                        pw.SizedBox(width: 40),
+                        _buildHeaderMeta('Prepared By', 'System Administrator', white),
+                        pw.SizedBox(width: 40),
+                        _buildHeaderMeta('Classification', 'Internal Use Only', white),
                       ],
                     ),
                   ],
                 ),
               ),
-              
-              pw.SizedBox(height: 30),
-              
-              // Recent Registrations Details
+
+              pw.SizedBox(height: 24),
+
+              // ── SYSTEM OVERVIEW ───────────────────────────────────────────────
+              sectionTitle('System Overview', accentBlue),
+              pw.Row(
+                children: [
+                  pw.Expanded(child: _buildPdfStatCard('Total Users', totalUsers.toString(), accentBlue)),
+                  pw.SizedBox(width: 14),
+                  pw.Expanded(child: _buildPdfStatCard('Active Users (30 days)', activeUsers.toString(), accentGreen)),
+                  pw.SizedBox(width: 14),
+                  pw.Expanded(child: _buildPdfStatCard('Completed Sessions', completedSessions.toString(), accentOrange)),
+                  pw.SizedBox(width: 14),
+                  pw.Expanded(child: _buildPdfStatCard('New Registrations (30 days)', recentRegistrations.length.toString(), accentPurple)),
+                ],
+              ),
+
+              pw.SizedBox(height: 24),
+
+              // ── RECENT REGISTRATIONS ──────────────────────────────────────────
               if (recentRegistrations.isNotEmpty) ...[
-                pw.Container(
-                  padding: const pw.EdgeInsets.all(20),
-                  decoration: pw.BoxDecoration(
-                    border: pw.Border.all(color: PdfColors.grey300),
-                    borderRadius: pw.BorderRadius.circular(8),
-                  ),
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Text(
-                        'Recent Registrations Details',
-                        style: pw.TextStyle(
-                          fontSize: 18,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.indigo,
-                        ),
-                      ),
-                      pw.SizedBox(height: 15),
-                      ...recentRegistrations.take(5).map((user) {
-                        final registrationDate = DateTime.parse(user['registration_date']);
-                        final formattedDate = '${registrationDate.day}/${registrationDate.month}/${registrationDate.year}';
-                        return pw.Padding(
-                          padding: const pw.EdgeInsets.only(bottom: 8),
-                          child: pw.Row(
-                            children: [
-                              pw.Container(
-                                width: 4,
-                                height: 4,
-                                decoration: pw.BoxDecoration(
-                                  color: PdfColors.indigo,
-                                  shape: pw.BoxShape.circle,
-                                ),
-                                margin: const pw.EdgeInsets.only(right: 8, top: 4),
-                              ),
-                              pw.Expanded(
-                                flex: 3,
-                                child: pw.Text(
-                                  user['email'] ?? 'Unknown User',
-                                  style: pw.TextStyle(
-                                    fontSize: 12,
-                                    color: PdfColors.grey800,
-                                  ),
-                                ),
-                              ),
-                              pw.Expanded(
-                                flex: 2,
-                                child: pw.Text(
-                                  formattedDate,
-                                  style: pw.TextStyle(
-                                    fontSize: 12,
-                                    color: PdfColors.grey600,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                    ],
+                sectionTitle('Recent User Registrations  (last 30 days)', accentGreen),
+                pw.ClipRect(
+                  child: pw.Container(
+                    decoration: pw.BoxDecoration(
+                      border: pw.Border.all(color: borderGrey, width: 0.8),
+                      borderRadius: pw.BorderRadius.circular(4),
+                    ),
+                    child: pw.Column(
+                      children: [
+                        tableHeaderRow(['#', 'Email Address', 'Registration Date'], [1, 6, 3]),
+                        ...recentRegistrations.take(10).toList().asMap().entries.map((e) {
+                          final idx = e.key;
+                          final user = e.value;
+                          final regDate = DateTime.parse(user['registration_date']);
+                          final fd = '${regDate.day.toString().padLeft(2,'0')}/${regDate.month.toString().padLeft(2,'0')}/${regDate.year}';
+                          return tableDataRow(
+                            ['${idx + 1}', user['email'] ?? '—', fd],
+                            [1, 6, 3],
+                            idx.isOdd,
+                          );
+                        }).toList(),
+                      ],
+                    ),
                   ),
                 ),
-                pw.SizedBox(height: 30),
+                pw.SizedBox(height: 24),
               ],
-              
-              // Recent Activities Section
-              if (recentActivities.isNotEmpty)
-                pw.Container(
-                  padding: const pw.EdgeInsets.all(20),
-                  decoration: pw.BoxDecoration(
-                    border: pw.Border.all(color: PdfColors.grey300),
-                    borderRadius: pw.BorderRadius.circular(8),
-                  ),
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Text(
-                        'Recent User Activities',
-                        style: pw.TextStyle(
-                          fontSize: 18,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.indigo,
-                        ),
-                      ),
-                      pw.SizedBox(height: 15),
-                      ...recentActivities.take(15).map((activity) {
-                        final userEmail = activity['users']?['email'] ?? 'Unknown User';
-                        final activityName = activity['activities']?['name'] ?? 'Unknown Activity';
-                        final completedAt = DateTime.parse(activity['completed_at']);
-                        final formattedDate = '${completedAt.day}/${completedAt.month}/${completedAt.year} ${completedAt.hour.toString().padLeft(2, '0')}:${completedAt.minute.toString().padLeft(2, '0')}';
-                        
-                        // Create descriptive activity text
-                        String activityDescription = '';
-                        switch (activityName.toLowerCase()) {
-                          case 'daily_checkin':
-                            activityDescription = 'Completed daily mental health check-in';
-                            break;
-                          case 'mood_journal':
-                            activityDescription = 'Recorded mood entry in journal';
-                            break;
-                          case 'breathing_exercise':
-                            activityDescription = 'Completed breathing exercise session';
-                            break;
-                          case 'weekly_mood':
-                            activityDescription = 'Submitted weekly mood assessment';
-                            break;
-                          case 'mental_health_assessment':
-                            activityDescription = 'Completed mental health questionnaire';
-                            break;
-                          default:
-                            activityDescription = activityName.replaceAll('_', ' ').split(' ').map((word) => 
-                              word.isNotEmpty ? word[0].toUpperCase() + word.substring(1) : ''
-                            ).join(' ');
-                        }
-                        
-                        return pw.Padding(
-                          padding: const pw.EdgeInsets.only(bottom: 10),
-                          child: pw.Column(
-                            crossAxisAlignment: pw.CrossAxisAlignment.start,
-                            children: [
-                              pw.Row(
-                                children: [
-                                  pw.Container(
-                                    width: 4,
-                                    height: 4,
-                                    decoration: pw.BoxDecoration(
-                                      color: PdfColors.indigo,
-                                      shape: pw.BoxShape.circle,
-                                    ),
-                                    margin: const pw.EdgeInsets.only(right: 8, top: 4),
-                                  ),
-                                  pw.Expanded(
-                                    flex: 3,
-                                    child: pw.Text(
-                                      userEmail,
-                                      style: pw.TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: pw.FontWeight.bold,
-                                        color: PdfColors.grey800,
-                                      ),
-                                    ),
-                                  ),
-                                  pw.Expanded(
-                                    flex: 2,
-                                    child: pw.Text(
-                                      formattedDate,
-                                      style: pw.TextStyle(
-                                        fontSize: 10,
-                                        color: PdfColors.grey600,
-                                      ),
-                                      textAlign: pw.TextAlign.right,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              pw.Padding(
-                                padding: const pw.EdgeInsets.only(left: 12, top: 2),
-                                child: pw.Text(
-                                  activityDescription,
-                                  style: pw.TextStyle(
-                                    fontSize: 10,
-                                    color: PdfColors.grey700,
-                                    fontStyle: pw.FontStyle.italic,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                    ],
+
+              // ── RECENT USER ACTIVITIES ────────────────────────────────────────
+              if (recentActivities.isNotEmpty) ...[
+                sectionTitle('Recent User Activities', accentBlue),
+                pw.ClipRect(
+                  child: pw.Container(
+                    decoration: pw.BoxDecoration(
+                      border: pw.Border.all(color: borderGrey, width: 0.8),
+                      borderRadius: pw.BorderRadius.circular(4),
+                    ),
+                    child: pw.Column(
+                      children: [
+                        tableHeaderRow(['#', 'User', 'Activity', 'Date & Time'], [1, 4, 4, 3]),
+                        ...recentActivities.take(15).toList().asMap().entries.map((e) {
+                          final idx = e.key;
+                          final activity = e.value;
+                          final userEmail = activity['users']?['email'] ?? 'Unknown';
+                          final activityName = activity['activities']?['name'] ?? 'Unknown';
+                          final completedAt = DateTime.parse(activity['completed_at']);
+                          final fd = '${completedAt.day.toString().padLeft(2,'0')}/${completedAt.month.toString().padLeft(2,'0')}/${completedAt.year}  ${completedAt.hour.toString().padLeft(2,'0')}:${completedAt.minute.toString().padLeft(2,'0')}';
+                          String label;
+                          switch (activityName.toLowerCase()) {
+                            case 'daily_checkin': label = 'Daily Check-in'; break;
+                            case 'mood_journal': label = 'Mood Journal'; break;
+                            case 'breathing_exercise': label = 'Breathing Exercise'; break;
+                            case 'weekly_mood': label = 'Weekly Mood'; break;
+                            case 'mental_health_assessment': label = 'MH Assessment'; break;
+                            default:
+                              label = activityName.replaceAll('_', ' ').split(' ').map(
+                                (w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '').join(' ');
+                          }
+                          return tableDataRow(
+                            ['${idx + 1}', userEmail, label, fd],
+                            [1, 4, 4, 3],
+                            idx.isOdd,
+                          );
+                        }).toList(),
+                      ],
+                    ),
                   ),
                 ),
-                
-              if (recentActivities.isNotEmpty)
-                pw.SizedBox(height: 30),
-              
-              // Counseling Sessions Section
-              if (counselingSessions.isNotEmpty)
-                pw.Container(
-                  padding: const pw.EdgeInsets.all(20),
-                  decoration: pw.BoxDecoration(
-                    border: pw.Border.all(color: PdfColors.grey300),
-                    borderRadius: pw.BorderRadius.circular(8),
-                  ),
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Text(
-                        'Recent Counseling Sessions',
-                        style: pw.TextStyle(
-                          fontSize: 18,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.indigo,
-                        ),
-                      ),
-                      pw.SizedBox(height: 15),
-                      ...counselingSessions.take(12).map((session) {
-                        final counselor = session['counselors'] as Map<String, dynamic>?;
-                        final counselorName = counselor != null && 
-                                              counselor['first_name'] != null && 
-                                              counselor['last_name'] != null
-                            ? '${counselor['first_name']} ${counselor['last_name']}'
-                            : 'Unknown Counselor';
-                        final studentEmail = session['users']?['email'] ?? 'Unknown Student';
-                        final appointmentDate = DateTime.parse(session['appointment_date']);
-                        final formattedDate = '${appointmentDate.day}/${appointmentDate.month}/${appointmentDate.year}';
-                        
-                        return pw.Padding(
-                          padding: const pw.EdgeInsets.only(bottom: 8),
-                          child: pw.Row(
-                            children: [
-                              pw.Container(
-                                width: 4,
-                                height: 4,
-                                decoration: pw.BoxDecoration(
-                                  color: PdfColors.purple,
-                                  shape: pw.BoxShape.circle,
-                                ),
-                                margin: const pw.EdgeInsets.only(right: 8, top: 4),
-                              ),
-                              pw.Expanded(
-                                flex: 3,
-                                child: pw.Text(
-                                  studentEmail,
-                                  style: pw.TextStyle(
-                                    fontSize: 11,
-                                    color: PdfColors.grey800,
-                                  ),
-                                ),
-                              ),
-                              pw.Expanded(
-                                flex: 2,
-                                child: pw.Text(
-                                  counselorName,
-                                  style: pw.TextStyle(
-                                    fontSize: 11,
-                                    color: PdfColors.grey700,
-                                  ),
-                                ),
-                              ),
-                              pw.Expanded(
-                                flex: 2,
-                                child: pw.Text(
-                                  formattedDate,
-                                  style: pw.TextStyle(
-                                    fontSize: 10,
-                                    color: PdfColors.grey600,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                    ],
+                pw.SizedBox(height: 24),
+              ],
+
+              // ── COUNSELING SESSIONS ───────────────────────────────────────────
+              if (counselingSessions.isNotEmpty) ...[
+                sectionTitle('Recent Counseling Sessions', accentPurple),
+                pw.ClipRect(
+                  child: pw.Container(
+                    decoration: pw.BoxDecoration(
+                      border: pw.Border.all(color: borderGrey, width: 0.8),
+                      borderRadius: pw.BorderRadius.circular(4),
+                    ),
+                    child: pw.Column(
+                      children: [
+                        tableHeaderRow(['#', 'Student', 'Counselor', 'Date', 'Status'], [1, 4, 3, 2, 2]),
+                        ...counselingSessions.take(12).toList().asMap().entries.map((e) {
+                          final idx = e.key;
+                          final session = e.value;
+                          final counselor = session['counselors'] as Map<String, dynamic>?;
+                          final counselorName = (counselor?['first_name'] != null && counselor?['last_name'] != null)
+                              ? '${counselor!['first_name']} ${counselor['last_name']}'
+                              : 'N/A';
+                          final studentEmail = session['users']?['email'] ?? '—';
+                          final apptDate = DateTime.parse(session['appointment_date']);
+                          final fd = '${apptDate.day.toString().padLeft(2,'0')}/${apptDate.month.toString().padLeft(2,'0')}/${apptDate.year}';
+                          return tableDataRow(
+                            ['${idx + 1}', studentEmail, counselorName, fd, 'Completed'],
+                            [1, 4, 3, 2, 2],
+                            idx.isOdd,
+                          );
+                        }).toList(),
+                      ],
+                    ),
                   ),
                 ),
-                
-              if (counselingSessions.isNotEmpty)
-                pw.SizedBox(height: 30),
-              
-              // Additional Information Section
+                pw.SizedBox(height: 24),
+              ],
+
+              // ── REPORT METADATA ───────────────────────────────────────────────
+              sectionTitle('Report Details', textDark),
               pw.Container(
-                padding: const pw.EdgeInsets.all(20),
+                padding: const pw.EdgeInsets.all(16),
                 decoration: pw.BoxDecoration(
-                  border: pw.Border.all(color: PdfColors.grey300),
-                  borderRadius: pw.BorderRadius.circular(8),
+                  color: rowAlt,
+                  border: pw.Border.all(color: borderGrey, width: 0.8),
+                  borderRadius: pw.BorderRadius.circular(4),
                 ),
                 child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Text(
-                      'Report Details',
-                      style: pw.TextStyle(
-                        fontSize: 18,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.indigo,
-                      ),
-                    ),
-                    pw.SizedBox(height: 15),
+                    _buildPdfDetailRow('Report Reference', reportRef),
                     _buildPdfDetailRow('Report Type', 'Administrative Analytics'),
-                    _buildPdfDetailRow('Data Period', 'All time (with 30-day filters for specific metrics)'),
+                    _buildPdfDetailRow('Data Scope', 'All-time records; 30-day window for activity metrics'),
                     _buildPdfDetailRow('Generated By', 'System Administrator'),
-                    _buildPdfDetailRow('Status', 'Active'),
+                    _buildPdfDetailRow('Generated On', formattedGenDate),
+                    _buildPdfDetailRow('Classification', 'Confidential — Internal Use Only'),
+                    _buildPdfDetailRow('System Status', 'Operational'),
                   ],
                 ),
               ),
-              
-              // Footer
-              pw.Spacer(),
+
+              pw.SizedBox(height: 16),
+
+              // ── DISCLAIMER ────────────────────────────────────────────────────
               pw.Container(
-                alignment: pw.Alignment.center,
-                child: pw.Text(
-                  '© 2024 Breathe Better - Confidential Administrative Report',
-                  style: pw.TextStyle(
-                    fontSize: 10,
-                    color: PdfColors.grey600,
+                padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border(
+                    left: pw.BorderSide(color: PdfColors.orange700, width: 3),
                   ),
+                  color: PdfColor.fromInt(0xFFFFF8E1),
+                ),
+                child: pw.Text(
+                  'This report is generated automatically by the Breathe Better platform and is '
+                  'intended solely for authorised administrative personnel. The data contained herein '
+                  'is confidential and must not be disclosed to unauthorised parties.',
+                  style: pw.TextStyle(fontSize: 9, color: textMid, lineSpacing: 3),
                 ),
               ),
             ];
@@ -1161,50 +1106,63 @@ class _AdminHomeState extends State<AdminHome> {
         ),
       );
 
-      // Save PDF to file - try multiple locations
+      // Save PDF to file
       String? savedPath;
       final timestamp = DateTime.now().toIso8601String().split('.')[0].replaceAll(':', '-');
       final fileName = 'breathe_better_analytics_report_$timestamp.pdf';
-      
-      // Try different locations in order of preference
-      final locations = [
-        '/storage/emulated/0/Download',
-        '/storage/emulated/0/Downloads', 
-        '/sdcard/Download',
-        '/sdcard/Downloads',
-      ];
-      
-      // Also try using path_provider
+      final pdfBytes = await pdf.save();
+
+      // Request storage permissions at runtime (Android ≤ 10 needs WRITE_EXTERNAL_STORAGE;
+      // Android 11+ ignores it, but we still attempt — the internal docs fallback always works).
+      if (Platform.isAndroid) {
+        final status = await Permission.storage.status;
+        if (status.isDenied) {
+          await Permission.storage.request();
+        }
+      }
+
+      // Ordered list of locations to attempt
+      final locations = <String>[];
+
       try {
         final extDir = await getExternalStorageDirectory();
         if (extDir != null) {
-          locations.add('${extDir.path}/Download');
           locations.add(extDir.path);
         }
-      } catch (e) {
-        print('Could not get external storage directory: $e');
-      }
-      
+      } catch (_) {}
+
+      // Public Downloads folder (works on Android ≤ 9 with permission or Android 10 scoped storage)
+      locations.addAll([
+        '/storage/emulated/0/Download',
+        '/storage/emulated/0/Downloads',
+        '/sdcard/Download',
+        '/sdcard/Downloads',
+      ]);
+
       for (String path in locations) {
         try {
           final directory = Directory(path);
-          
-          // Try to create directory if it doesn't exist
           if (!await directory.exists()) {
-            try {
-              await directory.create(recursive: true);
-            } catch (e) {
-              continue; // Try next location
-            }
+            await directory.create(recursive: true);
           }
-          
           final file = File('$path/$fileName');
-          await file.writeAsBytes(await pdf.save());
+          await file.writeAsBytes(pdfBytes);
           savedPath = file.path;
-          break; // Success! Exit the loop
+          break;
         } catch (e) {
           print('Failed to save to $path: $e');
-          continue; // Try next location
+        }
+      }
+
+      // Guaranteed fallback — internal app documents directory
+      if (savedPath == null) {
+        try {
+          final docsDir = await getApplicationDocumentsDirectory();
+          final file = File('${docsDir.path}/$fileName');
+          await file.writeAsBytes(pdfBytes);
+          savedPath = file.path;
+        } catch (e) {
+          print('Failed to save to documents directory: $e');
         }
       }
 
@@ -1300,30 +1258,34 @@ class _AdminHomeState extends State<AdminHome> {
 
   pw.Widget _buildPdfStatCard(String title, String value, PdfColor color) {
     return pw.Container(
-      padding: const pw.EdgeInsets.all(15),
+      padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: pw.BoxDecoration(
-        color: color.shade(0.1),
-        border: pw.Border.all(color: color, width: 1),
-        borderRadius: pw.BorderRadius.circular(8),
+        color: PdfColors.white,
+        border: pw.Border(
+          left: pw.BorderSide(color: color, width: 4),
+          top: pw.BorderSide(color: const PdfColor.fromInt(0xFFCFD8DC), width: 0.8),
+          right: pw.BorderSide(color: const PdfColor.fromInt(0xFFCFD8DC), width: 0.8),
+          bottom: pw.BorderSide(color: const PdfColor.fromInt(0xFFCFD8DC), width: 0.8),
+        ),
       ),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.Text(
-            title,
-            style: pw.TextStyle(
-              fontSize: 12,
-              color: PdfColors.grey700,
-              fontWeight: pw.FontWeight.normal,
-            ),
-          ),
-          pw.SizedBox(height: 8),
-          pw.Text(
             value,
             style: pw.TextStyle(
-              fontSize: 24,
+              fontSize: 26,
               fontWeight: pw.FontWeight.bold,
               color: color,
+            ),
+          ),
+          pw.SizedBox(height: 4),
+          pw.Text(
+            title,
+            style: pw.TextStyle(
+              fontSize: 9,
+              color: const PdfColor.fromInt(0xFF616161),
+              letterSpacing: 0.2,
             ),
           ),
         ],
@@ -1331,20 +1293,45 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
+  pw.Widget _buildHeaderMeta(String label, String value, PdfColor textColor) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          label.toUpperCase(),
+          style: pw.TextStyle(
+            fontSize: 7,
+            color: PdfColors.indigo200,
+            letterSpacing: 0.8,
+          ),
+        ),
+        pw.SizedBox(height: 3),
+        pw.Text(
+          value,
+          style: pw.TextStyle(
+            fontSize: 9.5,
+            color: textColor,
+            fontWeight: pw.FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
   pw.Widget _buildPdfDetailRow(String label, String value) {
     return pw.Padding(
-      padding: const pw.EdgeInsets.only(bottom: 8),
+      padding: const pw.EdgeInsets.symmetric(vertical: 5),
       child: pw.Row(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.SizedBox(
-            width: 120,
+          pw.Container(
+            width: 180,
             child: pw.Text(
-              '$label:',
+              label,
               style: pw.TextStyle(
-                fontSize: 12,
+                fontSize: 10,
                 fontWeight: pw.FontWeight.bold,
-                color: PdfColors.grey700,
+                color: const PdfColor.fromInt(0xFF3949AB),
               ),
             ),
           ),
@@ -1352,8 +1339,8 @@ class _AdminHomeState extends State<AdminHome> {
             child: pw.Text(
               value,
               style: pw.TextStyle(
-                fontSize: 12,
-                color: PdfColors.grey800,
+                fontSize: 10,
+                color: const PdfColor.fromInt(0xFF212121),
               ),
             ),
           ),
