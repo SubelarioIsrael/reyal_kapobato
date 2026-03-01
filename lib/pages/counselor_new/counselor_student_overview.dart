@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../widgets/student_avatar.dart';
 import '../../controllers/counselor_student_overview_controller.dart';
@@ -167,16 +168,14 @@ class _CounselorStudentOverviewState extends State<CounselorStudentOverview>
           ),
         ),
         centerTitle: true,
-        actions: [
-          IconButton(
-            onPressed: () => _showDownloadConfirmation(),
-            icon: const Icon(
-              Icons.download,
-              color: Color(0xFF7C83FD),
-              size: 24,
-            ),
-          ),
-        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showDownloadConfirmation(),
+        backgroundColor: const Color(0xFF7C83FD),
+        foregroundColor: Colors.white,
+        elevation: 4,
+        tooltip: 'Export PDF',
+        child: const Icon(Icons.download_rounded),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -1989,7 +1988,12 @@ class _CounselorStudentOverviewState extends State<CounselorStudentOverview>
 
   Future<void> _generateStudentReportPdf() async {
     try {
-      // Fetch mental health assessments from questionnaire_responses
+      // ── Load app logo ──────────────────────────────────────────────────
+      final logoData =
+          await rootBundle.load('assets/icon/breathe-better-logo-fixed-1.png');
+      final logoImage = pw.MemoryImage(logoData.buffer.asUint8List());
+
+      // ── Fetch data ─────────────────────────────────────────────────────
       final assessmentsResponse = await Supabase.instance.client
           .from('questionnaire_responses')
           .select('*')
@@ -1998,7 +2002,6 @@ class _CounselorStudentOverviewState extends State<CounselorStudentOverview>
           .limit(10);
       final assessments = List<Map<String, dynamic>>.from(assessmentsResponse);
 
-      // Fetch detailed counseling sessions
       final sessionsResponse = await Supabase.instance.client
           .from('counseling_appointments')
           .select('*, counselors(first_name, last_name)')
@@ -2007,480 +2010,671 @@ class _CounselorStudentOverviewState extends State<CounselorStudentOverview>
           .limit(15);
       final sessions = List<Map<String, dynamic>>.from(sessionsResponse);
 
+      final moodResponse = await Supabase.instance.client
+          .from('mood_entries')
+          .select('mood_type, entry_date')
+          .eq('user_id', widget.userId)
+          .order('entry_date', ascending: false)
+          .limit(30);
+      final moodEntries = List<Map<String, dynamic>>.from(moodResponse);
+
+      // ── Risk alert counts ──────────────────────────────────────────────
+      final openAlerts = _riskAlerts
+          .where((a) => a['is_resolved'] != true && a['is_acknowledged'] != true)
+          .length;
+      final acknowledgedAlerts = _riskAlerts
+          .where((a) => a['is_acknowledged'] == true && a['is_resolved'] != true)
+          .length;
+      final resolvedAlerts =
+          _riskAlerts.where((a) => a['is_resolved'] == true).length;
+
+      // ── Mood distribution ──────────────────────────────────────────────
+      final moodCounts = <String, int>{};
+      for (final e in moodEntries) {
+        final mt = (e['mood_type'] as String? ?? 'unknown').toLowerCase();
+        moodCounts[mt] = (moodCounts[mt] ?? 0) + 1;
+      }
+
+      // ── Assessment score trend ─────────────────────────────────────────
+      String assessmentTrend = 'N/A';
+      String trendDescription = '';
+      if (assessments.length >= 2) {
+        final latest = (assessments.first['total_score'] as int?) ?? 0;
+        final previous = (assessments[1]['total_score'] as int?) ?? 0;
+        final diff = latest - previous;
+        if (diff < 0) {
+          assessmentTrend = 'IMPROVING';
+          trendDescription =
+              'Score decreased by ${diff.abs()} points (lower is better)';
+        } else if (diff > 0) {
+          assessmentTrend = 'WORSENING';
+          trendDescription =
+              'Score increased by $diff points (lower is better)';
+        } else {
+          assessmentTrend = 'STABLE';
+          trendDescription = 'No change from previous assessment';
+        }
+      } else if (assessments.length == 1) {
+        assessmentTrend = 'BASELINE';
+        trendDescription = 'First assessment on record';
+      }
+
+      // ── Journal sentiment breakdown ────────────────────────────────────
+      final positiveJournals = _recentJournalEntries
+          .where((j) => (j['sentiment'] as String?)?.toLowerCase() == 'positive')
+          .length;
+      final negativeJournals = _recentJournalEntries
+          .where((j) => (j['sentiment'] as String?)?.toLowerCase() == 'negative')
+          .length;
+      final neutralJournals =
+          _recentJournalEntries.length - positiveJournals - negativeJournals;
+
+      // ── Brand palette ──────────────────────────────────────────────────
+      const brandPurple = PdfColor(0.486, 0.514, 0.992);
+      const brandBlue = PdfColor(0.13, 0.59, 0.95);
+      const dangerRed = PdfColor(0.85, 0.15, 0.15);
+      const warningOrange = PdfColor(0.95, 0.55, 0.10);
+      const successGreen = PdfColor(0.13, 0.70, 0.37);
+      const deepPurple = PdfColor(0.56, 0.26, 0.92);
+
+      final now = DateTime.now();
+      final generatedAt =
+          '${_pdfMonthName(now.month)} ${now.day}, ${now.year}  |  ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+
       final pdf = pw.Document();
 
       pdf.addPage(
         pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.symmetric(horizontal: 32, vertical: 32),
           build: (pw.Context context) {
             return [
-              // Header
+              // ━━━ HEADER ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
               pw.Container(
-                alignment: pw.Alignment.center,
-                padding: const pw.EdgeInsets.only(bottom: 30),
-                child: pw.Column(
-                  children: [
-                    pw.Text(
-                      'BREATHE BETTER',
-                      style: pw.TextStyle(
-                        fontSize: 28,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.indigo,
-                      ),
-                    ),
-                    pw.SizedBox(height: 8),
-                    pw.Text(
-                      'Student Progress Report',
-                      style: pw.TextStyle(
-                        fontSize: 20,
-                        fontWeight: pw.FontWeight.normal,
-                        color: PdfColors.grey700,
-                      ),
-                    ),
-                    pw.SizedBox(height: 4),
-                    pw.Text(
-                      'Generated on ${DateTime.now().toString().split('.')[0]}',
-                      style: pw.TextStyle(
-                        fontSize: 12,
-                        color: PdfColors.grey600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              
-              // Divider line
-              pw.Container(
-                height: 2,
-                color: PdfColors.indigo,
-                margin: const pw.EdgeInsets.only(bottom: 30),
-              ),
-              
-              // Student Information Section
-              pw.Container(
-                padding: const pw.EdgeInsets.all(20),
+                padding: const pw.EdgeInsets.symmetric(
+                    horizontal: 20, vertical: 16),
                 decoration: pw.BoxDecoration(
-                  border: pw.Border.all(color: PdfColors.grey300),
-                  borderRadius: pw.BorderRadius.circular(8),
+                  gradient: pw.LinearGradient(
+                    colors: [
+                      brandPurple,
+                      const PdfColor(0.60, 0.62, 1.0)
+                    ],
+                    begin: pw.Alignment.topLeft,
+                    end: pw.Alignment.bottomRight,
+                  ),
+                  borderRadius: pw.BorderRadius.circular(12),
                 ),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
-                    pw.Text(
-                      'Student Information',
-                      style: pw.TextStyle(
-                        fontSize: 18,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.indigo,
-                      ),
-                    ),
-                    pw.SizedBox(height: 15),
-                    _buildPdfDetailRow('Name', widget.studentName),
-                    _buildPdfDetailRow('Student ID', _studentProfile?['student_code'] ?? 'N/A'),
-                    _buildPdfDetailRow('Course', _studentProfile?['course'] ?? 'N/A'),
-                    _buildPdfDetailRow('Year Level', 'Year ${_studentProfile?['year_level'] ?? 'N/A'}'),
-                    _buildPdfDetailRow('Email', _studentProfile?['users']?['email'] ?? 'N/A'),
-                    _buildPdfDetailRow('Status', _studentProfile?['users']?['status']?.toString().toUpperCase() ?? 'ACTIVE'),
-                  ],
-                ),
-              ),
-              
-              pw.SizedBox(height: 30),
-              
-              // Statistics Overview Section
-              pw.Container(
-                padding: const pw.EdgeInsets.all(20),
-                decoration: pw.BoxDecoration(
-                  border: pw.Border.all(color: PdfColors.grey300),
-                  borderRadius: pw.BorderRadius.circular(8),
-                ),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Text(
-                      'Activity Overview',
-                      style: pw.TextStyle(
-                        fontSize: 18,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.indigo,
-                      ),
-                    ),
-                    pw.SizedBox(height: 20),
-                    
-                    // Statistics Grid
                     pw.Row(
                       children: [
-                        pw.Expanded(
-                          child: _buildPdfStatCard('Journal Entries', _totalJournalEntries.toString(), PdfColors.blue),
+                        pw.Image(logoImage, width: 50, height: 50),
+                        pw.SizedBox(width: 14),
+                        pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Text(
+                              'BreatheBetter',
+                              style: pw.TextStyle(
+                                fontSize: 22,
+                                fontWeight: pw.FontWeight.bold,
+                                color: PdfColors.white,
+                              ),
+                            ),
+                            pw.Text(
+                              'Student Mental Health Report',
+                              style: pw.TextStyle(
+                                fontSize: 11,
+                                color: PdfColors.white,
+                                fontStyle: pw.FontStyle.italic,
+                              ),
+                            ),
+                          ],
                         ),
-                        pw.SizedBox(width: 20),
-                        pw.Expanded(
-                          child: _buildPdfStatCard('Mental Health Assessments', _totalQuestionnaires.toString(), PdfColors.orange),
+                      ],
+                    ),
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.end,
+                      children: [
+                        pw.Container(
+                          padding: const pw.EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: pw.BoxDecoration(
+                            color: PdfColors.white,
+                            borderRadius: pw.BorderRadius.circular(20),
+                          ),
+                          child: pw.Text(
+                            'CONFIDENTIAL',
+                            style: pw.TextStyle(
+                              fontSize: 8,
+                              fontWeight: pw.FontWeight.bold,
+                              color: brandPurple,
+                            ),
+                          ),
                         ),
-                        pw.SizedBox(width: 20),
-                        pw.Expanded(
-                          child: _buildPdfStatCard('Counseling Sessions', _totalSessions.toString(), PdfColors.purple),
+                        pw.SizedBox(height: 6),
+                        pw.Text(
+                          generatedAt,
+                          style: pw.TextStyle(
+                              fontSize: 8, color: PdfColors.white),
                         ),
                       ],
                     ),
                   ],
                 ),
               ),
-              
-              pw.SizedBox(height: 30),
-              
-              // Mental Health Assessments Section
-              if (assessments.isNotEmpty)
+
+              pw.SizedBox(height: 18),
+
+              // ━━━ RISK BANNER (only when open alerts exist) ━━━━━━━━━━━━━━
+              if (openAlerts > 0) ...[
                 pw.Container(
-                  padding: const pw.EdgeInsets.all(20),
+                  padding: const pw.EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 12),
                   decoration: pw.BoxDecoration(
-                    border: pw.Border.all(color: PdfColors.grey300),
+                    color: const PdfColor(1.0, 0.94, 0.94),
+                    border: pw.Border.all(color: dangerRed, width: 1.5),
                     borderRadius: pw.BorderRadius.circular(8),
                   ),
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  child: pw.Row(
                     children: [
-                      pw.Text(
-                        'Mental Health Assessments',
-                        style: pw.TextStyle(
-                          fontSize: 18,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.indigo,
+                      pw.Container(
+                        width: 5,
+                        height: 36,
+                        decoration: pw.BoxDecoration(
+                          color: dangerRed,
+                          borderRadius: pw.BorderRadius.circular(3),
                         ),
                       ),
-                      pw.SizedBox(height: 15),
-                      ...assessments.take(8).map((assessment) {
-                        final submissionDate = DateTime.parse(assessment['submission_timestamp']);
-                        final formattedDate = '${submissionDate.day}/${submissionDate.month}/${submissionDate.year}';
-                        final score = assessment['total_score'] ?? 'N/A';
-                        // Calculate risk level based on score
-                        String riskLevel = 'LOW';
-                        if (score != 'N/A') {
-                          final scoreValue = score as int;
-                          if (scoreValue >= 20) {
-                            riskLevel = 'HIGH';
-                          } else if (scoreValue >= 10) {
-                            riskLevel = 'MODERATE';
-                          }
-                        }
-                        
-                        return pw.Padding(
-                          padding: const pw.EdgeInsets.only(bottom: 10),
-                          child: pw.Row(
-                            children: [
-                              pw.Container(
-                                width: 4,
-                                height: 4,
-                                decoration: pw.BoxDecoration(
-                                  color: PdfColors.orange,
-                                  shape: pw.BoxShape.circle,
-                                ),
-                                margin: const pw.EdgeInsets.only(right: 8, top: 4),
+                      pw.SizedBox(width: 12),
+                      pw.Expanded(
+                        child: pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Text(
+                              '[!] ACTIVE RISK ALERT - COUNSELOR ATTENTION REQUIRED',
+                              style: pw.TextStyle(
+                                fontSize: 11,
+                                fontWeight: pw.FontWeight.bold,
+                                color: dangerRed,
                               ),
-                              pw.Expanded(
-                                flex: 2,
-                                child: pw.Text(
-                                  formattedDate,
-                                  style: pw.TextStyle(
-                                    fontSize: 11,
-                                    color: PdfColors.grey800,
-                                  ),
-                                ),
-                              ),
-                              pw.Expanded(
-                                flex: 2,
-                                child: pw.Text(
-                                  'Score: $score',
-                                  style: pw.TextStyle(
-                                    fontSize: 11,
-                                    color: PdfColors.grey700,
-                                  ),
-                                ),
-                              ),
-                              pw.Expanded(
-                                flex: 2,
-                                child: pw.Text(
-                                  'Risk: $riskLevel',
-                                  style: pw.TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: pw.FontWeight.bold,
-                                    color: riskLevel == 'HIGH' ? PdfColors.red : 
-                                           riskLevel == 'MODERATE' ? PdfColors.orange : PdfColors.green,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
+                            ),
+                            pw.SizedBox(height: 3),
+                            pw.Text(
+                              'This student has $openAlerts unresolved risk alert${openAlerts > 1 ? 's' : ''}. Immediate follow-up is recommended.',
+                              style: pw.TextStyle(
+                                  fontSize: 9, color: PdfColors.grey800),
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                 ),
-                
-              if (assessments.isNotEmpty)
-                pw.SizedBox(height: 30),
-              
-              // Counseling Sessions Section
-              if (sessions.isNotEmpty)
-                pw.Container(
-                  padding: const pw.EdgeInsets.all(20),
-                  decoration: pw.BoxDecoration(
-                    border: pw.Border.all(color: PdfColors.grey300),
-                    borderRadius: pw.BorderRadius.circular(8),
-                  ),
+                pw.SizedBox(height: 16),
+              ],
+
+              // ━━━ STUDENT INFORMATION ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+              _buildPdfSection(
+                title: 'Student Information',
+                accentColor: brandPurple,
+                child: pw.Row(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Expanded(
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          _buildPdfDetailRow('Full Name', widget.studentName),
+                          _buildPdfDetailRow('Student ID',
+                              _studentProfile?['student_code'] ?? 'N/A'),
+                          _buildPdfDetailRow('Email',
+                              _studentProfile?['users']?['email'] ?? 'N/A'),
+                          _buildPdfDetailRow(
+                            'Account Status',
+                            (_studentProfile?['users']?['status']
+                                        ?.toString() ??
+                                    'active')
+                                .toUpperCase(),
+                          ),
+                        ],
+                      ),
+                    ),
+                    pw.SizedBox(width: 24),
+                    pw.Expanded(
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          _buildPdfDetailRow(
+                            'Education Level',
+                            (_studentProfile?['education_level'] as String? ??
+                                    'N/A')
+                                .replaceAll('_', ' ')
+                                .toUpperCase(),
+                          ),
+                          _buildPdfDetailRow(
+                            'Course / Strand',
+                            _studentProfile?['course'] ??
+                                _studentProfile?['strand'] ??
+                                'N/A',
+                          ),
+                          _buildPdfDetailRow(
+                            'Year Level',
+                            'Year ${_studentProfile?['year_level'] ?? 'N/A'}',
+                          ),
+                          _buildPdfDetailRow(
+                            'Report Date',
+                            '${_pdfMonthName(now.month)} ${now.day}, ${now.year}',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              pw.SizedBox(height: 14),
+
+              // ━━━ ENGAGEMENT OVERVIEW — 4 stat cards ━━━━━━━━━━━━━━━━━━━━
+              _buildPdfSection(
+                title: 'Engagement Overview',
+                accentColor: brandPurple,
+                child: pw.Row(
+                  children: [
+                    pw.Expanded(
+                      child: _buildPdfStatCard(
+                        'Journal\nEntries',
+                        _totalJournalEntries.toString(),
+                        const PdfColor(0.13, 0.45, 0.85),
+                      ),
+                    ),
+                    pw.SizedBox(width: 10),
+                    pw.Expanded(
+                      child: _buildPdfStatCard(
+                        'Assessments\nCompleted',
+                        _totalQuestionnaires.toString(),
+                        warningOrange,
+                      ),
+                    ),
+                    pw.SizedBox(width: 10),
+                    pw.Expanded(
+                      child: _buildPdfStatCard(
+                        'Counseling\nSessions',
+                        _totalSessions.toString(),
+                        deepPurple,
+                      ),
+                    ),
+                    pw.SizedBox(width: 10),
+                    pw.Expanded(
+                      child: _buildPdfStatCard(
+                        'Risk\nAlerts',
+                        _riskAlerts.length.toString(),
+                        openAlerts > 0 ? dangerRed : successGreen,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              pw.SizedBox(height: 14),
+
+              // ━━━ MENTAL HEALTH RISK ALERTS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+              if (_riskAlerts.isNotEmpty) ...[
+                _buildPdfSection(
+                  title: 'Mental Health Risk Alerts',
+                  accentColor: dangerRed,
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Text(
-                        'Counseling Sessions',
-                        style: pw.TextStyle(
-                          fontSize: 18,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.indigo,
-                        ),
+                      pw.Row(
+                        children: [
+                          _buildPdfBadge('Open', openAlerts.toString(),
+                              dangerRed, const PdfColor(1.0, 0.93, 0.93)),
+                          pw.SizedBox(width: 10),
+                          _buildPdfBadge(
+                              'Acknowledged',
+                              acknowledgedAlerts.toString(),
+                              warningOrange,
+                              const PdfColor(1.0, 0.97, 0.93)),
+                          pw.SizedBox(width: 10),
+                          _buildPdfBadge(
+                              'Resolved',
+                              resolvedAlerts.toString(),
+                              successGreen,
+                              const PdfColor(0.93, 1.0, 0.95)),
+                        ],
                       ),
-                      pw.SizedBox(height: 15),
-                      ...sessions.take(12).map((session) {
-                        final counselor = session['counselors'] as Map<String, dynamic>?;
-                        final counselorName = counselor != null && 
-                                              counselor['first_name'] != null && 
-                                              counselor['last_name'] != null
-                            ? '${counselor['first_name']} ${counselor['last_name']}'
-                            : 'Unknown Counselor';
-                        final appointmentDate = DateTime.parse(session['appointment_date']);
-                        final formattedDate = '${appointmentDate.day}/${appointmentDate.month}/${appointmentDate.year}';
-                        final status = session['status']?.toString().toUpperCase() ?? 'PENDING';
-                        final notes = session['notes']?.toString() ?? 'No notes';
-                        
-                        return pw.Padding(
-                          padding: const pw.EdgeInsets.only(bottom: 12),
-                          child: pw.Column(
-                            crossAxisAlignment: pw.CrossAxisAlignment.start,
-                            children: [
-                              pw.Row(
+                      if (_riskAlerts.any((a) => a['is_resolved'] != true)) ...[
+                        pw.SizedBox(height: 12),
+                        pw.Text(
+                          'Unresolved Alerts:',
+                          style: pw.TextStyle(
+                              fontSize: 10,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.grey700),
+                        ),
+                        pw.SizedBox(height: 6),
+                        ..._riskAlerts
+                            .where((a) => a['is_resolved'] != true)
+                            .take(5)
+                            .map((alert) {
+                          final isOpen = alert['is_acknowledged'] != true;
+                          final statusLabel =
+                              isOpen ? 'OPEN' : 'ACKNOWLEDGED';
+                          final statusColor = isOpen ? dangerRed : warningOrange;
+                          final rawDate =
+                              alert['trigger_timestamp'] as String?;
+                          String dateStr = 'Unknown date';
+                          if (rawDate != null) {
+                            try {
+                              final d = DateTime.parse(rawDate);
+                              dateStr =
+                                  '${_pdfMonthName(d.month)} ${d.day}, ${d.year}';
+                            } catch (_) {}
+                          }
+                          return pw.Padding(
+                            padding: const pw.EdgeInsets.only(bottom: 6),
+                            child: pw.Container(
+                              padding: const pw.EdgeInsets.all(8),
+                              decoration: pw.BoxDecoration(
+                                color: const PdfColor(1.0, 0.97, 0.97),
+                                border: pw.Border.all(
+                                    color: const PdfColor(0.90, 0.75, 0.75),
+                                    width: 0.5),
+                                borderRadius: pw.BorderRadius.circular(5),
+                              ),
+                              child: pw.Row(
+                                crossAxisAlignment:
+                                    pw.CrossAxisAlignment.start,
                                 children: [
-                                  pw.Container(
-                                    width: 4,
-                                    height: 4,
-                                    decoration: pw.BoxDecoration(
-                                      color: PdfColors.purple,
-                                      shape: pw.BoxShape.circle,
-                                    ),
-                                    margin: const pw.EdgeInsets.only(right: 8, top: 4),
-                                  ),
                                   pw.Expanded(
-                                    flex: 2,
                                     child: pw.Text(
-                                      formattedDate,
+                                      alert['trigger_reason'] ??
+                                          'No reason provided',
                                       style: pw.TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: pw.FontWeight.bold,
-                                        color: PdfColors.grey800,
-                                      ),
+                                          fontSize: 9,
+                                          color: PdfColors.grey800),
                                     ),
                                   ),
-                                  pw.Expanded(
-                                    flex: 2,
-                                    child: pw.Text(
-                                      counselorName,
-                                      style: pw.TextStyle(
-                                        fontSize: 11,
-                                        color: PdfColors.grey700,
+                                  pw.SizedBox(width: 8),
+                                  pw.Column(
+                                    crossAxisAlignment:
+                                        pw.CrossAxisAlignment.end,
+                                    children: [
+                                      pw.Container(
+                                        padding: const pw.EdgeInsets
+                                            .symmetric(
+                                            horizontal: 5, vertical: 2),
+                                        decoration: pw.BoxDecoration(
+                                          color: statusColor,
+                                          borderRadius:
+                                              pw.BorderRadius.circular(3),
+                                        ),
+                                        child: pw.Text(
+                                          statusLabel,
+                                          style: pw.TextStyle(
+                                            fontSize: 7,
+                                            fontWeight: pw.FontWeight.bold,
+                                            color: PdfColors.white,
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                  ),
-                                  pw.Expanded(
-                                    flex: 1,
-                                    child: pw.Text(
-                                      status,
-                                      style: pw.TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: pw.FontWeight.bold,
-                                        color: status == 'COMPLETED' ? PdfColors.green : 
-                                               status == 'CANCELLED' ? PdfColors.red : PdfColors.orange,
+                                      pw.SizedBox(height: 3),
+                                      pw.Text(
+                                        dateStr,
+                                        style: pw.TextStyle(
+                                            fontSize: 7,
+                                            color: PdfColors.grey500),
                                       ),
-                                    ),
+                                    ],
                                   ),
                                 ],
                               ),
-                              if (notes.length > 5 && notes != 'No notes')
-                                pw.SizedBox(height: 4),
-                              if (notes.length > 5 && notes != 'No notes')
-                                pw.Padding(
-                                  padding: const pw.EdgeInsets.only(left: 12),
-                                  child: pw.Text(
-                                    'Notes: ${notes.length > 80 ? notes.substring(0, 80) + '...' : notes}',
-                                    style: pw.TextStyle(
-                                      fontSize: 9,
-                                      color: PdfColors.grey600,
-                                      fontStyle: pw.FontStyle.italic,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
+                            ),
+                          );
+                        }).toList(),
+                      ],
                     ],
                   ),
                 ),
-                
-              if (sessions.isNotEmpty)
-                pw.SizedBox(height: 30),
-              
-              // Recent Activity Details Section
-              if (_recentActivities.isNotEmpty) ...[
-                pw.Container(
-                  padding: const pw.EdgeInsets.all(20),
-                  decoration: pw.BoxDecoration(
-                    border: pw.Border.all(color: PdfColors.grey300),
-                    borderRadius: pw.BorderRadius.circular(8),
+                pw.SizedBox(height: 14),
+              ],
+
+              // ━━━ MOOD DISTRIBUTION ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+              if (moodEntries.isNotEmpty) ...[
+                _buildPdfSection(
+                  title:
+                      'Emotional Mood Distribution (Last ${moodEntries.length} Entries)',
+                  accentColor: brandBlue,
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: moodCounts.entries.map((entry) {
+                      final pct =
+                          (entry.value / moodEntries.length * 100).round();
+                      final moodColor = _pdfMoodColor(entry.key);
+                      final barWidth =
+                          entry.value / moodEntries.length * 260;
+                      return pw.Padding(
+                        padding: const pw.EdgeInsets.only(bottom: 8),
+                        child: pw.Row(
+                          children: [
+                            pw.SizedBox(
+                              width: 68,
+                              child: pw.Text(
+                                '${entry.key[0].toUpperCase()}${entry.key.substring(1)}',
+                                style: pw.TextStyle(
+                                    fontSize: 10, color: PdfColors.grey700),
+                              ),
+                            ),
+                            pw.Container(
+                              width: barWidth,
+                              height: 12,
+                              decoration: pw.BoxDecoration(
+                                color: moodColor,
+                                borderRadius: pw.BorderRadius.circular(3),
+                              ),
+                            ),
+                            pw.SizedBox(width: 8),
+                            pw.Text(
+                              '${entry.value}x  ($pct%)',
+                              style: pw.TextStyle(
+                                  fontSize: 9, color: PdfColors.grey600),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
                   ),
+                ),
+                pw.SizedBox(height: 14),
+              ],
+
+              // ━━━ ASSESSMENT SCORE TREND ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+              if (assessments.isNotEmpty) ...[
+                _buildPdfSection(
+                  title: 'Mental Health Assessment Score Trend',
+                  accentColor: warningOrange,
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Text(
-                        'Recent Activities',
-                        style: pw.TextStyle(
-                          fontSize: 18,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.indigo,
+                      if (assessments.length >= 2) ...[
+                        pw.Container(
+                          padding: const pw.EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          margin: const pw.EdgeInsets.only(bottom: 12),
+                          decoration: pw.BoxDecoration(
+                            color: assessmentTrend == 'IMPROVING'
+                                ? const PdfColor(0.90, 1.0, 0.92)
+                                : assessmentTrend == 'WORSENING'
+                                    ? const PdfColor(1.0, 0.93, 0.93)
+                                    : const PdfColor(0.94, 0.94, 1.0),
+                            border: pw.Border.all(
+                              color: assessmentTrend == 'IMPROVING'
+                                  ? successGreen
+                                  : assessmentTrend == 'WORSENING'
+                                      ? dangerRed
+                                      : brandPurple,
+                              width: 1.0,
+                            ),
+                            borderRadius: pw.BorderRadius.circular(6),
+                          ),
+                          child: pw.Row(
+                            children: [
+                              pw.Text(
+                                assessmentTrend,
+                                style: pw.TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: assessmentTrend == 'IMPROVING'
+                                      ? successGreen
+                                      : assessmentTrend == 'WORSENING'
+                                          ? dangerRed
+                                          : brandPurple,
+                                ),
+                              ),
+                              pw.SizedBox(width: 12),
+                              pw.Text(
+                                trendDescription,
+                                style: pw.TextStyle(
+                                    fontSize: 9, color: PdfColors.grey700),
+                              ),
+                            ],
+                          ),
                         ),
+                      ],
+                      pw.Table(
+                        border: pw.TableBorder.all(
+                            color: PdfColors.grey200, width: 0.5),
+                        columnWidths: const {
+                          0: pw.FlexColumnWidth(3),
+                          1: pw.FlexColumnWidth(1.5),
+                          2: pw.FlexColumnWidth(2),
+                          3: pw.FlexColumnWidth(2),
+                        },
+                        children: [
+                          pw.TableRow(
+                            decoration: const pw.BoxDecoration(
+                                color: PdfColors.grey100),
+                            children: [
+                              _pdfTableCell('Date', isHeader: true),
+                              _pdfTableCell('Score', isHeader: true),
+                              _pdfTableCell('Risk Level', isHeader: true),
+                              _pdfTableCell('Severity', isHeader: true),
+                            ],
+                          ),
+                          ...assessments.take(8).map((a) {
+                            final d =
+                                DateTime.parse(a['submission_timestamp']);
+                            final dateStr =
+                                '${_pdfMonthName(d.month)} ${d.day}, ${d.year}';
+                            final score = (a['total_score'] as int?) ?? 0;
+                            String risk = 'Low';
+                            PdfColor riskColor = successGreen;
+                            if (score >= 20) {
+                              risk = 'High';
+                              riskColor = dangerRed;
+                            } else if (score >= 10) {
+                              risk = 'Moderate';
+                              riskColor = warningOrange;
+                            }
+                            return pw.TableRow(
+                              children: [
+                                _pdfTableCell(dateStr),
+                                _pdfTableCell(score.toString()),
+                                _pdfTableCell(risk, textColor: riskColor),
+                                _pdfTableCell(
+                                    a['severity_level']?.toString() ?? 'N/A'),
+                              ],
+                            );
+                          }).toList(),
+                        ],
                       ),
-                      pw.SizedBox(height: 15),
-                      ..._recentActivities.take(10).map((activity) {
-                        final activityType = activity['activity_type'];
-                        String description;
-                        String dateStr;
-                        
-                        if (activityType == 'appointment') {
-                          final counselor = activity['counselors'] as Map<String, dynamic>?;
-                          final counselorName = counselor != null && 
-                                                counselor['first_name'] != null && 
-                                                counselor['last_name'] != null
-                              ? '${counselor['first_name']} ${counselor['last_name']}'
-                              : 'a counselor';
-                          description = '${widget.studentName} booked an appointment with $counselorName';
-                          dateStr = _formatDate(activity['appointment_date']);
-                        } else {
-                          final activityInfo = activity['activities'] as Map<String, dynamic>?;
-                          final activityName = activityInfo?['name'] ?? 'unknown';
-                          description = _generateActivityDescription(activityName);
-                          final completedAt = activity['completed_at'];
-                          final completionDate = activity['completion_date'];
-                          dateStr = _formatDate(completionDate ?? completedAt);
-                        }
-                        
+                    ],
+                  ),
+                ),
+                pw.SizedBox(height: 14),
+              ],
+
+              // ━━━ JOURNAL SENTIMENT ANALYSIS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+              if (_recentJournalEntries.isNotEmpty) ...[
+                _buildPdfSection(
+                  title: 'Journal Sentiment Analysis',
+                  accentColor: const PdfColor(0.13, 0.45, 0.85),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Row(
+                        children: [
+                          _buildPdfBadge(
+                              'Positive',
+                              positiveJournals.toString(),
+                              successGreen,
+                              const PdfColor(0.92, 1.0, 0.94)),
+                          pw.SizedBox(width: 10),
+                          _buildPdfBadge(
+                              'Neutral',
+                              neutralJournals.toString(),
+                              PdfColors.grey600,
+                              PdfColors.grey200),
+                          pw.SizedBox(width: 10),
+                          _buildPdfBadge(
+                              'Negative',
+                              negativeJournals.toString(),
+                              dangerRed,
+                              const PdfColor(1.0, 0.93, 0.93)),
+                        ],
+                      ),
+                      pw.SizedBox(height: 12),
+                      ..._recentJournalEntries.take(5).map((journal) {
+                        final sentiment =
+                            (journal['sentiment'] as String?)?.toLowerCase() ??
+                                'neutral';
+                        final sentimentColor = sentiment == 'positive'
+                            ? successGreen
+                            : sentiment == 'negative'
+                                ? dangerRed
+                                : PdfColors.grey500;
                         return pw.Padding(
-                          padding: const pw.EdgeInsets.only(bottom: 8),
+                          padding: const pw.EdgeInsets.only(bottom: 7),
                           child: pw.Row(
                             children: [
                               pw.Container(
-                                width: 4,
-                                height: 4,
-                                decoration: pw.BoxDecoration(
-                                  color: PdfColors.indigo,
-                                  shape: pw.BoxShape.circle,
-                                ),
-                                margin: const pw.EdgeInsets.only(right: 8, top: 4),
+                                width: 3,
+                                height: 26,
+                                color: sentimentColor,
+                                margin:
+                                    const pw.EdgeInsets.only(right: 10),
                               ),
                               pw.Expanded(
-                                flex: 3,
                                 child: pw.Text(
-                                  description,
+                                  journal['title'] ?? 'Untitled Entry',
                                   style: pw.TextStyle(
-                                    fontSize: 11,
-                                    color: PdfColors.grey800,
-                                  ),
+                                      fontSize: 10,
+                                      color: PdfColors.grey800),
                                 ),
                               ),
-                              pw.Expanded(
-                                flex: 2,
-                                child: pw.Text(
-                                  dateStr,
-                                  style: pw.TextStyle(
-                                    fontSize: 10,
-                                    color: PdfColors.grey600,
-                                  ),
-                                  textAlign: pw.TextAlign.right,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                    ],
-                  ),
-                ),
-                pw.SizedBox(height: 30),
-              ],
-              
-              // Recent Journal Entries Section
-              if (_recentJournalEntries.isNotEmpty) ...[
-                pw.Container(
-                  padding: const pw.EdgeInsets.all(20),
-                  decoration: pw.BoxDecoration(
-                    border: pw.Border.all(color: PdfColors.grey300),
-                    borderRadius: pw.BorderRadius.circular(8),
-                  ),
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Text(
-                        'Recent Journal Entries',
-                        style: pw.TextStyle(
-                          fontSize: 18,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.indigo,
-                        ),
-                      ),
-                      pw.SizedBox(height: 15),
-                      ..._recentJournalEntries.take(5).map((journal) {
-                        final sentiment = (journal['sentiment'] as String?)?.toLowerCase();
-                        return pw.Padding(
-                          padding: const pw.EdgeInsets.only(bottom: 12),
-                          child: pw.Column(
-                            crossAxisAlignment: pw.CrossAxisAlignment.start,
-                            children: [
-                              pw.Row(
+                              pw.SizedBox(width: 8),
+                              pw.Column(
+                                crossAxisAlignment:
+                                    pw.CrossAxisAlignment.end,
                                 children: [
-                                  pw.Container(
-                                    width: 4,
-                                    height: 4,
-                                    decoration: pw.BoxDecoration(
-                                      color: PdfColors.blue,
-                                      shape: pw.BoxShape.circle,
-                                    ),
-                                    margin: const pw.EdgeInsets.only(right: 8, top: 4),
-                                  ),
-                                  pw.Expanded(
-                                    child: pw.Text(
-                                      journal['title'] ?? 'Untitled Entry',
-                                      style: pw.TextStyle(
-                                        fontSize: 12,
-                                        color: PdfColors.grey800,
-                                        fontWeight: pw.FontWeight.bold,
-                                      ),
+                                  pw.Text(
+                                    sentiment.toUpperCase(),
+                                    style: pw.TextStyle(
+                                      fontSize: 8,
+                                      fontWeight: pw.FontWeight.bold,
+                                      color: sentimentColor,
                                     ),
                                   ),
                                   pw.Text(
                                     _formatDate(journal['entry_timestamp']),
                                     style: pw.TextStyle(
-                                      fontSize: 10,
-                                      color: PdfColors.grey600,
-                                    ),
+                                        fontSize: 7,
+                                        color: PdfColors.grey400),
                                   ),
                                 ],
                               ),
-                              if (sentiment != null) ...[
-                                pw.SizedBox(height: 4),
-                                pw.Text(
-                                  'Sentiment: ${_getSentimentTextLabel(sentiment)}',
-                                  style: pw.TextStyle(
-                                    fontSize: 10,
-                                    color: PdfColors.grey600,
-                                  ),
-                                ),
-                              ],
                             ],
                           ),
                         );
@@ -2488,270 +2682,250 @@ class _CounselorStudentOverviewState extends State<CounselorStudentOverview>
                     ],
                   ),
                 ),
-                pw.SizedBox(height: 30),
+                pw.SizedBox(height: 14),
               ],
-              
-              // Counseling Sessions Section
-              if (_sessionNotes.isNotEmpty) ...[
-                pw.Container(
-                  padding: const pw.EdgeInsets.all(20),
-                  decoration: pw.BoxDecoration(
-                    border: pw.Border.all(color: PdfColors.grey500),
-                    borderRadius: pw.BorderRadius.circular(8),
-                  ),
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+
+              // ━━━ COUNSELING SESSIONS TABLE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+              if (sessions.isNotEmpty) ...[
+                _buildPdfSection(
+                  title: 'Counseling Sessions',
+                  accentColor: deepPurple,
+                  child: pw.Table(
+                    border: pw.TableBorder.all(
+                        color: PdfColors.grey200, width: 0.5),
+                    columnWidths: const {
+                      0: pw.FlexColumnWidth(2.5),
+                      1: pw.FlexColumnWidth(3),
+                      2: pw.FlexColumnWidth(1.5),
+                      3: pw.FlexColumnWidth(4),
+                    },
                     children: [
-                      pw.Text(
-                        'Counseling Sessions Summary',
-                        style: pw.TextStyle(
-                          fontSize: 18,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.indigo,
-                        ),
+                      pw.TableRow(
+                        decoration: const pw.BoxDecoration(
+                            color: PdfColors.grey100),
+                        children: [
+                          _pdfTableCell('Date', isHeader: true),
+                          _pdfTableCell('Counselor', isHeader: true),
+                          _pdfTableCell('Status', isHeader: true),
+                          _pdfTableCell('Notes', isHeader: true),
+                        ],
                       ),
-                      pw.SizedBox(height: 15),
-                      ...(_sessionNotes.take(3).map((session) {
-                        final appointment = session['counseling_appointments'] is Map
-                            ? session['counseling_appointments'] as Map<String, dynamic>
-                            : null;
+                      ...sessions.take(10).map((session) {
+                        final counselor =
+                            session['counselors'] as Map<String, dynamic>?;
+                        final counselorName = counselor != null &&
+                                counselor['first_name'] != null
+                            ? '${counselor['first_name']} ${counselor['last_name']}'
+                            : 'Unknown';
+                        final d =
+                            DateTime.parse(session['appointment_date']);
+                        final dateStr =
+                            '${_pdfMonthName(d.month)} ${d.day}, ${d.year}';
+                        final status =
+                            (session['status']?.toString() ?? 'pending')
+                                .toUpperCase();
+                        final statusColor = status == 'COMPLETED'
+                            ? successGreen
+                            : status == 'CANCELLED'
+                                ? dangerRed
+                                : warningOrange;
+                        final notes = session['notes']?.toString() ?? '';
+                        return pw.TableRow(
+                          children: [
+                            _pdfTableCell(dateStr),
+                            _pdfTableCell(counselorName),
+                            _pdfTableCell(status, textColor: statusColor),
+                            _pdfTableCell(notes.length > 60
+                                ? '${notes.substring(0, 60)}...'
+                                : notes.isEmpty
+                                    ? 'N/A'
+                                    : notes),
+                          ],
+                        );
+                      }).toList(),
+                    ],
+                  ),
+                ),
+                pw.SizedBox(height: 14),
+              ],
 
-                        final counselor = session['counselors'] is Map
-                            ? session['counselors'] as Map<String, dynamic>
-                            : null;
-
-                        final counselorName = (counselor?['first_name'] != null &&
-                                counselor?['last_name'] != null)
-                            ? '${counselor!['first_name']} ${counselor['last_name']}'
-                            : 'Unknown Counselor';
-
-                        final recommendations = session['recommendations'];
-                        final hasRecommendations = recommendations is String &&
-                            recommendations.trim().isNotEmpty;
-
-                        return pw.Padding(
-                          padding: const pw.EdgeInsets.only(bottom: 15),
+              // ━━━ SESSION NOTES SUMMARY ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+              if (_sessionNotes.isNotEmpty) ...[
+                _buildPdfSection(
+                  title: 'Counselor Session Notes',
+                  accentColor: deepPurple,
+                  child: pw.Column(
+                    children: _sessionNotes.take(3).map((session) {
+                      final counselor =
+                          session['counselors'] is Map
+                              ? session['counselors']
+                                  as Map<String, dynamic>
+                              : null;
+                      final counselorName = (counselor?['first_name'] !=
+                                  null &&
+                              counselor?['last_name'] != null)
+                          ? '${counselor!['first_name']} ${counselor['last_name']}'
+                          : 'Unknown Counselor';
+                      final appointment =
+                          session['counseling_appointments'] is Map
+                              ? session['counseling_appointments']
+                                  as Map<String, dynamic>
+                              : null;
+                      final recommendations =
+                          session['recommendations']?.toString() ?? '';
+                      final summary = session['summary']?.toString() ??
+                          'No summary available';
+                      return pw.Padding(
+                        padding: const pw.EdgeInsets.only(bottom: 10),
+                        child: pw.Container(
+                          padding: const pw.EdgeInsets.all(10),
+                          decoration: pw.BoxDecoration(
+                            color: const PdfColor(0.97, 0.95, 1.0),
+                            border: pw.Border.all(
+                                color: const PdfColor(0.80, 0.75, 0.95),
+                                width: 0.5),
+                            borderRadius: pw.BorderRadius.circular(6),
+                          ),
                           child: pw.Column(
                             crossAxisAlignment: pw.CrossAxisAlignment.start,
                             children: [
                               pw.Row(
+                                mainAxisAlignment:
+                                    pw.MainAxisAlignment.spaceBetween,
                                 children: [
-                                  pw.Container(
-                                    width: 4,
-                                    height: 4,
-                                    decoration: pw.BoxDecoration(
-                                      color: PdfColors.purple,
-                                      shape: pw.BoxShape.circle,
-                                    ),
-                                    margin: const pw.EdgeInsets.only(right: 8, top: 4),
-                                  ),
-                                  pw.Expanded(
-                                    child: pw.Text(
-                                      'Counseling Session',
-                                      style: pw.TextStyle(
-                                        fontSize: 12,
-                                        color: PdfColors.grey800,
-                                        fontWeight: pw.FontWeight.bold,
-                                      ),
+                                  pw.Text(
+                                    'Counselor: $counselorName',
+                                    style: pw.TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: pw.FontWeight.bold,
+                                      color: PdfColors.grey800,
                                     ),
                                   ),
                                   if (appointment != null)
                                     pw.Text(
                                       appointment['appointment_date'] ?? '',
                                       style: pw.TextStyle(
-                                        fontSize: 10,
-                                        color: PdfColors.grey600,
-                                      ),
+                                          fontSize: 8,
+                                          color: PdfColors.grey500),
                                     ),
                                 ],
                               ),
-                              pw.SizedBox(height: 6),
-                              pw.Padding(
-                                padding: const pw.EdgeInsets.only(left: 12),
-                                child: pw.Column(
-                                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                                  children: [
-                                    pw.Text(
-                                      'Counselor: $counselorName',
-                                      style: pw.TextStyle(
-                                        fontSize: 11,
-                                        color: PdfColors.grey700,
-                                        fontWeight: pw.FontWeight.bold,
-                                      ),
-                                    ),
-                                    pw.SizedBox(height: 4),
-                                    pw.Text(
-                                      'Summary: ${session['summary'] ?? 'No summary available'}',
-                                      style: pw.TextStyle(
-                                        fontSize: 11,
-                                        color: PdfColors.grey700,
-                                      ),
-                                    ),
-                                    if (hasRecommendations) ...[
-                                      pw.SizedBox(height: 4),
-                                      pw.Text(
-                                        'Recommendations: $recommendations',
-                                        style: pw.TextStyle(
-                                          fontSize: 11,
-                                          color: PdfColors.grey700,
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
+                              pw.SizedBox(height: 5),
+                              pw.Text(
+                                summary.length > 200
+                                    ? '${summary.substring(0, 200)}...'
+                                    : summary,
+                                style: pw.TextStyle(
+                                    fontSize: 9, color: PdfColors.grey700),
                               ),
-                            ],
-                          ),
-                        );
-                      }).toList()),
-                    ],
-                  ),
-                ),
-
-                pw.SizedBox(height: 30),
-              ],
-              
-              // Emergency Contacts Section
-              if (_emergencyContacts.isNotEmpty) ...[
-                pw.Container(
-                  padding: const pw.EdgeInsets.all(20),
-                  decoration: pw.BoxDecoration(
-                    border: pw.Border.all(color: PdfColors.grey300),
-                    borderRadius: pw.BorderRadius.circular(8),
-                  ),
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Text(
-                        'Emergency Contacts',
-                        style: pw.TextStyle(
-                          fontSize: 18,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.indigo,
-                        ),
-                      ),
-                      pw.SizedBox(height: 15),
-                      ..._emergencyContacts.map((contact) {
-                        return pw.Padding(
-                          padding: const pw.EdgeInsets.only(bottom: 12),
-                          child: pw.Container(
-                            padding: const pw.EdgeInsets.all(12),
-                            decoration: pw.BoxDecoration(
-                              color: PdfColors.red50,
-                              border: pw.Border.all(color: PdfColors.red200),
-                              borderRadius: pw.BorderRadius.circular(6),
-                            ),
-                            child: pw.Column(
-                              crossAxisAlignment: pw.CrossAxisAlignment.start,
-                              children: [
+                              if (recommendations.trim().isNotEmpty) ...[
+                                pw.SizedBox(height: 4),
                                 pw.Text(
-                                  contact['contact_name'] ?? 'Unknown Contact',
+                                  'Recommendations: ${recommendations.length > 150 ? '${recommendations.substring(0, 150)}...' : recommendations}',
                                   style: pw.TextStyle(
-                                    fontSize: 13,
-                                    color: PdfColors.grey900,
-                                    fontWeight: pw.FontWeight.bold,
+                                    fontSize: 9,
+                                    fontStyle: pw.FontStyle.italic,
+                                    color: PdfColors.grey600,
                                   ),
                                 ),
-                                pw.SizedBox(height: 4),
-                                pw.Row(
+                              ],
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+                pw.SizedBox(height: 14),
+              ],
+
+              // ━━━ EMERGENCY CONTACTS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+              if (_emergencyContacts.isNotEmpty) ...[
+                _buildPdfSection(
+                  title: 'Emergency Contacts',
+                  accentColor: dangerRed,
+                  child: pw.Column(
+                    children: _emergencyContacts.map((contact) {
+                      return pw.Padding(
+                        padding: const pw.EdgeInsets.only(bottom: 6),
+                        child: pw.Container(
+                          padding: const pw.EdgeInsets.all(10),
+                          decoration: pw.BoxDecoration(
+                            color: const PdfColor(1.0, 0.97, 0.97),
+                            border: pw.Border.all(
+                                color: const PdfColor(0.90, 0.72, 0.72),
+                                width: 0.5),
+                            borderRadius: pw.BorderRadius.circular(6),
+                          ),
+                          child: pw.Row(
+                            children: [
+                              pw.Expanded(
+                                child: pw.Column(
+                                  crossAxisAlignment:
+                                      pw.CrossAxisAlignment.start,
                                   children: [
                                     pw.Text(
-                                      'Relationship: ',
+                                      contact['contact_name'] ?? 'Unknown',
                                       style: pw.TextStyle(
                                         fontSize: 11,
-                                        color: PdfColors.grey700,
                                         fontWeight: pw.FontWeight.bold,
+                                        color: PdfColors.grey900,
                                       ),
                                     ),
                                     pw.Text(
                                       contact['relationship'] ?? 'N/A',
                                       style: pw.TextStyle(
-                                        fontSize: 11,
-                                        color: PdfColors.grey700,
-                                      ),
+                                          fontSize: 9,
+                                          color: PdfColors.grey600),
                                     ),
                                   ],
                                 ),
-                                pw.SizedBox(height: 2),
-                                pw.Row(
-                                  children: [
-                                    pw.Text(
-                                      'Contact Number: ',
-                                      style: pw.TextStyle(
-                                        fontSize: 11,
-                                        color: PdfColors.grey700,
-                                        fontWeight: pw.FontWeight.bold,
-                                      ),
-                                    ),
-                                    pw.Text(
-                                      contact['contact_number'] ?? 'N/A',
-                                      style: pw.TextStyle(
-                                        fontSize: 11,
-                                        color: PdfColors.grey700,
-                                      ),
-                                    ),
-                                  ],
+                              ),
+                              pw.Text(
+                                contact['contact_number'] ?? 'N/A',
+                                style: pw.TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: dangerRed,
                                 ),
-                                if (contact['is_notified'] == true) ...[
-                                  pw.SizedBox(height: 4),
-                                  pw.Text(
-                                    '✓ Has been notified',
-                                    style: pw.TextStyle(
-                                      fontSize: 10,
-                                      color: PdfColors.green,
-                                      fontWeight: pw.FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        );
-                      }).toList(),
-                    ],
+                        ),
+                      );
+                    }).toList(),
                   ),
                 ),
-                pw.SizedBox(height: 30),
+                pw.SizedBox(height: 14),
               ],
-              
-              // Report Details Section
+
+              // ━━━ FOOTER ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
               pw.Container(
-                padding: const pw.EdgeInsets.all(20),
+                padding: const pw.EdgeInsets.all(12),
                 decoration: pw.BoxDecoration(
-                  border: pw.Border.all(color: PdfColors.grey300),
+                  color: PdfColors.grey100,
+                  border: pw.Border.all(color: PdfColors.grey200),
                   borderRadius: pw.BorderRadius.circular(8),
                 ),
                 child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
                     pw.Text(
-                      'Report Details',
+                      'This document is strictly confidential and intended solely for authorized school guidance counselors.',
+                      textAlign: pw.TextAlign.center,
                       style: pw.TextStyle(
-                        fontSize: 18,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.indigo,
+                        fontSize: 8,
+                        fontStyle: pw.FontStyle.italic,
+                        color: PdfColors.grey600,
                       ),
                     ),
-                    pw.SizedBox(height: 15),
-                    _buildPdfDetailRow('Report Type', 'Comprehensive Student Progress Report'),
-                    _buildPdfDetailRow('Student Name', widget.studentName),
-                    _buildPdfDetailRow('Student ID', widget.studentId),
-                    _buildPdfDetailRow('Generated By', 'Counselor'),
-                    _buildPdfDetailRow('Report Status', 'Complete'),
+                    pw.SizedBox(height: 4),
+                    pw.Text(
+                      '(c) 2026 BreatheBetter  |  Student Mental Health Report  |  Generated by Counseling System',
+                      textAlign: pw.TextAlign.center,
+                      style:
+                          pw.TextStyle(fontSize: 8, color: PdfColors.grey400),
+                    ),
                   ],
-                ),
-              ),
-              
-              // Footer
-              pw.Spacer(),
-              pw.Container(
-                alignment: pw.Alignment.center,
-                child: pw.Text(
-                  '© 2024 Breathe Better - Confidential Student Report',
-                  style: pw.TextStyle(
-                    fontSize: 10,
-                    color: PdfColors.grey600,
-                  ),
                 ),
               ),
             ];
@@ -3043,6 +3217,127 @@ class _CounselorStudentOverviewState extends State<CounselorStudentOverview>
         );
       }
     }
+  }
+
+  // ─── PDF: section wrapper ────────────────────────────────────────────────
+  pw.Widget _buildPdfSection({
+    required String title,
+    required PdfColor accentColor,
+    required pw.Widget child,
+  }) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(14),
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColors.grey200),
+        borderRadius: pw.BorderRadius.circular(8),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Row(
+            children: [
+              pw.Container(
+                width: 4,
+                height: 16,
+                decoration: pw.BoxDecoration(
+                  color: accentColor,
+                  borderRadius: pw.BorderRadius.circular(2),
+                ),
+              ),
+              pw.SizedBox(width: 8),
+              pw.Text(
+                title,
+                style: pw.TextStyle(
+                  fontSize: 13,
+                  fontWeight: pw.FontWeight.bold,
+                  color: accentColor,
+                ),
+              ),
+            ],
+          ),
+          pw.Container(
+            height: 0.5,
+            color: PdfColors.grey200,
+            margin: const pw.EdgeInsets.only(top: 8, bottom: 10),
+          ),
+          child,
+        ],
+      ),
+    );
+  }
+
+  // ─── PDF: badge counter ───────────────────────────────────────────────────
+  pw.Widget _buildPdfBadge(
+      String label, String count, PdfColor color, PdfColor bgColor) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: pw.BoxDecoration(
+        color: bgColor,
+        border: pw.Border.all(color: color, width: 0.5),
+        borderRadius: pw.BorderRadius.circular(8),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.center,
+        children: [
+          pw.Text(
+            count,
+            style: pw.TextStyle(
+              fontSize: 18,
+              fontWeight: pw.FontWeight.bold,
+              color: color,
+            ),
+          ),
+          pw.Text(
+            label,
+            style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── PDF: table cell ──────────────────────────────────────────────────────
+  pw.Widget _pdfTableCell(String text,
+      {bool isHeader = false, PdfColor? textColor}) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(6),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(
+          fontSize: isHeader ? 9 : 8,
+          fontWeight: isHeader ? pw.FontWeight.bold : pw.FontWeight.normal,
+          color:
+              textColor ?? (isHeader ? PdfColors.grey800 : PdfColors.grey700),
+        ),
+      ),
+    );
+  }
+
+  // ─── PDF: mood → PdfColor ─────────────────────────────────────────────────
+  PdfColor _pdfMoodColor(String mood) {
+    switch (mood.toLowerCase()) {
+      case 'happy':
+        return const PdfColor(0.13, 0.70, 0.37);
+      case 'calm':
+        return const PdfColor(0.13, 0.59, 0.95);
+      case 'sad':
+        return const PdfColor(0.24, 0.42, 0.78);
+      case 'angry':
+        return const PdfColor(0.85, 0.15, 0.15);
+      case 'anxious':
+        return const PdfColor(0.95, 0.55, 0.10);
+      default:
+        return PdfColors.grey400;
+    }
+  }
+
+  // ─── PDF: integer month → abbreviated name ────────────────────────────────
+  String _pdfMonthName(int month) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return month >= 1 && month <= 12 ? months[month - 1] : '$month';
   }
 
   pw.Widget _buildPdfStatCard(String title, String value, PdfColor color) {
