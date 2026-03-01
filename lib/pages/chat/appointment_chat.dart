@@ -19,9 +19,10 @@ class AppointmentChat extends StatefulWidget {
   State<AppointmentChat> createState() => _AppointmentChatState();
 }
 
-class _AppointmentChatState extends State<AppointmentChat> with WidgetsBindingObserver {
+class _AppointmentChatState extends State<AppointmentChat> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final FocusNode _inputFocusNode = FocusNode();
   final SupabaseClient _supabase = Supabase.instance.client;
   List<Map<String, dynamic>> _messages = [];
   bool _isLoading = true;
@@ -33,30 +34,23 @@ class _AppointmentChatState extends State<AppointmentChat> with WidgetsBindingOb
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _loadMessages();
     _loadOtherUserInfo();
     _setupRealtimeSubscription();
+    // Scroll to bottom immediately when keyboard opens — no frame delay
+    _inputFocusNode.addListener(() {
+      if (_inputFocusNode.hasFocus && _scrollController.hasClients) {
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      }
+    });
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     _messageController.dispose();
     _scrollController.dispose();
+    _inputFocusNode.dispose();
     super.dispose();
-  }
-
-  @override
-  void didChangeMetrics() {
-    final bottomInset = WidgetsBinding.instance.platformDispatcher.views.first.viewInsets.bottom;
-    if (bottomInset > 0) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_scrollController.hasClients) {
-          _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-        }
-      });
-    }
   }
 
   Future<void> _loadOtherUserInfo() async {
@@ -502,6 +496,7 @@ class _AppointmentChatState extends State<AppointmentChat> with WidgetsBindingOb
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false, // We track viewInsets.bottom manually for instant keyboard pop-up
       backgroundColor: const Color.fromARGB(255, 242, 241, 248),
       appBar: AppBar(
         backgroundColor: const Color.fromARGB(255, 242, 241, 248),
@@ -604,8 +599,16 @@ class _AppointmentChatState extends State<AppointmentChat> with WidgetsBindingOb
                             },
                           ),
           ),
+          // Message input — bottom padding follows keyboard frame-by-frame (Messenger feel)
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 12,
+              bottom: MediaQuery.of(context).viewInsets.bottom +
+                  MediaQuery.of(context).padding.bottom +
+                  12,
+            ),
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [
@@ -622,6 +625,7 @@ class _AppointmentChatState extends State<AppointmentChat> with WidgetsBindingOb
                   child: TextField(
                     key: const Key('chatInputField'),
                     controller: _messageController,
+                    focusNode: _inputFocusNode,
                     decoration: InputDecoration(
                       hintText: 'Type a message...',
                       border: OutlineInputBorder(

@@ -13,14 +13,9 @@ class StudentBreathingExercisesController with ChangeNotifier {
   
   Timer? _exerciseTimer;
   Timer? _phaseTimer;
-  AnimationController? _animationController;
 
   void init() {
     loadExercises();
-  }
-
-  void setAnimationController(AnimationController controller) {
-    _animationController = controller;
   }
 
   Future<Map<String, dynamic>> loadExercises() async {
@@ -106,28 +101,13 @@ class StudentBreathingExercisesController with ChangeNotifier {
       }
 
       var phase = phases[index];
-      currentPhase.value = phase.key;
+      // Set phaseSecondsLeft BEFORE currentPhase so that when the
+      // ValueListenableBuilder<String> in the UI fires on currentPhase change,
+      // it reads the correct (non-zero) duration for TweenAnimationBuilder.
       phaseSecondsLeft.value = phase.value as int;
-
-      if (_animationController != null) {
-        _animationController!.duration = Duration(seconds: phase.value as int);
-        if (phase.key == 'inhale') {
-          // forward(from: x) atomically resets value + starts — never gets stuck
-          _animationController!.forward(from: 0.0);
-        } else if (phase.key == 'exhale') {
-          _animationController!.reverse(from: 1.0);
-        } else if (phase.key == 'hold') {
-          // Instant snap to max (fully expanded), then stop
-          _animationController!.animateTo(1.0,
-              duration: const Duration(milliseconds: 100),
-              curve: Curves.linear);
-        } else {
-          // hold2 — instant snap to min (fully contracted)
-          _animationController!.animateTo(0.0,
-              duration: const Duration(milliseconds: 100),
-              curve: Curves.linear);
-        }
-      }
+      currentPhase.value = phase.key;
+      // Animation is driven by TweenAnimationBuilder in the UI layer.
+      // No AnimationController calls needed here.
     }
 
     startPhase(0);
@@ -156,7 +136,6 @@ class StudentBreathingExercisesController with ChangeNotifier {
     remainingSeconds.value = 0;
     _exerciseTimer?.cancel();
     _phaseTimer?.cancel();
-    _animationController?.reset();
   }
 
   String formatDuration(int seconds) {

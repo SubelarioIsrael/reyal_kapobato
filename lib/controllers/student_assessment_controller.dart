@@ -160,8 +160,10 @@ class StudentAssessmentController {
       final combinedText = answerTexts.join('. ');
 
       // Try to analyze sentiment with a timeout
+      // 30 s: the periodic warmup on home-page init keeps the Render server
+      // alive, so cold-boot scenarios are rare; 30 s covers edge cases.
       final sentimentResult = await analyzeSentiment(combinedText).timeout(
-        const Duration(seconds: 10),
+        const Duration(seconds: 30),
         onTimeout: () {
           print('Sentiment analysis timed out, using static insights');
           throw TimeoutException('Sentiment API timed out');

@@ -675,7 +675,7 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 40),
                 // Logo
                 Image.asset(
-                  'assets/icon/breathe-better-final-logo.png',
+                  'assets/icon/breathe-better-logo-fixed-1.png',
                   height: 110,
                   fit: BoxFit.contain,
                 ),

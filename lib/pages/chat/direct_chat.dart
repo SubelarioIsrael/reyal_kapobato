@@ -25,9 +25,10 @@ class DirectChat extends StatefulWidget {
   State<DirectChat> createState() => _DirectChatState();
 }
 
-class _DirectChatState extends State<DirectChat> with WidgetsBindingObserver {
+class _DirectChatState extends State<DirectChat> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final FocusNode _inputFocusNode = FocusNode();
   final SupabaseClient _supabase = Supabase.instance.client;
   List<Map<String, dynamic>> _messages = [];
   bool _isLoading = true;
@@ -36,29 +37,22 @@ class _DirectChatState extends State<DirectChat> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _loadMessages();
     _setupRealtimeSubscription();
+    // Scroll to bottom immediately when keyboard opens — no frame delay
+    _inputFocusNode.addListener(() {
+      if (_inputFocusNode.hasFocus && _scrollController.hasClients) {
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      }
+    });
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     _messageController.dispose();
     _scrollController.dispose();
+    _inputFocusNode.dispose();
     super.dispose();
-  }
-
-  @override
-  void didChangeMetrics() {
-    final bottomInset = WidgetsBinding.instance.platformDispatcher.views.first.viewInsets.bottom;
-    if (bottomInset > 0) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_scrollController.hasClients) {
-          _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-        }
-      });
-    }
   }
 
   Future<void> _loadMessages() async {
@@ -284,6 +278,7 @@ class _DirectChatState extends State<DirectChat> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false, // We track viewInsets.bottom manually for instant keyboard pop-up
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -370,9 +365,16 @@ class _DirectChatState extends State<DirectChat> with WidgetsBindingObserver {
                             ),
                     ),
 
-                    // Message Input
+                    // Message Input — bottom padding follows keyboard frame-by-frame (Messenger feel)
                     Container(
-                      padding: const EdgeInsets.all(16),
+                      padding: EdgeInsets.only(
+                        left: 16,
+                        right: 16,
+                        top: 12,
+                        bottom: MediaQuery.of(context).viewInsets.bottom +
+                            MediaQuery.of(context).padding.bottom +
+                            12,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         boxShadow: [
@@ -388,6 +390,7 @@ class _DirectChatState extends State<DirectChat> with WidgetsBindingObserver {
                           Expanded(
                             child: TextField(
                               controller: _messageController,
+                              focusNode: _inputFocusNode,
                               decoration: InputDecoration(
                                 hintText: 'Type a message...',
                                 hintStyle: GoogleFonts.poppins(

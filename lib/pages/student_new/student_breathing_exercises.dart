@@ -12,29 +12,17 @@ class StudentBreathingExercises extends StatefulWidget {
       _StudentBreathingExercisesState();
 }
 
-class _StudentBreathingExercisesState extends State<StudentBreathingExercises>
-    with SingleTickerProviderStateMixin {
+class _StudentBreathingExercisesState extends State<StudentBreathingExercises> {
   final StudentBreathingExercisesController _controller =
       StudentBreathingExercisesController();
-  late AnimationController _animationController;
-  late Animation<double> _breathAnimation;
 
-  // Responsive sizes computed in _buildBreathingCircle via MediaQuery
-  static const double _minCircleFraction = 0.38; // 38% of screen width
-  static const double _maxCircleFraction = 0.72; // 72% of screen width
+  // Responsive sizes — 38 % and 72 % of screen width
+  static const double _minCircleFraction = 0.38;
+  static const double _maxCircleFraction = 0.72;
 
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 4),
-    );
-    _breathAnimation = CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeInOut,
-    );
-    _controller.setAnimationController(_animationController);
     _controller.init();
   }
 
@@ -60,7 +48,6 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises>
 
   @override
   void dispose() {
-    _animationController.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -500,72 +487,81 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises>
   }
 
   Widget _buildBreathingCircle() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final screenW = MediaQuery.of(context).size.width;
-        final minSize = screenW * _minCircleFraction;
-        final maxSize = screenW * _maxCircleFraction;
+    final screenW = MediaQuery.of(context).size.width;
+    final minSize = screenW * _minCircleFraction;
+    final maxSize = screenW * _maxCircleFraction;
 
-        return ValueListenableBuilder<String>(
-          valueListenable: _controller.currentPhase,
-          builder: (context, phase, child) {
-            final phaseColor = _getPhaseColor(phase);
-            return AnimatedBuilder(
-              animation: _breathAnimation,
-              builder: (context, child) {
-                // v goes 0→1 on inhale (forward) and 1→0 on exhale (reverse)
-                final v = _breathAnimation.value.clamp(0.0, 1.0);
-                final double size;
-                if (phase == 'inhale' || phase == 'exhale') {
-                  size = minSize + (maxSize - minSize) * v;
-                } else if (phase == 'hold2') {
-                  size = minSize;
-                } else {
-                  size = maxSize;
-                }
-                // Ripple rings also driven by v (same frame, no lag mismatch)
-                final ring1 = size + (screenW * 0.10);
-                final ring2 = size + (screenW * 0.20);
+    return ValueListenableBuilder<String>(
+      valueListenable: _controller.currentPhase,
+      builder: (context, phase, _) {
+        final phaseColor = _getPhaseColor(phase);
 
-                return Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    // Outer glow ring 2
-                    Container(
-                      width: ring2,
-                      height: ring2,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: phaseColor.withOpacity(0.06),
-                      ),
+        // Capture the full phase duration at the moment the phase starts.
+        // phaseSecondsLeft is set to the full phase duration inside startPhase()
+        // synchronously before currentPhase fires, so this read is safe.
+        final phaseSecs = _controller.phaseSecondsLeft.value;
+
+        // For inhale/exhale use the real phase duration; for hold snaps instant.
+        final animDuration = (phase == 'inhale' || phase == 'exhale') && phaseSecs > 0
+            ? Duration(seconds: phaseSecs)
+            : const Duration(milliseconds: 120);
+
+        // Begin and end sizes for TweenAnimationBuilder.
+        // A new key per phase forces a fresh animation each time.
+        final beginSize = phase == 'inhale'
+            ? minSize
+            : phase == 'exhale'
+                ? maxSize
+                : (phase == 'hold' ? maxSize : minSize); // hold=max, hold2/empty=min
+        final endSize = (phase == 'inhale' || phase == 'hold') ? maxSize : minSize;
+
+        return TweenAnimationBuilder<double>(
+          key: ValueKey(phase), // restart cleanly on every phase change
+          tween: Tween<double>(begin: beginSize, end: endSize),
+          duration: animDuration,
+          curve: Curves.linear, // constant rate — grows/shrinks the same amount every second
+          builder: (context, size, _) {
+            final ring1 = size + screenW * 0.10;
+            final ring2 = size + screenW * 0.20;
+            return Stack(
+              alignment: Alignment.center,
+              children: [
+                // Glow ring 2
+                Container(
+                  width: ring2,
+                  height: ring2,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: phaseColor.withOpacity(0.06),
+                  ),
+                ),
+                // Glow ring 1
+                Container(
+                  width: ring1,
+                  height: ring1,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: phaseColor.withOpacity(0.12),
+                  ),
+                ),
+                // Main circle — animates smoothly with TweenAnimationBuilder
+                Container(
+                  width: size,
+                  height: size,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        phaseColor.withOpacity(0.70),
+                        phaseColor.withOpacity(0.40),
+                      ],
+                      center: const Alignment(-0.2, -0.2),
                     ),
-                    // Outer glow ring 1
-                    Container(
-                      width: ring1,
-                      height: ring1,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: phaseColor.withOpacity(0.12),
-                      ),
+                    border: Border.all(
+                      color: phaseColor.withOpacity(0.80),
+                      width: 2.5,
                     ),
-                    // Main animated circle — solid enough to clearly see growth
-                    Container(
-                      width: size,
-                      height: size,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: RadialGradient(
-                          colors: [
-                            phaseColor.withOpacity(0.70),
-                            phaseColor.withOpacity(0.40),
-                          ],
-                          center: const Alignment(-0.2, -0.2),
-                        ),
-                        border: Border.all(
-                          color: phaseColor.withOpacity(0.80),
-                          width: 2.5,
-                        ),
-                      ),
+                  ),
                   child: Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -621,8 +617,6 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises>
             );
           },
         );
-      },
-    );
       },
     );
   }

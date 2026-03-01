@@ -30,9 +30,11 @@ class StudentHomeController {
 
   StreamSubscription? _studentNameSubscription;
   RealtimeChannel? _messagesChannel;
+  Timer? _sentimentWarmupTimer;
 
   void init() {
-    warmUpSentimentApi(); // Wake Render free-tier server early
+    // Keep Render free-tier server warm with a ping every 10 min
+    _sentimentWarmupTimer = keepWarmSentimentApi();
     loadStudentName();
     listenToStudentNameChanges();
     fetchTodayCheckIn();
@@ -85,6 +87,7 @@ class StudentHomeController {
   void dispose() {
     _studentNameSubscription?.cancel();
     _messagesChannel?.unsubscribe();
+    _sentimentWarmupTimer?.cancel();
   }
 
   void listenToStudentNameChanges() {

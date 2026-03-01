@@ -1,14 +1,32 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
-/// Sends a lightweight ping to wake up the Render free-tier server.
+const _kRenderHealthUrl = 'https://sentiment-app-s691.onrender.com/health';
+
+/// Sends a one-off ping to wake up the Render free-tier server.
 /// Call this early (e.g. on home page init) so the server is warm
 /// by the time the student actually submits a journal entry.
 void warmUpSentimentApi() {
   // Fire-and-forget: ignore errors, we only care about waking the server
-  http.get(
-    Uri.parse('https://sentiment-app-s691.onrender.com/health'),
-  ).catchError((_) {});
+  http.get(Uri.parse(_kRenderHealthUrl)).catchError((_) {});
+}
+
+/// Starts a periodic ping every 10 minutes to keep the Render free-tier
+/// server alive (it spins down after 15 min of inactivity).
+/// Returns the [Timer] — cancel it in your controller's dispose().
+///
+/// Example:
+///   _warmupTimer = keepWarmSentimentApi();
+///   // in dispose:
+///   _warmupTimer?.cancel();
+Timer keepWarmSentimentApi() {
+  // Fire immediately so the server wakes on first call
+  warmUpSentimentApi();
+  // Then ping every 10 minutes to beat the 15-min spin-down threshold
+  return Timer.periodic(const Duration(minutes: 10), (_) {
+    warmUpSentimentApi();
+  });
 }
 
 Future<Map<String, dynamic>> analyzeSentiment(String text, {bool useAiEnhancement = true}) async {

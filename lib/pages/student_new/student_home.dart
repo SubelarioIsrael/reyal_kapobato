@@ -473,7 +473,7 @@ class _StudentHomeNewState extends State<StudentHomeNew> {
             ),
           ),
           title: Image.asset(
-            'assets/icon/breathe-better-final-logo.png',
+            'assets/icon/breathe-better-logo-fixed-1.png',
             height: 36,
             fit: BoxFit.contain,
           ),
