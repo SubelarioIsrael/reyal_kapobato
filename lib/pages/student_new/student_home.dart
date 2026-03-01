@@ -56,7 +56,7 @@ class _StudentHomeNewState extends State<StudentHomeNew> {
     ),
     const _FeatureCardData(
       title: 'AI Support Chatbot',
-      image: 'https://miro.medium.com/v2/resize:fit:1400/1*UHTIbKJbrqCJpHoqJWa7Ow.png',
+      image: 'https://imgs.search.brave.com/xZ5Z4_2vW97qZoLQMyse6j4mXIXbT4G5zzYpGRPWLM0/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly93cC5z/ZmRjZGlnaXRhbC5j/b20vZW4tdXMvd3At/Y29udGVudC91cGxv/YWRzL3NpdGVzLzQv/MjAyNS8wMy9tYXJx/dWVlLWFnZW50Zm9y/Y2UtYWktY2hhdGJv/dC5wbmc_dz0xMDI0',
       route: 'student-chatbot',
     ),
   ];
