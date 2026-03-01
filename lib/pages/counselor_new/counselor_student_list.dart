@@ -118,65 +118,99 @@ class _CounselorStudentListState extends State<CounselorStudentList> {
 
   Widget _buildSearchBar() {
     return Container(
-      padding: const EdgeInsets.all(16),
-      child: TextField(
-        onChanged: (value) {
-          setState(() {
-            _searchQuery = value;
-          });
-        },
-        decoration: InputDecoration(
-          hintText: 'Search students...',
-          hintStyle: GoogleFonts.poppins(color: Colors.grey.shade500),
-          prefixIcon: const Icon(Icons.search, color: Color(0xFF7C83FD)),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.grey.shade300),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            onChanged: (value) {
+              setState(() {
+                _searchQuery = value;
+              });
+            },
+            decoration: InputDecoration(
+              hintText: 'Search by name or ID...',
+              hintStyle: GoogleFonts.poppins(color: Colors.grey.shade400, fontSize: 14),
+              prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF7C83FD)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(color: Color(0xFF7C83FD), width: 1.5),
+              ),
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+            style: GoogleFonts.poppins(fontSize: 14),
           ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFF7C83FD), width: 2),
-          ),
-          filled: true,
-          fillColor: Colors.white,
-        ),
-        style: GoogleFonts.poppins(),
+          if (_students.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(left: 4, top: 8, bottom: 4),
+              child: Text(
+                _searchQuery.isEmpty
+                    ? '${_students.length} student${_students.length == 1 ? '' : 's'} total'
+                    : '${_filteredStudents.length} result${_filteredStudents.length == 1 ? '' : 's'} found',
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  color: const Color(0xFF5D5D72),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
 
   Widget _buildEmptyState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.people_outline,
-            size: 64,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            _searchQuery.isEmpty 
-                ? 'No student history found'
-                : 'No students match your search',
-            style: GoogleFonts.poppins(
-              fontSize: 18,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
+      child: Padding(
+        padding: const EdgeInsets.all(40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: const Color(0xFF7C83FD).withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.people_outline_rounded,
+                size: 56,
+                color: Color(0xFF7C83FD),
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _searchQuery.isEmpty
-                ? 'Students will appear here after appointments'
-                : 'Try searching with different keywords',
-            style: GoogleFonts.poppins(
-              fontSize: 14,
-              color: Colors.grey[500],
+            const SizedBox(height: 24),
+            Text(
+              _searchQuery.isEmpty
+                  ? 'No Students Yet'
+                  : 'No Results Found',
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF3A3A50),
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 8),
+            Text(
+              _searchQuery.isEmpty
+                  ? 'Students will appear here after appointments'
+                  : 'Try searching with a different name or ID',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                color: const Color(0xFF5D5D72),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -190,69 +224,109 @@ class _CounselorStudentListState extends State<CounselorStudentList> {
         : student['username'] ?? 'Unknown Student';
     final studentCode = student['student_code'] ?? '';
 
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-              Row(
-              children: [
-                StudentAvatar(
-                  userId: student['user_id'],
-                  radius: 25,
-                  fallbackName: displayName,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => CounselorStudentOverview(
+                    userId: student['user_id'],
+                    studentName: displayName,
+                    studentId: studentCode,
+                  ),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        displayName,
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF3A3A50),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      if (studentCode.isNotEmpty)
-                        Text(
-                          'ID: $studentCode',
-                          style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            color: const Color(0xFF5D5D72),
+              );
+            },
+            child: IntrinsicHeight(
+              child: Row(
+                children: [
+                  Container(
+                    width: 4,
+                    color: const Color(0xFF7C83FD),
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          StudentAvatar(
+                            userId: student['user_id'],
+                            radius: 26,
+                            fallbackName: displayName,
                           ),
-                        ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(
-                    Icons.arrow_forward_ios,
-                    size: 20,
-                    color: Color(0xFF7C83FD),
-                  ),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => CounselorStudentOverview(
-                          userId: student['user_id'],
-                          studentName: displayName,
-                          studentId: studentCode,
-                        ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  displayName,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFF3A3A50),
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                if (studentCode.isNotEmpty) ...[  
+                                  const SizedBox(height: 5),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF7C83FD).withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      studentCode,
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 11,
+                                        color: const Color(0xFF7C83FD),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF7C83FD).withOpacity(0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              size: 14,
+                              color: Color(0xFF7C83FD),
+                            ),
+                          ),
+                        ],
                       ),
-                    );
-                  },
-                ),
-              ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ],
+          ),
         ),
       ),
     );

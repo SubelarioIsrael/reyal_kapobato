@@ -145,6 +145,7 @@ class _CounselorAppointmentsState extends State<CounselorAppointments> {
         child: Row(
           children: filters.map((filter) {
             final isSelected = _selectedFilter == filter['key'];
+            final color = _getFilterColor(filter['key']!);
             return Padding(
               padding: const EdgeInsets.only(right: 8),
               child: FilterChip(
@@ -152,12 +153,22 @@ class _CounselorAppointmentsState extends State<CounselorAppointments> {
                   filter['label']!,
                   style: GoogleFonts.poppins(
                     color: isSelected ? Colors.white : const Color(0xFF5D5D72),
-                    fontWeight: FontWeight.w500,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                    fontSize: 13,
                   ),
                 ),
                 selected: isSelected,
-                selectedColor: const Color(0xFF7C83FD),
+                showCheckmark: false,
+                selectedColor: color,
                 backgroundColor: Colors.white,
+                side: BorderSide(
+                  color: isSelected ? color : Colors.grey.shade300,
+                  width: isSelected ? 1.5 : 1,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                 onSelected: (selected) {
                   setState(() {
                     _selectedFilter = filter['key']!;
@@ -173,34 +184,45 @@ class _CounselorAppointmentsState extends State<CounselorAppointments> {
 
   Widget _buildEmptyState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.calendar_today_outlined,
-            size: 64,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No appointments found',
-            style: GoogleFonts.poppins(
-              fontSize: 18,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
+      child: Padding(
+        padding: const EdgeInsets.all(40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: const Color(0xFF7C83FD).withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.calendar_month_rounded,
+                size: 56,
+                color: Color(0xFF7C83FD),
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _selectedFilter == 'all'
-                ? 'You don\'t have any appointments yet'
-                : 'No ${_selectedFilter} appointments',
-            style: GoogleFonts.poppins(
-              fontSize: 14,
-              color: Colors.grey[500],
+            const SizedBox(height: 24),
+            Text(
+              'No Appointments',
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF3A3A50),
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 8),
+            Text(
+              _selectedFilter == 'all'
+                  ? 'You don\'t have any appointments yet'
+                  : 'No ${_selectedFilter} appointments found',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                color: const Color(0xFF5D5D72),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -249,16 +271,14 @@ class _CounselorAppointmentsState extends State<CounselorAppointments> {
                   Row(
                     children: [
                       Expanded(
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Text(
-                            displayName,
-                            style: GoogleFonts.poppins(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFF3A3A50),
-                            ),
+                        child: Text(
+                          displayName,
+                          style: GoogleFonts.poppins(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF3A3A50),
                           ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       Container(
@@ -296,7 +316,7 @@ class _CounselorAppointmentsState extends State<CounselorAppointments> {
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            '${appointment.appointmentDate.day}/${appointment.appointmentDate.month}/${appointment.appointmentDate.year}',
+                            '${_formatDate(appointment.appointmentDate)}',
                             style: GoogleFonts.poppins(
                               fontSize: 13,
                               color: Colors.grey[700],
@@ -521,6 +541,23 @@ class _CounselorAppointmentsState extends State<CounselorAppointments> {
         ),
       ),
     );
+  }
+
+  Color _getFilterColor(String key) {
+    switch (key) {
+      case 'pending': return Colors.orange;
+      case 'accepted': return Colors.blue;
+      case 'completed': return Colors.green;
+      case 'rejected': return Colors.red;
+      case 'cancelled': return Colors.grey;
+      default: return const Color(0xFF7C83FD);
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 
   Color _getStatusColor(String status) {

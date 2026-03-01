@@ -250,10 +250,10 @@ class _CounselorStudentChatsState extends State<CounselorStudentChats> {
             const SizedBox(height: 24),
             Text(
               isSearching ? 'No Results Found' : 'No Conversations Yet',
-              style: GoogleFonts.inter(
+              style: GoogleFonts.poppins(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
-                color: const Color(0xFF2D3748),
+                color: const Color(0xFF3A3A50),
               ),
             ),
             const SizedBox(height: 8),
@@ -261,9 +261,9 @@ class _CounselorStudentChatsState extends State<CounselorStudentChats> {
               isSearching
                   ? 'Try adjusting your search terms'
                   : 'Student conversations from your assigned department will appear here when they send messages',
-              style: GoogleFonts.inter(
+              style: GoogleFonts.poppins(
                 fontSize: 14,
-                color: const Color(0xFF718096),
+                color: const Color(0xFF5D5D72),
               ),
               textAlign: TextAlign.center,
             ),
@@ -283,7 +283,7 @@ class _CounselorStudentChatsState extends State<CounselorStudentChats> {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: hasUnread ? const Color(0xFFF4F3FF) : Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -341,30 +341,57 @@ class _CounselorStudentChatsState extends State<CounselorStudentChats> {
                         Expanded(
                           child: Text(
                             userName,
-                            style: GoogleFonts.inter(
-                              fontSize: 16,
+                            style: GoogleFonts.poppins(
+                              fontSize: 15,
                               fontWeight: FontWeight.w600,
-                              color: const Color(0xFF2D3748),
+                              color: const Color(0xFF3A3A50),
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        if (lastMessageTime != null)
-                          Text(
-                            _formatTime(lastMessageTime),
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              color: const Color(0xFF718096),
-                            ),
-                          ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (hasUnread)
+                              Container(
+                                margin: const EdgeInsets.only(right: 6),
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFF6B6B),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  unreadCount > 9 ? '9+' : unreadCount.toString(),
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            if (lastMessageTime != null)
+                              Text(
+                                _formatTime(lastMessageTime),
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  color: const Color(0xFF5D5D72),
+                                ),
+                              ),
+                          ],
+                        ),
                       ],
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      lastMessage ?? 'Appointment chat started',
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        color: const Color(0xFF718096),
+                      lastMessage ?? 'No messages yet',
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        color: lastMessage != null
+                            ? const Color(0xFF5D5D72)
+                            : const Color(0xFFAAAAAA),
+                        fontStyle: lastMessage != null
+                            ? FontStyle.normal
+                            : FontStyle.italic,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,

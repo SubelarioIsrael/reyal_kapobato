@@ -682,7 +682,7 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 8),
                 // Subtitle
                 Text(
-                  "Welcome back. Take a deep breath and log in.",
+                  "Welcome back. Take a deep breath \n and log in.",
                   textAlign: TextAlign.center,
                   style: GoogleFonts.poppins(
                     fontSize: 14,

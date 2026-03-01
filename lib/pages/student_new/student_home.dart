@@ -494,35 +494,107 @@ class _StudentHomeNewState extends State<StudentHomeNew> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    "Welcome Back",
-                    style: GoogleFonts.poppins(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w500,
-                      color: const Color(0xFF5D5D72),
-                    ),
-                  ),
-                  ValueListenableBuilder(
-                    valueListenable: controller.isLoading,
-                    builder: (_, bool loading, __) => Text(
-                      loading ? "Loading..." : "Hi, ${controller.studentName.value ?? ''}!",
-                      style: GoogleFonts.poppins(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF3A3A50),
+                  // Welcome Banner
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFF5C6BC0), Color(0xFF7C83FD)],
                       ),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF7C83FD).withOpacity(0.3),
+                          blurRadius: 16,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    padding: const EdgeInsets.all(20),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Welcome Back',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.white.withOpacity(0.8),
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              ValueListenableBuilder(
+                                valueListenable: controller.isLoading,
+                                builder: (_, bool loading, __) => Text(
+                                  loading ? 'Loading...' : 'Hi, ${controller.studentName.value ?? ''}!',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    height: 1.2,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  'Take care of your mental health today',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 10,
+                                    color: Colors.white.withOpacity(0.9),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Icon(Icons.self_improvement_rounded, color: Colors.white, size: 32),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 16),
                   _buildProgressBar(),
                   const SizedBox(height: 10),
-                  Text(
-                    'Daily Mood Check-in',
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF3A3A50),
-                    ),
+                  Row(
+                    children: [
+                      Container(
+                        width: 4, height: 20,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF7C83FD),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Daily Mood Check-in',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF3A3A50),
+                        ),
+                      ),
+                    ],
                   ),
                   _buildWeeklyMoodBar(),
 
@@ -599,13 +671,25 @@ class _StudentHomeNewState extends State<StudentHomeNew> {
                     },
                   ),
                   const SizedBox(height: 5),
-                  Text(
-                    'Emotional Well-being',
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF3A3A50),
-                    ),
+                  Row(
+                    children: [
+                      Container(
+                        width: 4, height: 20,
+                        decoration: BoxDecoration(
+                          color: Colors.orange,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Emotional Well-being',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF3A3A50),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 5),
                   ResponsiveUtils.responsiveGridView(
@@ -615,19 +699,25 @@ class _StudentHomeNewState extends State<StudentHomeNew> {
                         .toList(),
                   ),
                   const SizedBox(height: 5),
-                  ResponsiveUtils.responsiveText(
-                    context,
-                    'Support & Self-Care Tools',
-                    style: GoogleFonts.poppins(
-                      fontSize: ResponsiveUtils.getResponsiveFontSize(
-                        context,
-                        small: 14.0,
-                        medium: 16.0,
-                        large: 18.0,
+                  Row(
+                    children: [
+                      Container(
+                        width: 4, height: 20,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF26A69A),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF3A3A50),
-                    ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Support & Self-Care Tools',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF3A3A50),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 5),
                   ResponsiveUtils.responsiveGridView(
@@ -637,19 +727,25 @@ class _StudentHomeNewState extends State<StudentHomeNew> {
                         .toList(),
                   ),
                   const SizedBox(height: 5),
-                  ResponsiveUtils.responsiveText(
-                    context,
-                    'Connect & Manage',
-                    style: GoogleFonts.poppins(
-                      fontSize: ResponsiveUtils.getResponsiveFontSize(
-                        context,
-                        small: 14.0,
-                        medium: 16.0,
-                        large: 18.0,
+                  Row(
+                    children: [
+                      Container(
+                        width: 4, height: 20,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF7C83FD),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF3A3A50),
-                    ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Connect & Manage',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF3A3A50),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 5),
                   ResponsiveUtils.responsiveGridView(

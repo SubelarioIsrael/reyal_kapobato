@@ -838,35 +838,82 @@ class _CounselorHomeState extends State<CounselorHome> {
   }
 
   Widget _buildWelcomeSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          "Welcome Back",
-          style: GoogleFonts.poppins(
-            fontSize: 20,
-            fontWeight: FontWeight.w500,
-            color: const Color(0xFF5D5D72),
-          ),
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF3D5A99), Color(0xFF7C83FD)],
         ),
-        const SizedBox(height: 5),
-        Text(
-          _counselorName != null ? "Dr. $_counselorName" : "Counselor",
-          style: GoogleFonts.poppins(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: const Color(0xFF3A3A50),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF7C83FD).withOpacity(0.3),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          "Help students on their mental health journey",
-          style: GoogleFonts.poppins(
-            fontSize: 16,
-            color: const Color(0xFF5D5D72),
+        ],
+      ),
+      padding: const EdgeInsets.all(22),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Welcome Back',
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white.withOpacity(0.8),
+                    letterSpacing: 0.2,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _counselorName != null ? 'Dr. $_counselorName' : 'Counselor',
+                  style: GoogleFonts.poppins(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    height: 1.2,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'Help students on their mental health journey',
+                    style: GoogleFonts.poppins(
+                      fontSize: 11,
+                      color: Colors.white.withOpacity(0.9),
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
+          const SizedBox(width: 12),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(Icons.psychology_rounded, color: Colors.white, size: 34),
+          ),
+        ],
+      ),
     );
   }
 
@@ -905,41 +952,54 @@ class _CounselorHomeState extends State<CounselorHome> {
 
   Widget _buildStatCard(
       String title, String value, IconData icon, Color color) {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 2,
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(
-            colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border(
+          top: BorderSide(color: color, width: 3),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: color, size: 32),
-            const SizedBox(height: 12),
-            Text(
-              value,
-              style: GoogleFonts.poppins(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: const Color(0xFF3A3A50),
-              ),
+        ],
+      ),
+      padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(10),
             ),
-            Text(
-              title,
-              style: GoogleFonts.poppins(
-                fontSize: 12,
-                color: const Color(0xFF5D5D72),
-              ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            value,
+            style: GoogleFonts.poppins(
+              fontSize: 26,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF3A3A50),
+              height: 1.1,
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            title,
+            style: GoogleFonts.poppins(
+              fontSize: 11,
+              color: const Color(0xFF8888A0),
+              fontWeight: FontWeight.w500,
+            ),
+            maxLines: 2,
+          ),
+        ],
       ),
     );
   }
@@ -954,11 +1014,19 @@ class _CounselorHomeState extends State<CounselorHome> {
       children: [
         Row(
           children: [
+            Container(
+              width: 4, height: 20,
+              decoration: BoxDecoration(
+                color: Colors.orange,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: 8),
             Text(
               'Pending Requests',
               style: GoogleFonts.poppins(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
                 color: const Color(0xFF3A3A50),
               ),
             ),
@@ -983,20 +1051,33 @@ class _CounselorHomeState extends State<CounselorHome> {
         ),
         const SizedBox(height: 16),
         if (pendingAppointments.isEmpty)
-          Card(
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2)),
+              ],
+            ),
             child: Padding(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
               child: Center(
                 child: Column(
                   children: [
-                    Icon(Icons.inbox, size: 48, color: Colors.grey[400]),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Icons.inbox_rounded, size: 36, color: Colors.grey[400]),
+                    ),
                     const SizedBox(height: 12),
                     Text(
                       'No pending requests',
                       style: GoogleFonts.poppins(
-                        fontSize: 16,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
                         color: Colors.grey[600],
                       ),
                     ),
@@ -1220,32 +1301,64 @@ class _CounselorHomeState extends State<CounselorHome> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Today\'s Schedule',
-          style: GoogleFonts.poppins(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF3A3A50),
-          ),
+        Row(
+          children: [
+            Container(
+              width: 4, height: 20,
+              decoration: BoxDecoration(
+                color: const Color(0xFF7C83FD),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Today\'s Schedule',
+              style: GoogleFonts.poppins(
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF3A3A50),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 16),
         if (todayAppointments.isEmpty)
-          Card(
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2)),
+              ],
+            ),
             child: Padding(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
               child: Center(
                 child: Column(
                   children: [
-                    Icon(Icons.event_available,
-                        size: 48, color: Colors.grey[400]),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Icons.event_available_rounded, size: 36, color: Colors.green[400]),
+                    ),
                     const SizedBox(height: 12),
                     Text(
                       'No appointments today',
                       style: GoogleFonts.poppins(
-                        fontSize: 16,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
                         color: Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Enjoy your free day!',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: Colors.grey[400],
                       ),
                     ),
                   ],
@@ -1394,13 +1507,25 @@ class _CounselorHomeState extends State<CounselorHome> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Quick Actions',
-          style: GoogleFonts.poppins(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF3A3A50),
-          ),
+        Row(
+          children: [
+            Container(
+              width: 4, height: 20,
+              decoration: BoxDecoration(
+                color: Colors.green,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Quick Actions',
+              style: GoogleFonts.poppins(
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF3A3A50),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 16),
         Row(
@@ -1408,7 +1533,7 @@ class _CounselorHomeState extends State<CounselorHome> {
             Expanded(
               child: _buildQuickActionCard(
                 'Appointments',
-                Icons.calendar_today,
+                Icons.calendar_month_rounded,
                 Colors.blue,
                 () {
                   Navigator.push(
@@ -1425,7 +1550,7 @@ class _CounselorHomeState extends State<CounselorHome> {
               key: const Key('my_students_card'),
               child: _buildQuickActionCard(
                 'Students',
-                Icons.people,
+                Icons.people_rounded,
                 Colors.purple,
                 () {
                   Navigator.pushNamed(context, '/student-history-list');
@@ -1440,7 +1565,7 @@ class _CounselorHomeState extends State<CounselorHome> {
             Expanded(
               child: _buildQuickActionCard(
                 'Student Chats',
-                Icons.chat,
+                Icons.chat_rounded,
                 Colors.green,
                 () {
                   Navigator.pushNamed(context, '/counselor-chat-list');
@@ -1451,7 +1576,7 @@ class _CounselorHomeState extends State<CounselorHome> {
             Expanded(
               child: _buildQuickActionCard(
                 'Video Call',
-                Icons.video_call,
+                Icons.video_call_rounded,
                 Colors.orange,
                 () {
                   showModalBottomSheet(
@@ -1473,34 +1598,40 @@ class _CounselorHomeState extends State<CounselorHome> {
       String title, IconData icon, Color color, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
-      child: Card(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        elevation: 2,
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: LinearGradient(
-              colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.15),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
-          ),
-          child: Column(
-            children: [
-              Icon(icon, color: color, size: 32),
-              const SizedBox(height: 12),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF3A3A50),
-                ),
+          ],
+        ),
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(14),
               ),
-            ],
-          ),
+              child: Icon(icon, color: color, size: 28),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF3A3A50),
+              ),
+            ),
+          ],
         ),
       ),
     );
