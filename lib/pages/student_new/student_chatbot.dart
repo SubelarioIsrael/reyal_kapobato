@@ -12,15 +12,17 @@ class StudentChatbot extends StatefulWidget {
   State<StudentChatbot> createState() => _StudentChatbotState();
 }
 
-class _StudentChatbotState extends State<StudentChatbot> {
+class _StudentChatbotState extends State<StudentChatbot> with WidgetsBindingObserver {
   final StudentChatbotController _controller = StudentChatbotController();
   final List<Map<String, String>> _messages = [];
   final TextEditingController _textController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Seed the chat with an initial gray system message
     _messages.add({
       "sender": "system",
@@ -399,6 +401,7 @@ class _StudentChatbotState extends State<StudentChatbot> {
         children: [
           Expanded(
             child: ListView.builder(
+              controller: _scrollController,
               padding: const EdgeInsets.all(16),
               itemCount: _messages.length,
               itemBuilder: (context, index) {
@@ -544,7 +547,21 @@ class _StudentChatbotState extends State<StudentChatbot> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _textController.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeMetrics() {
+    final bottomInset = WidgetsBinding.instance.platformDispatcher.views.first.viewInsets.bottom;
+    if (bottomInset > 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+        }
+      });
+    }
   }
 }

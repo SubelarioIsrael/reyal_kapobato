@@ -795,13 +795,10 @@ class _CounselorHomeState extends State<CounselorHome> {
             onPressed: () => Scaffold.of(context).openDrawer(),
           ),
         ),
-        title: Text(
-          "BreatheBetter",
-          style: GoogleFonts.poppins(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: const Color(0xFF3A3A50),
-          ),
+        title: Image.asset(
+          'assets/icon/breathe-better-final-logo.png',
+          height: 36,
+          fit: BoxFit.contain,
         ),
         centerTitle: true,
         actions: [

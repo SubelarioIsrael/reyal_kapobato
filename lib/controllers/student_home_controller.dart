@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/user_service.dart';
 import '../services/activity_service.dart';
 import '../services/chat_message_service.dart';
+import '../services/api/sentiment_app.dart';
 
 class StudentHomeController {
   final ValueNotifier<String?> studentName = ValueNotifier(null);
@@ -31,6 +32,7 @@ class StudentHomeController {
   RealtimeChannel? _messagesChannel;
 
   void init() {
+    warmUpSentimentApi(); // Wake Render free-tier server early
     loadStudentName();
     listenToStudentNameChanges();
     fetchTodayCheckIn();
@@ -152,13 +154,11 @@ class StudentHomeController {
     // Convert to UTC+8 (Asia/Manila timezone)
     final today = DateTime.now().toUtc().add(const Duration(hours: 8));
     final startOfWeek = today.subtract(Duration(days: today.weekday % 7));
-    return List.generate(7, (i) {
+    final allDays = List.generate(7, (i) {
       final date = startOfWeek.add(Duration(days: i));
       final dateString = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
-      
       final entry = weeklyMood.value.firstWhere(
         (e) {
-          // entry_date is stored as a date string (YYYY-MM-DD)
           final entryDate = e['entry_date'] as String?;
           return entryDate == dateString;
         },
@@ -173,6 +173,12 @@ class StudentHomeController {
         'emoji': entry['emoji_code'],
       };
     });
+    // Rotate so today is always first
+    final todayIndex = allDays.indexWhere((d) => d['isToday'] == true);
+    if (todayIndex > 0) {
+      return [...allDays.sublist(todayIndex), ...allDays.sublist(0, todayIndex)];
+    }
+    return allDays;
   }
 
   Future<void> loadTodayProgress() async {

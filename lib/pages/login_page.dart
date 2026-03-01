@@ -674,20 +674,10 @@ class _LoginPageState extends State<LoginPage> {
               children: [
                 const SizedBox(height: 40),
                 // Logo
-                Icon(
-                  Icons.spa,
-                  size: 80,
-                  color: const Color(0xFF7C83FD).withOpacity(0.8),
-                ),
-                const SizedBox(height: 20),
-                // Title
-                Text(
-                  "BreatheBetter",
-                  style: GoogleFonts.poppins(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF4F646F),
-                  ),
+                Image.asset(
+                  'assets/icon/breathe-better-final-logo.png',
+                  height: 110,
+                  fit: BoxFit.contain,
                 ),
                 const SizedBox(height: 8),
                 // Subtitle

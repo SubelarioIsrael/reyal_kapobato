@@ -53,8 +53,7 @@ val releaseKeystoreExists: Boolean = run {
 android {
     namespace = "com.example.breathe_better"
     compileSdk = 36
-    ndkVersion = flutter.ndkVersion
-    ndkVersion = "27.0.12077973"
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
         isCoreLibraryDesugaringEnabled = true

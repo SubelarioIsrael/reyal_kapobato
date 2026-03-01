@@ -53,7 +53,12 @@ class _StudentHomeNewState extends State<StudentHomeNew> {
       title: 'Support Contacts',
       image: 'https://centerforliving.org/wp-content/uploads/2023/06/nycfl_1155348268.jpg',
       route: 'student-contacts',
-    )
+    ),
+    const _FeatureCardData(
+      title: 'AI Support Chatbot',
+      image: 'https://miro.medium.com/v2/resize:fit:1400/1*UHTIbKJbrqCJpHoqJWa7Ow.png',
+      route: 'student-chatbot',
+    ),
   ];
 
   final List<_FeatureCardData> _connectManage = [
@@ -467,13 +472,10 @@ class _StudentHomeNewState extends State<StudentHomeNew> {
               onPressed: () => Scaffold.of(context).openDrawer(),
             ),
           ),
-          title: Text(
-            "BreatheBetter",
-            style: GoogleFonts.poppins(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: const Color(0xFF3A3A50),
-            ),
+          title: Image.asset(
+            'assets/icon/breathe-better-final-logo.png',
+            height: 36,
+            fit: BoxFit.contain,
           ),
           centerTitle: true,
           actions: [

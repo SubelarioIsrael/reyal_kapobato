@@ -1,13 +1,25 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
+/// Sends a lightweight ping to wake up the Render free-tier server.
+/// Call this early (e.g. on home page init) so the server is warm
+/// by the time the student actually submits a journal entry.
+void warmUpSentimentApi() {
+  // Fire-and-forget: ignore errors, we only care about waking the server
+  http.get(
+    Uri.parse('https://sentiment-app-s691.onrender.com/health'),
+  ).catchError((_) {});
+}
+
 Future<Map<String, dynamic>> analyzeSentiment(String text, {bool useAiEnhancement = true}) async {
   try {
     final url = Uri.parse(useAiEnhancement 
       ? "https://sentiment-app-s691.onrender.com/predict-enhanced"
       : "https://sentiment-app-s691.onrender.com/predict");
 
-    // Add timeout to prevent hanging on cold starts (Render free tier)
+    // 45-second timeout: covers Render free-tier cold boot (~30-60s).
+    // The warm-up ping fired on home page init should have already started
+    // the boot process, so real submissions typically complete well within 45s.
     final response = await http.post(
       url,
       headers: {"Content-Type": "application/json"},
@@ -16,7 +28,7 @@ Future<Map<String, dynamic>> analyzeSentiment(String text, {bool useAiEnhancemen
         if (useAiEnhancement) "use_ai_enhancement": true,
       }),
     ).timeout(
-      const Duration(seconds: 10),
+      const Duration(seconds: 45),
       onTimeout: () {
         print('Sentiment API timeout - using fallback');
         throw TimeoutException('API timeout');
@@ -53,7 +65,13 @@ Map<String, dynamic> _getFallbackSentiment(String text) {
   // Negative keywords
   final negativeKeywords = [
     'sad', 'depressed', 'anxious', 'stressed', 'worried', 'scared', 'afraid',
-    'lonely', 'upset', 'angry', 'frustrated', 'overwhelmed', 'tired', 'exhausted'
+    'lonely', 'upset', 'angry', 'frustrated', 'overwhelmed', 'tired', 'exhausted',
+    'hard', 'drained', 'drain', 'problem', 'problems', 'trouble', 'difficult',
+    'struggle', 'struggling', 'terrible', 'awful', 'horrible', 'miserable',
+    'pain', 'hurt', 'hurting', 'cry', 'crying', 'lost', 'broken', 'heavy',
+    'burden', 'rough', 'tough', 'hell', 'mess', 'dark', 'helpless',
+    'powerless', 'numb', 'empty', 'suffocating', 'trapped', 'stuck',
+    'hopeless', 'worthless', 'devastated', 'heartbroken', 'hate', 'regret',
   ];
   
   // Positive keywords

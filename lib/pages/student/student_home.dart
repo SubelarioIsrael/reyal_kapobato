@@ -189,7 +189,7 @@ class _StudentHomeState extends State<StudentHome> {
   List<Map<String, dynamic>> getWeekDaysWithMood() {
     final today = DateTime.now();
     final startOfWeek = today.subtract(Duration(days: today.weekday % 7));
-    return List.generate(7, (i) {
+    final allDays = List.generate(7, (i) {
       final date = startOfWeek.add(Duration(days: i));
       final entry = weeklyMood.firstWhere(
         (e) =>
@@ -207,6 +207,12 @@ class _StudentHomeState extends State<StudentHome> {
         'emoji': entry['emoji_code'],
       };
     });
+    // Rotate so today is always first
+    final todayIndex = allDays.indexWhere((d) => d['isToday'] == true);
+    if (todayIndex > 0) {
+      return [...allDays.sublist(todayIndex), ...allDays.sublist(0, todayIndex)];
+    }
+    return allDays;
   }
 
   Widget _buildWeeklyMoodBar() {

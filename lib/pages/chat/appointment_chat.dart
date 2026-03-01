@@ -19,7 +19,7 @@ class AppointmentChat extends StatefulWidget {
   State<AppointmentChat> createState() => _AppointmentChatState();
 }
 
-class _AppointmentChatState extends State<AppointmentChat> {
+class _AppointmentChatState extends State<AppointmentChat> with WidgetsBindingObserver {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final SupabaseClient _supabase = Supabase.instance.client;
@@ -33,6 +33,7 @@ class _AppointmentChatState extends State<AppointmentChat> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadMessages();
     _loadOtherUserInfo();
     _setupRealtimeSubscription();
@@ -40,9 +41,22 @@ class _AppointmentChatState extends State<AppointmentChat> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeMetrics() {
+    final bottomInset = WidgetsBinding.instance.platformDispatcher.views.first.viewInsets.bottom;
+    if (bottomInset > 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+        }
+      });
+    }
   }
 
   Future<void> _loadOtherUserInfo() async {

@@ -112,11 +112,20 @@ class StudentBreathingExercisesController with ChangeNotifier {
       if (_animationController != null) {
         _animationController!.duration = Duration(seconds: phase.value as int);
         if (phase.key == 'inhale') {
-          _animationController!.forward(from: 0);
+          // forward(from: x) atomically resets value + starts — never gets stuck
+          _animationController!.forward(from: 0.0);
         } else if (phase.key == 'exhale') {
-          _animationController!.reverse(from: 1);
+          _animationController!.reverse(from: 1.0);
+        } else if (phase.key == 'hold') {
+          // Instant snap to max (fully expanded), then stop
+          _animationController!.animateTo(1.0,
+              duration: const Duration(milliseconds: 100),
+              curve: Curves.linear);
         } else {
-          _animationController!.stop();
+          // hold2 — instant snap to min (fully contracted)
+          _animationController!.animateTo(0.0,
+              duration: const Duration(milliseconds: 100),
+              curve: Curves.linear);
         }
       }
     }
