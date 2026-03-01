@@ -44,13 +44,14 @@ class _CounselorStudentOverviewState extends State<CounselorStudentOverview>
   List<Map<String, dynamic>> _recentQuestionnaires = [];
   List<Map<String, dynamic>> _sessionNotes = [];
   List<Map<String, dynamic>> _emergencyContacts = [];
+  List<Map<String, dynamic>> _riskAlerts = [];
 
   late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 6, vsync: this);
     _loadStudentData();
   }
 
@@ -75,6 +76,7 @@ class _CounselorStudentOverviewState extends State<CounselorStudentOverview>
         _loadQuestionnaireStats(),
         _loadSessionStats(),
         _loadRecentData(),
+        _loadRiskAlerts(),
       ]);
 
       setState(() {
@@ -127,6 +129,21 @@ class _CounselorStudentOverviewState extends State<CounselorStudentOverview>
     } catch (e) {
       print('Error loading emergency contacts: $e');
       _emergencyContacts = [];
+    }
+  }
+
+  Future<void> _loadRiskAlerts() async {
+    try {
+      final result = await Supabase.instance.client
+          .from('risk_alerts')
+          .select()
+          .eq('user_id', widget.userId)
+          .order('trigger_timestamp', ascending: false)
+          .limit(20);
+      _riskAlerts = List<Map<String, dynamic>>.from(result);
+    } catch (e) {
+      print('Error loading risk alerts: $e');
+      _riskAlerts = [];
     }
   }
 
@@ -192,9 +209,11 @@ class _CounselorStudentOverviewState extends State<CounselorStudentOverview>
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         _buildStudentHeader(),
                         _buildStatsCards(),
+                        const SizedBox(height: 4),
                         _buildTabSection(),
                       ],
                     ),
@@ -207,67 +226,152 @@ class _CounselorStudentOverviewState extends State<CounselorStudentOverview>
     if (_studentProfile == null) return const SizedBox.shrink();
 
     final student = _studentProfile!;
-    
-    // Abbreviate course name
     String courseDisplay = student['course'] ?? 'No Course';
-    if (courseDisplay.length > 10) {
-      // Extract abbreviation from course name (e.g., "Bachelor of Science in Information Technology" -> "BSIT")
-      courseDisplay = _abbreviateCourse(courseDisplay);
-    }
-    courseDisplay = '$courseDisplay - ${student['year_level'] ?? 'N/A'}';
+    if (courseDisplay.length > 10) courseDisplay = _abbreviateCourse(courseDisplay);
+    final yearLevel = student['year_level'] ?? 'N/A';
+    final openAlerts = _riskAlerts.where((a) => !(a['is_resolved'] ?? false)).length;
 
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: const Color(0xFF7C83FD).withOpacity(0.15),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         children: [
-          StudentAvatar(
-            userId: widget.userId,
-            radius: 40,
-            fallbackName: widget.studentName,
+          // Gradient accent bar at the top
+          Container(
+            height: 8,
+            decoration: const BoxDecoration(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              gradient: LinearGradient(
+                colors: [Color(0xFF7C83FD), Color(0xFFB39DDB)],
+              ),
+            ),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+            child: Row(
               children: [
-                Text(
-                  widget.studentName,
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF3A3A50),
+                // Avatar with a subtle purple ring
+                Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF7C83FD).withOpacity(0.25),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: StudentAvatar(
+                    userId: widget.userId,
+                    radius: 36,
+                    fallbackName: widget.studentName,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'ID: ${student['student_code'] ?? 'N/A'}',
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    color: const Color(0xFF5D5D72),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  courseDisplay,
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    color: const Color(0xFF5D5D72),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              widget.studentName,
+                              style: GoogleFonts.poppins(
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF3A3A50),
+                                height: 1.2,
+                              ),
+                            ),
+                          ),
+                          if (openAlerts > 0) ...
+                            [
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: Colors.red[50],
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                      color: Colors.red.withOpacity(0.4)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.warning_amber_rounded,
+                                        size: 12, color: Colors.red[700]),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      '$openAlerts Alert${openAlerts > 1 ? 's' : ''}',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.red[700],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          _infoChip(
+                            Icons.badge_outlined,
+                            student['student_code'] ?? 'N/A',
+                          ),
+                          const SizedBox(width: 6),
+                          _infoChip(
+                            Icons.school_outlined,
+                            '$courseDisplay · Y$yearLevel',
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _infoChip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF3F1FF),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: const Color(0xFF7C83FD)),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: GoogleFonts.poppins(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF5D5D72),
             ),
           ),
         ],
@@ -314,104 +418,119 @@ class _CounselorStudentOverviewState extends State<CounselorStudentOverview>
   }
 
   Widget _buildStatsCards() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatCard(
-                  'Journal Entries',
-                  _totalJournalEntries.toString(),
-                  Icons.book,
-                  Colors.blue,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildStatCard(
-                  'Assessments',
-                  _totalQuestionnaires.toString(),
-                  Icons.quiz,
-                  Colors.orange,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildStatCard(
-                  'Sessions',
-                  _totalSessions.toString(),
-                  Icons.psychology,
-                  Colors.purple,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+    final openAlerts =
+        _riskAlerts.where((a) => !(a['is_resolved'] ?? false)).length;
 
-  Widget _buildStatCard(
-      String title, String value, IconData icon, Color color) {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: GoogleFonts.poppins(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: const Color(0xFF3A3A50),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            style: GoogleFonts.poppins(
-              fontSize: 12,
-              color: const Color(0xFF5D5D72),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTabSection() {
-    return Container(
-      margin: const EdgeInsets.all(16),
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withOpacity(0.07),
             blurRadius: 10,
-            offset: const Offset(0, 2),
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: IntrinsicHeight(
+        child: Row(
+          children: [
+            Expanded(
+              child: _buildStatItem(
+                  'Journals', _totalJournalEntries.toString(),
+                  Icons.book_rounded, const Color(0xFF7C83FD)),
+            ),
+            _buildVerticalDivider(),
+            Expanded(
+              child: _buildStatItem(
+                  'Assessments', _totalQuestionnaires.toString(),
+                  Icons.quiz_rounded, Colors.orange),
+            ),
+            _buildVerticalDivider(),
+            Expanded(
+              child: _buildStatItem(
+                  'Sessions', _totalSessions.toString(),
+                  Icons.psychology_rounded, Colors.teal),
+            ),
+            _buildVerticalDivider(),
+            Expanded(
+              child: _buildStatItem(
+                  'Alerts', openAlerts.toString(),
+                  Icons.warning_amber_rounded,
+                  openAlerts > 0 ? Colors.red : Colors.grey,
+                  highlight: openAlerts > 0),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatItem(String label, String value, IconData icon, Color color,
+      {bool highlight = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: color.withOpacity(highlight ? 0.15 : 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 18),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: GoogleFonts.poppins(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: highlight ? color : const Color(0xFF3A3A50),
+            ),
+          ),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(
+              fontSize: 10,
+              color: highlight ? color : const Color(0xFF5D5D72),
+              fontWeight:
+                  highlight ? FontWeight.w600 : FontWeight.normal,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVerticalDivider() {
+    return Container(
+      width: 1,
+      margin: const EdgeInsets.symmetric(vertical: 14),
+      color: Colors.grey.withOpacity(0.2),
+    );
+  }
+
+  Widget _buildTabSection() {
+    final openAlerts =
+        _riskAlerts.where((a) => !(a['is_resolved'] ?? false)).length;
+    final alertColor =
+        openAlerts > 0 ? Colors.red : const Color(0xFF5D5D72);
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.07),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -420,18 +539,62 @@ class _CounselorStudentOverviewState extends State<CounselorStudentOverview>
           TabBar(
             controller: _tabController,
             labelColor: const Color(0xFF7C83FD),
-            unselectedLabelColor: const Color(0xFF5D5D72),
+            unselectedLabelColor: const Color(0xFF9E9EB8),
             indicatorColor: const Color(0xFF7C83FD),
-            tabs: const [
-              Tab(key: const Key('activities_tab'), icon: Icon(Icons.view_timeline)),
-              Tab(key: const Key('journals_tab'), icon: Icon(Icons.book)),
-              Tab(key: const Key('questionnaires_tab'), icon: Icon(Icons.quiz)),
-              Tab(key: const Key('sessions_tab'), icon: Icon(Icons.psychology)),
-              Tab(key: const Key('emergency_contacts_tab'), icon: Icon(Icons.contact_emergency)),
+            indicatorWeight: 2.5,
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            labelPadding:
+                const EdgeInsets.symmetric(horizontal: 14),
+            labelStyle: GoogleFonts.poppins(
+                fontSize: 11, fontWeight: FontWeight.w600),
+            unselectedLabelStyle: GoogleFonts.poppins(
+                fontSize: 11, fontWeight: FontWeight.w400),
+            tabs: [
+              const Tab(
+                key: Key('activities_tab'),
+                icon: Icon(Icons.view_timeline_rounded, size: 18),
+                text: 'Activity',
+              ),
+              const Tab(
+                key: Key('journals_tab'),
+                icon: Icon(Icons.book_rounded, size: 18),
+                text: 'Journal',
+              ),
+              const Tab(
+                key: Key('questionnaires_tab'),
+                icon: Icon(Icons.quiz_rounded, size: 18),
+                text: 'Assessment',
+              ),
+              const Tab(
+                key: Key('sessions_tab'),
+                icon: Icon(Icons.psychology_rounded, size: 18),
+                text: 'Session',
+              ),
+              const Tab(
+                key: Key('emergency_contacts_tab'),
+                icon: Icon(Icons.contact_emergency_rounded, size: 18),
+                text: 'Emergency',
+              ),
+              Tab(
+                key: const Key('risk_alerts_tab'),
+                icon: Icon(Icons.warning_amber_rounded,
+                    size: 18, color: alertColor),
+                child: Text(
+                  openAlerts > 0 ? 'Alerts ($openAlerts)' : 'Alerts',
+                  style: GoogleFonts.poppins(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: alertColor,
+                  ),
+                ),
+              ),
             ],
           ),
-          SizedBox(
-            height: 400,
+          const Divider(height: 1, thickness: 1, color: Color(0xFFEEEEF5)),
+          // Responsive height: at least 420, at most 60% of screen
+          ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 420, maxHeight: 560),
             child: TabBarView(
               controller: _tabController,
               children: [
@@ -440,6 +603,7 @@ class _CounselorStudentOverviewState extends State<CounselorStudentOverview>
                 _buildQuestionnairesTab(),
                 _buildSessionsTab(),
                 _buildEmergencyContactsTab(),
+                _buildRiskAlertsTab(),
               ],
             ),
           ),
@@ -1356,6 +1520,235 @@ class _CounselorStudentOverviewState extends State<CounselorStudentOverview>
     );
   }
 
+  Widget _buildRiskAlertsTab() {
+    final openCount =
+        _riskAlerts.where((a) => !(a['is_resolved'] ?? false)).length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Risk Alerts',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF3A3A50),
+                  ),
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: openCount > 0
+                      ? Colors.red.withOpacity(0.12)
+                      : Colors.green.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  openCount > 0 ? '$openCount open' : 'All clear',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: openCount > 0 ? Colors.red[700] : Colors.green[700],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: _riskAlerts.isEmpty
+              ? _buildEmptyState(
+                  'No risk alerts for this student',
+                  Icons.check_circle_outline,
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: _riskAlerts.length,
+                  itemBuilder: (context, index) {
+                    final alert = _riskAlerts[index];
+                    final isResolved = alert['is_resolved'] ?? false;
+                    final isAcknowledged = alert['is_acknowledged'] ?? false;
+                    final reason =
+                        alert['trigger_reason'] ?? 'No reason provided';
+                    final triggeredAt = alert['trigger_timestamp'];
+
+                    final alertColor = isResolved
+                        ? Colors.grey
+                        : isAcknowledged
+                            ? Colors.orange
+                            : Colors.red;
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: alertColor.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(12),
+                        border:
+                            Border.all(color: alertColor.withOpacity(0.3)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(Icons.warning_amber_rounded,
+                                  color: alertColor, size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  reason,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFF3A3A50),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              _buildStatusChip(
+                                  isResolved, isAcknowledged),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              const Icon(Icons.access_time,
+                                  size: 13,
+                                  color: Color(0xFF7C83FD)),
+                              const SizedBox(width: 4),
+                              Text(
+                                _formatDate(triggeredAt),
+                                style: GoogleFonts.poppins(
+                                    fontSize: 11,
+                                    color: const Color(0xFF7C83FD)),
+                              ),
+                            ],
+                          ),
+                          if (alert['action_notes'] != null &&
+                              (alert['action_notes'] as String)
+                                  .isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              'Note: ${alert['action_notes']}',
+                              style: GoogleFonts.poppins(
+                                  fontSize: 11,
+                                  color: const Color(0xFF5D5D72)),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                          if (!isResolved) ...[
+                            const SizedBox(height: 10),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                if (!isAcknowledged)
+                                  TextButton(
+                                    onPressed: () => _acknowledgeAlert(
+                                        alert['alert_id']),
+                                    style: TextButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 4),
+                                    ),
+                                    child: Text(
+                                      'Acknowledge',
+                                      style: GoogleFonts.poppins(
+                                          fontSize: 12,
+                                          color: Colors.orange[700]),
+                                    ),
+                                  ),
+                                const SizedBox(width: 8),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green[600],
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 6),
+                                    minimumSize: Size.zero,
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  onPressed: () =>
+                                      _resolveAlert(alert['alert_id']),
+                                  child: Text(
+                                    'Mark Resolved',
+                                    style: GoogleFonts.poppins(
+                                        fontSize: 12,
+                                        color: Colors.white),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatusChip(bool isResolved, bool isAcknowledged) {
+    if (isResolved) {
+      return _chip('Resolved', Colors.green);
+    } else if (isAcknowledged) {
+      return _chip('Acknowledged', Colors.orange);
+    }
+    return _chip('Open', Colors.red);
+  }
+
+  Widget _chip(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.poppins(
+            fontSize: 10, fontWeight: FontWeight.w600, color: color),
+      ),
+    );
+  }
+
+  Future<void> _acknowledgeAlert(dynamic alertId) async {
+    try {
+      await Supabase.instance.client.from('risk_alerts').update({
+        'is_acknowledged': true,
+        'handled_by': Supabase.instance.client.auth.currentUser?.id,
+      }).eq('alert_id', alertId);
+      await _loadRiskAlerts();
+      if (mounted) setState(() {});
+    } catch (e) {
+      print('Error acknowledging alert: $e');
+    }
+  }
+
+  Future<void> _resolveAlert(dynamic alertId) async {
+    try {
+      await Supabase.instance.client.from('risk_alerts').update({
+        'is_resolved': true,
+        'is_acknowledged': true,
+        'resolved_timestamp': DateTime.now().toIso8601String(),
+        'handled_by': Supabase.instance.client.auth.currentUser?.id,
+      }).eq('alert_id', alertId);
+      await _loadRiskAlerts();
+      if (mounted) setState(() {});
+    } catch (e) {
+      print('Error resolving alert: $e');
+    }
+  }
+
   Widget _buildEmptyState(String message, IconData icon) {
     return Center(
       child: Column(
@@ -1378,8 +1771,15 @@ class _CounselorStudentOverviewState extends State<CounselorStudentOverview>
   String _formatDate(dynamic dateTime) {
     if (dateTime == null) return 'N/A';
     try {
-      final DateTime date = DateTime.parse(dateTime.toString());
-      return '${date.day}/${date.month}/${date.year}';
+      final DateTime date = DateTime.parse(dateTime.toString()).toLocal();
+      const months = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      ];
+      final month = months[date.month - 1];
+      final hour = date.hour.toString().padLeft(2, '0');
+      final min = date.minute.toString().padLeft(2, '0');
+      return '$month ${date.day}, ${date.year} · $hour:$min';
     } catch (e) {
       return 'Invalid Date';
     }

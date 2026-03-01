@@ -1,5 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-// import 'notification_service.dart';
+import '../utils/department_mapping.dart';
 
 class InterventionService {
   static final supabase = Supabase.instance.client;
@@ -126,25 +126,27 @@ class InterventionService {
     final textLower = (content + ' ' + (insight ?? '')).toLowerCase();
     final matches = _findMatches(textLower);
 
-    // TODO: Fix alerts table enum values - temporarily disabled to prevent error
-    // The alerts table's risk_level enum doesn't accept "moderate"
-    // We need to determine the correct enum values for this table
-    
-    // Temporarily comment out alerts insertion to prevent error
-    /*
-    await supabase.from('alerts').insert({
-      'user_id': userId,
-      'journal_id': journalId,
-      'risk_level': level.name,  
-      'sentiment': sentiment.toLowerCase(),
-      'matched_terms': matches,
-    });
-    */
-    
-    // For now, just log that we would have created an alert
-    print('Would create alert for user $userId with risk level: ${level.name}, matches: $matches');
+    // Try to insert into alerts table; risk_level is a DB enum so we
+    // catch any type mismatch and still fall through to risk_alerts.
+    try {
+      await supabase.from('alerts').insert({
+        'user_id': userId,
+        'journal_id': journalId,
+        'risk_level': level.name,
+        'sentiment': sentiment.toLowerCase(),
+        'matched_terms': matches,
+      });
+    } catch (e) {
+      print('alerts insert skipped (enum mismatch?): $e');
+    }
 
-    // Student notification content
+    // Persist a risk_alert row (plain text — always type-safe)
+    await _writeRiskAlert(
+      userId,
+      'Journal entry flagged — ${matches.isEmpty ? sentiment : matches.join(', ')}',
+    );
+
+    // Student notification
     final String studentTitle = level == InterventionLevel.high
         ? 'We are here for you'
         : 'You are not alone';
@@ -159,6 +161,13 @@ class InterventionService {
       'is_read': false,
       'action_url': '/student/counselors',
     });
+
+    // Notify the student's assigned counselor(s)
+    await _notifyCounselor(
+      userId,
+      'Journal entry — matched terms: ${matches.isEmpty ? sentiment : matches.join(', ')}',
+      level,
+    );
 
     return level;
   }
@@ -295,8 +304,7 @@ We noticed you might be going through a tough time. Remember, it's okay to ask f
       'notification_type': notificationType,
       'content': notificationContent,
       'is_read': false,
-      'action_url': '/student/counselors', // Link to counselor page
-      // 'timestamp' will be set automatically
+      'action_url': '/student/counselors',
     });
 
     // Log the intervention for monitoring
@@ -306,6 +314,12 @@ We noticed you might be going through a tough time. Remember, it's okay to ask f
       'trigger_message': triggerMessage,
       'triggered_at': DateTime.now().toIso8601String(),
     });
+
+    // Persist a risk_alert row so counselors can track it in the dashboard
+    await _writeRiskAlert(userId, triggerMessage);
+
+    // Notify the student's assigned counselor(s)
+    await _notifyCounselor(userId, triggerMessage, level);
   }
 
   /// Checks if user has already received an intervention recently
@@ -333,6 +347,190 @@ We noticed you might be going through a tough time. Remember, it's okay to ask f
     } catch (e) {
       print('Error checking recent interventions: $e');
       return false;
+    }
+  }
+
+  // ─── New risk-detection helpers ──────────────────────────────────────────
+
+  /// Inserts a row into [risk_alerts] (plain-text trigger_reason — no enum).
+  static Future<void> _writeRiskAlert(String userId, String reason) async {
+    try {
+      await supabase.from('risk_alerts').insert({
+        'user_id': userId,
+        'trigger_reason': reason,
+        'is_notified': false,
+        'is_acknowledged': false,
+        'is_resolved': false,
+      });
+    } catch (e) {
+      print('Error writing risk_alert: $e');
+    }
+  }
+
+  /// Routes a counselor notification using a 3-tier priority:
+  ///
+  /// Tier 1 — Student has a past/current appointment:
+  ///   → Notify only that specific counselor.
+  ///
+  /// Tier 2 — No appointment yet, but student has a known department:
+  ///   → Notify all counselors whose [department_assigned] matches the
+  ///     student's department (derived via [DepartmentMapping]).
+  ///
+  /// Tier 3 — No appointment AND department cannot be resolved:
+  ///   → Notify ALL counselors (last-resort broadcast).
+  static Future<void> _notifyCounselor(
+    String userId,
+    String triggerReason,
+    InterventionLevel level,
+  ) async {
+    try {
+      // ── Fetch student profile (name + education info) ──────────────────
+      final student = await supabase
+          .from('students')
+          .select('first_name, last_name, education_level, course, strand')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+      final studentName = student != null
+          ? '${student['first_name'] ?? ''} ${student['last_name'] ?? ''}'.trim()
+          : 'A student';
+
+      // ── Tier 1: appointment-based counselor ────────────────────────────
+      List<String> counselorUserIds = [];
+
+      final appointments = await supabase
+          .from('counseling_appointments')
+          .select('counselors(user_id)')
+          .eq('user_id', userId)
+          .order('appointment_date', ascending: false)
+          .limit(1);
+
+      if (appointments.isNotEmpty) {
+        final c = appointments.first['counselors'] as Map<String, dynamic>?;
+        if (c?['user_id'] != null) {
+          counselorUserIds.add(c!['user_id'] as String);
+        }
+      }
+
+      // ── Tier 2: department-matched counselors ──────────────────────────
+      if (counselorUserIds.isEmpty && student != null) {
+        final dept = DepartmentMapping.getStudentDepartment(
+          educationLevel: student['education_level'] as String?,
+          course: student['course'] as String?,
+          strand: student['strand'] as String?,
+        );
+
+        if (dept != null) {
+          final deptCounselors = await supabase
+              .from('counselors')
+              .select('user_id')
+              .eq('department_assigned', dept);
+
+          counselorUserIds =
+              deptCounselors.map<String>((c) => c['user_id'] as String).toList();
+        }
+      }
+
+      // ── Tier 3: broadcast to all counselors ────────────────────────────
+      if (counselorUserIds.isEmpty) {
+        final all = await supabase.from('counselors').select('user_id');
+        counselorUserIds =
+            all.map<String>((c) => c['user_id'] as String).toList();
+      }
+
+      if (counselorUserIds.isEmpty) return;
+
+      // ── Build notification content ─────────────────────────────────────
+      final notifType = level == InterventionLevel.high
+          ? '⚠️ Student At Risk — Immediate Attention'
+          : 'Student May Need Support';
+      final content = level == InterventionLevel.high
+          ? '$studentName has triggered a HIGH-RISK alert. Trigger: $triggerReason. Immediate follow-up is recommended.'
+          : '$studentName may need support. Trigger: $triggerReason. Please consider reaching out.';
+
+      for (final counselorUserId in counselorUserIds) {
+        await supabase.from('user_notifications').insert({
+          'user_id': counselorUserId,
+          'notification_type': notifType,
+          'content': content,
+          'is_read': false,
+          'action_url': '/counselor/students',
+        });
+      }
+    } catch (e) {
+      print('Error notifying counselor: $e');
+    }
+  }
+
+  /// Detects consecutive low-mood days.
+  /// Returns [InterventionLevel.high] for 3+ days, [moderate] for 2 days.
+  static Future<InterventionLevel> analyzeConsecutiveMoods(
+      String userId) async {
+    try {
+      final entries = await supabase
+          .from('mood_entries')
+          .select('mood_type, entry_date')
+          .eq('user_id', userId)
+          .order('entry_date', ascending: false)
+          .limit(7);
+
+      if (entries.length < 2) return InterventionLevel.none;
+
+      const lowMoods = ['angry', 'sad'];
+      int consecutiveLow = 0;
+      for (final entry in entries) {
+        final moodType = (entry['mood_type'] as String).toLowerCase();
+        if (lowMoods.contains(moodType)) {
+          consecutiveLow++;
+          if (consecutiveLow >= 3) return InterventionLevel.high;
+        } else {
+          break;
+        }
+      }
+      return consecutiveLow >= 2
+          ? InterventionLevel.moderate
+          : InterventionLevel.none;
+    } catch (e) {
+      print('Error analyzing consecutive moods: $e');
+      return InterventionLevel.none;
+    }
+  }
+
+  /// Detects sudden disengagement: was active in days 8-14 but has had
+  /// zero activity completions in the last 7 days.
+  static Future<InterventionLevel> analyzeAppEngagement(
+      String userId) async {
+    try {
+      final twoWeeksAgo =
+          DateTime.now().subtract(const Duration(days: 14)).toIso8601String();
+      final oneWeekAgo =
+          DateTime.now().subtract(const Duration(days: 7)).toIso8601String();
+
+      final entries = await supabase
+          .from('activity_completions')
+          .select('completed_at')
+          .eq('user_id', userId)
+          .gte('completed_at', twoWeeksAgo)
+          .order('completed_at', ascending: false);
+
+      if (entries.isEmpty) return InterventionLevel.none;
+
+      final hadActivityBefore = entries.any((e) {
+        final d = DateTime.tryParse(e['completed_at'] ?? '');
+        return d != null && d.isBefore(DateTime.parse(oneWeekAgo));
+      });
+      final hasRecentActivity = entries.any((e) {
+        final d = DateTime.tryParse(e['completed_at'] ?? '');
+        return d != null && d.isAfter(DateTime.parse(oneWeekAgo));
+      });
+
+      if (hadActivityBefore && !hasRecentActivity) {
+        return InterventionLevel.moderate;
+      }
+      return InterventionLevel.none;
+    } catch (e) {
+      print('Error analyzing app engagement: $e');
+      return InterventionLevel.none;
     }
   }
 }

@@ -5,6 +5,7 @@ import 'dart:async';
 import '../../components/student_drawer.dart';
 import '../../components/student_notification_button.dart';
 import '../../services/activity_service.dart';
+import '../../services/intervention_service.dart';
 
 class StudentDailyCheckInPage extends StatefulWidget {
   const StudentDailyCheckInPage({Key? key}) : super(key: key);
@@ -50,6 +51,16 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
   Future<void> _fetchTodayCheckIn() async {
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null) return;
+
+    // Background: check for app disengagement (was active before but silent this week)
+    InterventionService.analyzeAppEngagement(userId).then((engLevel) {
+      if (engLevel != InterventionLevel.none) {
+        InterventionService.triggerIntervention(
+          engLevel,
+          'Student disengagement detected: no app activity in the past 7 days',
+        );
+      }
+    });
 
     final today = DateTime.now();
     // Get the start and end of today in the local timezone
@@ -145,6 +156,16 @@ class _StudentDailyCheckInPageState extends State<StudentDailyCheckInPage> {
         'emoji_code': emojiCode,
         'reasons': finalReasons,
         'notes': noteController.text,
+      });
+
+      // Background: detect consecutive low-mood pattern and trigger intervention
+      InterventionService.analyzeConsecutiveMoods(user.id).then((moodLevel) {
+        if (moodLevel != InterventionLevel.none) {
+          InterventionService.triggerIntervention(
+            moodLevel,
+            'Consecutive ${moodLevel == InterventionLevel.high ? '3+' : '2'} days of low mood detected',
+          );
+        }
       });
 
       // Record activity completion

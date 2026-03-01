@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../components/student_drawer.dart';
 import '../../components/student_notification_button.dart';
 import '../../services/api/sentiment_app.dart';
+import '../../services/intervention_service.dart';
 
 class QuestionnaireSummary extends StatefulWidget {
   final int responseId;
@@ -24,6 +25,7 @@ class _QuestionnaireSummaryState extends State<QuestionnaireSummary> {
   bool isLoading = true;
   Map<String, dynamic>? summaryData;
   Map<String, dynamic>? breathingExercise;
+  bool _isNewSummary = false; // true only when this session created the summary
 
   @override
   void initState() {
@@ -42,6 +44,16 @@ class _QuestionnaireSummaryState extends State<QuestionnaireSummary> {
         summaryData = summary;
         isLoading = false;
       });
+
+      // Trigger risk intervention for newly created severe/critical results
+      if (_isNewSummary &&
+          (summary['severity_level'] == 'severe' ||
+              summary['severity_level'] == 'critical')) {
+        InterventionService.triggerIntervention(
+          InterventionLevel.high,
+          'Bi-weekly assessment: ${summary['severity_level']} severity (score ${widget.totalScore})',
+        );
+      }
 
       // Load breathing exercise details
       if (summary['breathing_exercise_id'] != null) {
@@ -90,6 +102,7 @@ class _QuestionnaireSummaryState extends State<QuestionnaireSummary> {
         .select()
         .single();
 
+    _isNewSummary = true; // mark so _loadSummary can fire the intervention
     return newSummary;
   }
 
