@@ -4,6 +4,7 @@ import 'package:breathe_better/controllers/admin_controller.dart';
 import 'package:breathe_better/components/admin_drawer.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:flutter/services.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
 import 'package:path_provider/path_provider.dart';
@@ -757,25 +758,29 @@ class _AdminHomeState extends State<AdminHome> {
           .limit(15);
       final counselingSessions = List<Map<String, dynamic>>.from(counselingSessionsResponse);
 
+      // Load logo
+      final logoBytes = (await rootBundle.load('assets/icon/bblogotrans.png')).buffer.asUint8List();
+      final logoImage = pw.MemoryImage(logoBytes);
+
       final pdf = pw.Document();
       final reportRef = 'BB-ADM-${DateTime.now().year}${DateTime.now().month.toString().padLeft(2, '0')}${DateTime.now().day.toString().padLeft(2, '0')}-${DateTime.now().millisecondsSinceEpoch % 100000}';
       final generatedOn = DateTime.now();
       final formattedGenDate =
           '${generatedOn.day.toString().padLeft(2, '0')} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][generatedOn.month - 1]} ${generatedOn.year}  ${generatedOn.hour.toString().padLeft(2, '0')}:${generatedOn.minute.toString().padLeft(2, '0')}';
 
-      // ── colour palette ──────────────────────────────────────────────────────
-      const headerBg      = PdfColor.fromInt(0xFF1A237E); // deep indigo
-      const accentBlue    = PdfColor.fromInt(0xFF1565C0);
-      const accentGreen   = PdfColor.fromInt(0xFF2E7D32);
-      const accentOrange  = PdfColor.fromInt(0xFFE65100);
-      const accentPurple  = PdfColor.fromInt(0xFF6A1B9A);
-      const tableHeader   = PdfColor.fromInt(0xFF3949AB);
-      const rowAlt        = PdfColor.fromInt(0xFFF3F4FF);
-      const borderGrey    = PdfColor.fromInt(0xFFCFD8DC);
-      const textDark      = PdfColor.fromInt(0xFF1A1A2E);
-      const textMid       = PdfColor.fromInt(0xFF424242);
-      const textLight     = PdfColor.fromInt(0xFF757575);
-      const white         = PdfColors.white;
+      // ── colour palette (matches app brand) ─────────────────────────────────
+      const headerBg    = PdfColor.fromInt(0xFF1A237E); // deep indigo (app gradient start)
+      const brandPurple = PdfColor.fromInt(0xFF7C83FD); // app primary purple
+      const accentGreen = PdfColor.fromInt(0xFF2E7D32);
+      const accentOrange = PdfColor.fromInt(0xFFE65100);
+      const accentTeal  = PdfColor.fromInt(0xFF00838F);
+      const tableHeader = PdfColor.fromInt(0xFF7C83FD); // brand purple for tables
+      const rowAlt      = PdfColor.fromInt(0xFFF0EFFF); // very light brand purple tint
+      const borderGrey  = PdfColor.fromInt(0xFFCFD8DC);
+      const textDark    = PdfColor.fromInt(0xFF1A1A2E);
+      const textMid     = PdfColor.fromInt(0xFF424242);
+      const textLight   = PdfColor.fromInt(0xFF757575);
+      const white       = PdfColors.white;
 
       // ── helper: section title bar ───────────────────────────────────────────
       pw.Widget sectionTitle(String title, PdfColor accent) {
@@ -842,7 +847,6 @@ class _AdminHomeState extends State<AdminHome> {
           margin: const pw.EdgeInsets.symmetric(horizontal: 40, vertical: 36),
           header: (pw.Context ctx) {
             if (ctx.pageNumber == 1) return pw.SizedBox();
-            // continuation header on subsequent pages
             return pw.Container(
               margin: const pw.EdgeInsets.only(bottom: 16),
               padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -853,8 +857,14 @@ class _AdminHomeState extends State<AdminHome> {
               child: pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('BREATHE BETTER — Admin Analytics Report',
-                      style: pw.TextStyle(fontSize: 9, color: white, fontWeight: pw.FontWeight.bold)),
+                  pw.Row(
+                    children: [
+                      pw.Image(logoImage, width: 18, height: 18),
+                      pw.SizedBox(width: 8),
+                      pw.Text('BreatheBetter — Admin Analytics Report',
+                          style: pw.TextStyle(fontSize: 9, color: white, fontWeight: pw.FontWeight.bold)),
+                    ],
+                  ),
                   pw.Text('Ref: $reportRef  |  Page ${ctx.pageNumber}',
                       style: pw.TextStyle(fontSize: 9, color: PdfColors.indigo100)),
                 ],
@@ -870,9 +880,9 @@ class _AdminHomeState extends State<AdminHome> {
             child: pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
-                pw.Text('CONFIDENTIAL — FOR AUTHORISED PERSONNEL ONLY',
+                pw.Text('Confidential — For Authorised Personnel Only',
                     style: pw.TextStyle(fontSize: 7.5, color: textLight, letterSpacing: 0.3)),
-                pw.Text('© ${generatedOn.year} Breathe Better  |  Page ${ctx.pageNumber} of ${ctx.pagesCount}',
+                pw.Text('© ${generatedOn.year} BreatheBetter  |  Page ${ctx.pageNumber} of ${ctx.pagesCount}',
                     style: pw.TextStyle(fontSize: 7.5, color: textLight)),
               ],
             ),
@@ -892,17 +902,37 @@ class _AdminHomeState extends State<AdminHome> {
                   children: [
                     pw.Row(
                       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      crossAxisAlignment: pw.CrossAxisAlignment.center,
                       children: [
-                        pw.Column(
-                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        pw.Row(
+                          crossAxisAlignment: pw.CrossAxisAlignment.center,
                           children: [
-                            pw.Text('BREATHE BETTER',
-                                style: pw.TextStyle(
-                                    fontSize: 26, fontWeight: pw.FontWeight.bold, color: white, letterSpacing: 2)),
-                            pw.SizedBox(height: 6),
-                            pw.Text('Admin Analytics Report',
-                                style: pw.TextStyle(fontSize: 15, color: PdfColors.indigo100, letterSpacing: 0.5)),
+                            pw.Image(logoImage, width: 56, height: 56),
+                            pw.SizedBox(width: 16),
+                            pw.Column(
+                              crossAxisAlignment: pw.CrossAxisAlignment.start,
+                              children: [
+                                pw.RichText(
+                                  text: pw.TextSpan(
+                                    children: [
+                                      pw.TextSpan(
+                                        text: 'Breathe',
+                                        style: pw.TextStyle(
+                                            fontSize: 26, fontWeight: pw.FontWeight.bold, color: white),
+                                      ),
+                                      pw.TextSpan(
+                                        text: 'Better',
+                                        style: pw.TextStyle(
+                                            fontSize: 26, fontWeight: pw.FontWeight.bold, color: brandPurple),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                pw.SizedBox(height: 6),
+                                pw.Text('Admin Analytics Report',
+                                    style: pw.TextStyle(fontSize: 15, color: PdfColors.indigo100, letterSpacing: 0.5)),
+                              ],
+                            ),
                           ],
                         ),
                         pw.Container(
@@ -938,16 +968,16 @@ class _AdminHomeState extends State<AdminHome> {
               pw.SizedBox(height: 24),
 
               // ── SYSTEM OVERVIEW ───────────────────────────────────────────────
-              sectionTitle('System Overview', accentBlue),
+              sectionTitle('System Overview', brandPurple),
               pw.Row(
                 children: [
-                  pw.Expanded(child: _buildPdfStatCard('Total Users', totalUsers.toString(), accentBlue)),
+                  pw.Expanded(child: _buildPdfStatCard('Total Users', totalUsers.toString(), brandPurple)),
                   pw.SizedBox(width: 14),
                   pw.Expanded(child: _buildPdfStatCard('Active Users (30 days)', activeUsers.toString(), accentGreen)),
                   pw.SizedBox(width: 14),
                   pw.Expanded(child: _buildPdfStatCard('Completed Sessions', completedSessions.toString(), accentOrange)),
                   pw.SizedBox(width: 14),
-                  pw.Expanded(child: _buildPdfStatCard('New Registrations (30 days)', recentRegistrations.length.toString(), accentPurple)),
+                  pw.Expanded(child: _buildPdfStatCard('New Registrations (30 days)', recentRegistrations.length.toString(), accentTeal)),
                 ],
               ),
 
@@ -955,7 +985,7 @@ class _AdminHomeState extends State<AdminHome> {
 
               // ── RECENT REGISTRATIONS ──────────────────────────────────────────
               if (recentRegistrations.isNotEmpty) ...[
-                sectionTitle('Recent User Registrations  (last 30 days)', accentGreen),
+                sectionTitle('Recent User Registrations  (last 30 days)', brandPurple),
                 pw.ClipRect(
                   child: pw.Container(
                     decoration: pw.BoxDecoration(
@@ -985,7 +1015,7 @@ class _AdminHomeState extends State<AdminHome> {
 
               // ── RECENT USER ACTIVITIES ────────────────────────────────────────
               if (recentActivities.isNotEmpty) ...[
-                sectionTitle('Recent User Activities', accentBlue),
+                sectionTitle('Recent User Activities', brandPurple),
                 pw.ClipRect(
                   child: pw.Container(
                     decoration: pw.BoxDecoration(
@@ -1028,7 +1058,7 @@ class _AdminHomeState extends State<AdminHome> {
 
               // ── COUNSELING SESSIONS ───────────────────────────────────────────
               if (counselingSessions.isNotEmpty) ...[
-                sectionTitle('Recent Counseling Sessions', accentPurple),
+                sectionTitle('Recent Counseling Sessions', brandPurple),
                 pw.ClipRect(
                   child: pw.Container(
                     decoration: pw.BoxDecoration(
@@ -1062,7 +1092,7 @@ class _AdminHomeState extends State<AdminHome> {
               ],
 
               // ── REPORT METADATA ───────────────────────────────────────────────
-              sectionTitle('Report Details', textDark),
+              sectionTitle('Report Details', brandPurple),
               pw.Container(
                 padding: const pw.EdgeInsets.all(16),
                 decoration: pw.BoxDecoration(
@@ -1095,7 +1125,7 @@ class _AdminHomeState extends State<AdminHome> {
                   color: PdfColor.fromInt(0xFFFFF8E1),
                 ),
                 child: pw.Text(
-                  'This report is generated automatically by the Breathe Better platform and is '
+                  'This report is generated automatically by the BreatheBetter platform and is '
                   'intended solely for authorised administrative personnel. The data contained herein '
                   'is confidential and must not be disclosed to unauthorised parties.',
                   style: pw.TextStyle(fontSize: 9, color: textMid, lineSpacing: 3),
