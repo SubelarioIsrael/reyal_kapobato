@@ -762,10 +762,10 @@ class _SignUpPageState extends State<SignUpPage> {
               children: [
                 const SizedBox(height: 40),
                 // Logo icons.spa
-                Icon(
-                  Icons.spa,
-                  size: 80,
-                  color: const Color(0xFF7C83FD).withOpacity(0.8),
+                Image.asset(
+                  'assets/icon/breathe-better-logo-fixed-1.png',
+                  height: 110,
+                  fit: BoxFit.contain,
                 ),
                 const SizedBox(height: 20),
                 // Title
