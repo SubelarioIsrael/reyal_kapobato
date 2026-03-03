@@ -294,7 +294,7 @@ CREATE TABLE public.video_calls (
   student_user_id uuid,
   created_by character varying NOT NULL CHECK (created_by::text = ANY (ARRAY['counselor'::character varying, 'student'::character varying]::text[])),
   status character varying NOT NULL DEFAULT 'active'::character varying CHECK (status::text = ANY (ARRAY['active'::character varying, 'ended'::character varying, 'expired'::character varying]::text[])),
-  created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+  created_at timestamp with tim qe zone DEFAULT CURRENT_TIMESTAMP,
   counselor_joined_at timestamp with time zone,
   student_joined_at timestamp with time zone,
   ended_at timestamp with time zone,

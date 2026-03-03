@@ -138,7 +138,8 @@ class StudentHomeController {
       // Convert to UTC+8 (Asia/Manila timezone)
       final today = DateTime.now().toUtc().add(const Duration(hours: 8));
       final startOfWeek = today.subtract(Duration(days: today.weekday % 7));
-      final endOfWeek = startOfWeek.add(const Duration(days: 6));
+      // Fetch 8 days (Sun–next Sun) so Saturday can display next week's Sunday
+      final endOfWeek = startOfWeek.add(const Duration(days: 7));
       final response = await Supabase.instance.client
           .from('mood_entries')
           .select()
@@ -156,8 +157,12 @@ class StudentHomeController {
   List<Map<String, dynamic>> getWeekDaysWithMood() {
     // Convert to UTC+8 (Asia/Manila timezone)
     final today = DateTime.now().toUtc().add(const Duration(hours: 8));
-    final startOfWeek = today.subtract(Duration(days: today.weekday % 7));
-    final allDays = List.generate(7, (i) {
+    // dayOfWeek: 0=Sun, 1=Mon, ..., 6=Sat
+    final dayOfWeek = today.weekday % 7;
+    final startOfWeek = today.subtract(Duration(days: dayOfWeek));
+
+    // Generate 8 days (Sun through next Sun) so Saturday can show next week's Sunday
+    final allDays = List.generate(8, (i) {
       final date = startOfWeek.add(Duration(days: i));
       final dateString = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
       final entry = weeklyMood.value.firstWhere(
@@ -176,12 +181,15 @@ class StudentHomeController {
         'emoji': entry['emoji_code'],
       };
     });
-    // Rotate so today is always first
-    final todayIndex = allDays.indexWhere((d) => d['isToday'] == true);
-    if (todayIndex > 0) {
-      return [...allDays.sublist(todayIndex), ...allDays.sublist(0, todayIndex)];
-    }
-    return allDays;
+
+    // Sliding window of 5 days.
+    // Today stays at position min(dayOfWeek, 3) — window starts sliding on Thursday.
+    // Sun–Wed: show Sun..Thu (today at positions 0–3)
+    // Thu:     show Mon..Fri (today at position 3)
+    // Fri:     show Tue..Sat (today at position 3)
+    // Sat:     show Wed..next-Sun (today at position 3)
+    final windowStart = (dayOfWeek - 3).clamp(0, 3);
+    return allDays.sublist(windowStart, windowStart + 5);
   }
 
   Future<void> loadTodayProgress() async {

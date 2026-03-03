@@ -54,8 +54,6 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises> {
 
   void _startExercise(Map<String, dynamic> exercise) {
     _controller.stopExercise();
-    _controller.remainingSeconds.value = exercise['duration'];
-    _controller.isExerciseActive.value = true;
 
     final Color cardColor = exercise['color'] as Color;
     final pattern = exercise['pattern'] as Map<String, dynamic>;
@@ -64,6 +62,7 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises> {
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
@@ -215,6 +214,8 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises> {
                           ),
                           onPressed: () {
                             Navigator.pop(context);
+                            _controller.remainingSeconds.value = exercise['duration'];
+                            _controller.isExerciseActive.value = true;
                             _controller.runBreathingPattern(exercise['pattern']);
                           },
                           child: Text(

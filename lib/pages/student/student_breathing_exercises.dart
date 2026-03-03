@@ -106,14 +106,10 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises>
     // Reset all states before starting new exercise
     _stopExercise();
 
-    setState(() {
-      _remainingSeconds = exercise['duration'];
-      _isExerciseActive = true;
-    });
-
     showDialog(
       // Keep the dialog before starting the exercise view
       context: context,
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: Text(
           'Start ${exercise['name']}?',
@@ -142,6 +138,10 @@ class _StudentBreathingExercisesState extends State<StudentBreathingExercises>
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
+              setState(() {
+                _remainingSeconds = exercise['duration'];
+                _isExerciseActive = true;
+              });
               _runBreathingPattern(
                   exercise['pattern']); // Start pattern after dialog
             },
